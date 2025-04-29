@@ -15,7 +15,7 @@
  * and exposes control functionalities (takeoff, land, setpoint setting) via ROS 2 services.
  * It also handles parameter loading for drone-specific configuration.
  */
-class DroneNode : public rclcpp::Node {
+class DroneNode : public rclcpp::Node, public std::enable_shared_from_this<DroneNode> {
 public:
     /**
      * @brief Construct a new Drone Node object.
@@ -34,7 +34,7 @@ public:
     /**
      * @brief Destroy the Drone Node object.
      */
-    virtual ~DroneNode() = default;
+    virtual ~DroneNode() override;
 
     /**
      * @brief Get a shared pointer to the underlying DroneController.
@@ -42,6 +42,11 @@ public:
      * @warning Returns nullptr if init() has not been successfully called.
      */
     std::shared_ptr<DroneController> get_controller() { return drone_controller_; }
+
+    /**
+     * @brief Stops the node's components, particularly the controller's thread.
+     */
+    void stop();
 
 private:
     // Core controller for this specific drone

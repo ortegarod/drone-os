@@ -30,24 +30,7 @@ int main(int argc, char* argv[]) {
         rclcpp::shutdown();
         return 1; // Indicate failure
     }
-
-    // --- TEST: Manually Load a Mission (for Step 1) ---
-    auto controller = drone_node->get_controller();
-    if (controller) {
-        std::vector<Waypoint> mission = {
-            // x,    y,    z,    yaw,  acceptance_radius (use NAN for default)
-            { 5.0f,  0.0f, -5.0f, NAN,  NAN},
-            { 5.0f,  5.0f, -5.0f, NAN,  1.0f},
-            { 0.0f,  5.0f, -5.0f, NAN,  NAN},
-            { 0.0f,  0.0f, -5.0f, NAN,  NAN}
-        };
-        RCLCPP_INFO(drone_node->get_logger(), "Loading hardcoded test mission...");
-        controller->load_mission(mission);
-    } else {
-        RCLCPP_ERROR(drone_node->get_logger(), "Failed to get controller pointer for mission loading!");
-    }
-    // --- END TEST ---
-
+    
     // 4. Spin the node
     //    Keeps the node alive to process service calls, subscriptions, etc.
     rclcpp::spin(drone_node); // Use renamed instance

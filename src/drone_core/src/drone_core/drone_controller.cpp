@@ -80,14 +80,8 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_position_mode_service_->get_service_name());
 
     // TODO: Create other services (RTL, SetBehavior) later
-    // Add RTL Service
-    return_to_launch_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "~/return_to_launch",
-        std::bind(&DroneController::return_to_launch_callback, this, _1, _2, _3));
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), return_to_launch_service_->get_service_name());
 }
 
-// ---- NEW DESTRUCTOR ----
 DroneController::~DroneController()
 {
     if (running_) {
@@ -217,20 +211,6 @@ void DroneController::set_altitude_mode() {
     set_mode(Px4CustomMode::ALTCTL);
 }
 
-
-/**
- * @brief Sets the drone to loiter mode
- * 
- * Sends a command to switch the drone to loiter mode.
- * The result is handled asynchronously through a callback.
- */
-void DroneController::set_loiter_mode() {
-    // TODO: Implement correctly. Loiter is an Auto sub-mode. 
-    // Need to set main mode to AUTO and specify LOITER sub-mode, or use VEHICLE_CMD_NAV_LOITER_UNLIM.
-    // set_mode(Px4CustomMode::LOITER); // <-- This was incorrect as LOITER is not a main mode
-    RCLCPP_WARN(node_->get_logger(), "[%s][Controller] set_loiter_mode() is not implemented correctly yet.", name_.c_str());
-}
-
 /**
  * @brief Sets the drone to position control mode
  * 
@@ -297,10 +277,6 @@ void DroneController::run()
     RCLCPP_INFO(node_->get_logger(), "%s controller run loop started.", name_.c_str());
     while(running_.load()) {
         process_command_queue();
-        
-        // --- Mission Processing Logic --- (NEW)
-        process_mission_step();
-        // --- End Mission Processing ---
 
         // TODO: Add periodic status checks or other background tasks
         
@@ -338,139 +314,16 @@ void DroneController::process_command_queue() {
             case CommandType::SET_VELOCITY:
                 set_velocity(cmd.x, cmd.y, cmd.z, cmd.yaw); // Assuming yaw maps to yaw_rate here
                 break;
-            case CommandType::SET_LOITER_MODE:
-                set_loiter_mode();
-                break;
-             case CommandType::SET_POSITION_MODE:
+            case CommandType::SET_POSITION_MODE:
                 set_position_mode();
                 break;
              case CommandType::SET_ALTITUDE_MODE:
                 set_altitude_mode();
                 break;
-            case CommandType::RETURN_TO_LAUNCH: // Added case for RTL
-                return_to_launch();
-                break;
             // TODO: Add cases for other commands
         }
     }
 }
-
-// --- Mission Method Implementations --- (NEW)
-
-void DroneController::load_mission(const std::vector<Waypoint>& waypoints) {
-    std::lock_guard<std::mutex> lock(mission_mutex_);
-    mission_waypoints_ = waypoints;
-    current_waypoint_index_ = 0;
-    mission_active_.store(false); // Deactivate any previous mission
-
-    if (mission_waypoints_.empty()) {
-        RCLCPP_INFO(node_->get_logger(), "%s Cleared mission.", name_.c_str());
-    } else {
-        RCLCPP_INFO(node_->get_logger(), "%s Loaded mission with %zu waypoints.", name_.c_str(), mission_waypoints_.size());
-    }
-}
-
-void DroneController::process_mission_step() {
-    // Check if mission should become active (needs a loaded mission and drone ready)
-    if (!mission_active_.load()) {
-        std::lock_guard<std::mutex> lock(mission_mutex_); // Need lock to check mission_waypoints_
-        if (!mission_waypoints_.empty() && is_ready()) {
-            mission_active_.store(true);
-            current_waypoint_index_ = 0; // Ensure we start from the beginning
-            RCLCPP_INFO(node_->get_logger(), "%s Mission started! Heading to waypoint %zu.", name_.c_str(), current_waypoint_index_);
-        }
-    } else { // Mission is already active
-        // Ensure drone is still ready (e.g., didn't fall out of offboard)
-        if (!is_ready()) {
-            RCLCPP_WARN(node_->get_logger(), "%s No longer ready, pausing mission.", name_.c_str());
-            mission_active_.store(false); // Pause mission if not ready
-            return;
-        }
-
-        std::lock_guard<std::mutex> lock(mission_mutex_); // Lock for accessing mission data
-        if (current_waypoint_index_ >= mission_waypoints_.size()) {
-             RCLCPP_INFO(node_->get_logger(), "%s Mission already complete.", name_.c_str());
-             mission_active_.store(false); // Ensure it's marked inactive
-             return; // Already completed
-        }
-
-        // Get current target waypoint
-        const auto& target_wp = mission_waypoints_[current_waypoint_index_];
-
-        // Check if waypoint requires a valid position
-        if (target_wp.has_position()) { 
-            // Send position setpoint for the current waypoint
-            // Use default yaw if waypoint yaw is NAN
-            float target_yaw = std::isnan(target_wp.yaw) ? drone_state_->get_latest_local_yaw() : target_wp.yaw;
-            set_position(target_wp.x, target_wp.y, target_wp.z, target_yaw);
-
-            // Check if we've reached it
-            if (check_waypoint_reached()) { 
-                // If reached, check_waypoint_reached already advanced the index or completed the mission
-                // If the mission just completed, the flag is now false, and we exit the active block next loop.
-                if (mission_active_.load()) { 
-                     RCLCPP_INFO(node_->get_logger(), "%s Reached waypoint %zu. Moving to next.", name_.c_str(), current_waypoint_index_ -1); 
-                     // Log moving to the *new* current index
-                     if (current_waypoint_index_ < mission_waypoints_.size()) {
-                        RCLCPP_INFO(node_->get_logger(), "%s Heading to waypoint %zu.", name_.c_str(), current_waypoint_index_);
-                     }
-                }
-            }
-        } else {
-             RCLCPP_WARN(node_->get_logger(), "%s Waypoint %zu has invalid position, skipping.", name_.c_str(), current_waypoint_index_);
-             // Advance to the next waypoint
-             current_waypoint_index_++;
-             if (current_waypoint_index_ >= mission_waypoints_.size()) {
-                 RCLCPP_INFO(node_->get_logger(), "%s Mission complete (skipped last invalid waypoint).", name_.c_str());
-                 mission_active_.store(false);
-             }
-        }
-    }
-}
-
-bool DroneController::check_waypoint_reached() {
-    // Assumes mission_mutex_ is already locked by caller (process_mission_step)
-    if (current_waypoint_index_ >= mission_waypoints_.size()) {
-        return false; // Mission already finished
-    }
-
-    const auto& target_wp = mission_waypoints_[current_waypoint_index_];
-    float curr_x, curr_y, curr_z;
-
-    if (!drone_state_->get_latest_local_position(curr_x, curr_y, curr_z)) {
-        RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000,
-                               "%s Cannot check waypoint, invalid local position.", name_.c_str());
-        return false; // Cannot check distance without valid position
-    }
-
-    float dx = target_wp.x - curr_x;
-    float dy = target_wp.y - curr_y;
-    // float dz = target_wp.z - curr_z; // Use 3D distance if needed
-    float dist_sq = dx * dx + dy * dy; // Using 2D distance for now
-
-    float acceptance_radius = default_acceptance_radius_;
-    if (!std::isnan(target_wp.acceptance_radius) && target_wp.acceptance_radius > 0.0f) {
-        acceptance_radius = target_wp.acceptance_radius;
-    }
-
-    if (dist_sq < acceptance_radius * acceptance_radius) {
-        // Waypoint reached
-        current_waypoint_index_++;
-
-        if (current_waypoint_index_ >= mission_waypoints_.size()) {
-            // Reached the last waypoint
-            RCLCPP_INFO(node_->get_logger(), "%s Mission complete! Reached final waypoint.", name_.c_str());
-            mission_active_.store(false);
-            // Optional: Command loiter or land here?
-            // set_loiter_mode(); 
-        }
-        return true; // Waypoint reached
-    }
-
-    return false; // Waypoint not reached
-}
-
-// --- End Mission Method Implementations ---
 
 // --- Private Helper Methods ---
 
@@ -512,12 +365,6 @@ void DroneController::set_mode(Px4CustomMode mode) {
 
 // --- Synchronous Versions ---
 
-bool DroneController::set_loiter_mode_sync(std::chrono::milliseconds timeout_ms) {
-    // TODO: Implement correctly. Loiter is an Auto sub-mode. See non-sync version notes.
-    // return set_mode_sync(Px4CustomMode::LOITER, timeout_ms); // <-- This was incorrect
-    RCLCPP_WARN(node_->get_logger(), "[%s][Controller] set_loiter_mode_sync() is not implemented correctly yet.", name_.c_str());
-    return false; 
-}
 
 bool DroneController::set_position_mode_sync(std::chrono::milliseconds timeout_ms) {
     return set_mode_sync(Px4CustomMode::POSCTL, timeout_ms); // Corrected from POSITION
@@ -743,72 +590,3 @@ void DroneController::set_position_mode_callback(
         response->message = std::string("Exception during set_position_mode: ") + e.what();
     } 
 }
-
-// --- Added: Return to Launch Method ---
-/**
- * @brief Commands the drone to return to the launch position
- * 
- * Sends a command to initiate the Return To Launch (RTL) sequence.
- * The result is handled asynchronously through a callback.
- */
-void DroneController::return_to_launch() {
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Initiating Return to Launch (RTL)...", name_.c_str());
-
-    // If currently in offboard mode, stop the offboard controller first
-    // RTL is a flight mode, so interfering with offboard is generally undesirable.
-    if (get_nav_state() == NavState::OFFBOARD) {
-        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Was in Offboard mode, stopping OffboardControl before RTL.", name_.c_str());
-        offboard_control_->stop();
-    }
-
-    // Send the NAV_RETURN_TO_LAUNCH command. Parameters are ignored by PX4 for this command.
-    drone_agent_->sendVehicleCommand(VehicleCommand::VEHICLE_CMD_NAV_RETURN_TO_LAUNCH, 0.0f, 0.0f,
-        [this](uint8_t result) {
-            if (result == 0) {
-                RCLCPP_INFO(node_->get_logger(), "[%s][Controller] RTL sequence initiated (Ack)", name_.c_str());
-            } else {
-                RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Failed to initiate RTL (Ack)", name_.c_str());
-            }
-        });
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] RTL command sent", name_.c_str());
-}
-// --- End Added RTL Method ---
-
-// --- Added: RTL Service Callback ---
-/**
- * @brief Callback for the Return to Launch service.
- */
-void DroneController::return_to_launch_callback(
-    const std::shared_ptr<rmw_request_id_t> /*request_header*/,
-    const std::shared_ptr<std_srvs::srv::Trigger::Request> /*request*/,
-    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
-{
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Return to Launch service called", name_.c_str());
-    
-    // TODO: Add checks - is drone flying? Is state valid?
-    // Typically requires drone to be armed and likely airborne.
-    if (get_arming_state() != ArmingState::ARMED) {
-        RCLCPP_WARN(node_->get_logger(), "[%s][Controller] RTL rejected: Drone must be ARMED first.", name_.c_str());
-        response->success = false;
-        response->message = "RTL rejected: Drone must be ARMED first.";
-        return;
-    }
-     if (drone_state_->get_landing_state() == LandingState::LANDED) {
-         RCLCPP_WARN(node_->get_logger(), "[%s][Controller] RTL rejected: Drone is already landed.", name_.c_str());
-         response->success = false;
-         response->message = "RTL rejected: Drone is landed.";
-         return;
-     }
-
-    try {
-        this->return_to_launch(); // Call the internal method
-        response->success = true;
-        response->message = "Return to Launch command initiated";
-        // Note: Success means the command was sent. Confirmation comes via state updates/mode change.
-    } catch (const std::exception& e) {
-        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during return_to_launch command: %s", name_.c_str(), e.what());
-        response->success = false;
-        response->message = std::string("Exception during return_to_launch: ") + e.what();
-    } 
-}
-// --- End Added RTL Service Callback ---

@@ -46,18 +46,18 @@ target_link_libraries(drone_core
 # Install targets
 install(TARGETS
   drone_core_lib
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+install(TARGETS
   drone_core
-  DESTINATION lib
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 # Install headers
 install(DIRECTORY include/
   DESTINATION include
 )
-install(FILES
-  include/drone_core/drone_node.hpp
-  DESTINATION include/drone_core
-)
-
 
 ament_package()

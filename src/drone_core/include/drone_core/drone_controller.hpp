@@ -29,11 +29,8 @@
  * @class DroneController
  * @brief Manages the state and control of a single drone
  * 
- * This class handles the core functionality for controlling a drone, including:
- * - Offboard control
- * - Arm/disarm operations
- * - Position control
- * - Takeoff and landing
+ * This class handles the core functionality for controlling a drone.
+ * 
  */
 class DroneController {
 public:
@@ -95,11 +92,6 @@ public:
     void land();
 
     /**
-     * @brief Set the drone to loiter mode
-     */
-    void set_loiter_mode();
-
-    /**
      * @brief Set the drone to position control mode
      */
     void set_position_mode();
@@ -154,53 +146,19 @@ public:
      */
     void enqueue(const Command& cmd);
 
-    // --- Mission Methods (NEW) ---
-    /**
-     * @brief Loads a new mission, replacing any existing one.
-     * @param waypoints Vector of waypoints defining the mission.
-     */
-    void load_mission(const std::vector<Waypoint>& waypoints);
-
-    /**
-     * @brief Command the drone to return to launch
-     */
-    void return_to_launch();
-
 private:
     rclcpp::Node* node_;                    ///< Pointer to ROS2 node
     std::string name_;                      ///< Name of the drone
     std::string ns_;                        ///< PX4 namespace
-
-    // State Tracking - MOVED TO DroneState
-    // std::atomic<NavState> current_nav_state_{NavState::UNKNOWN}; 
-    // LandingState current_landing_state_ = LandingState::UNKNOWN; 
-    // PositionFixState current_pos_fix_state_ = PositionFixState::UNKNOWN; 
-
-    // Latest Position Data - MOVED TO DroneState
-    // double latest_lat_ = 0.0;
-    // double latest_lon_ = 0.0;
-    // float latest_alt_ = 0.0f;
-    // float latest_local_x_ = 0.0f;
-    // float latest_local_y_ = 0.0f;
-    // float latest_local_z_ = 0.0f;
-    // float latest_local_vx_ = 0.0f;
-    // float latest_local_vy_ = 0.0f;
-    // float latest_local_vz_ = 0.0f;
 
     float target_x_ = 0.0f;                 ///< Target x position for commands
     float target_y_ = 0.0f;                 ///< Target y position for commands
     float target_z_ = 0.0f;                 ///< Target z position
     float target_yaw_ = 0.0f;               ///< Target yaw angle
 
-    // Command Queue members (Added)
+    // Command Queue members
     std::queue<Command> command_queue_;     ///< Queue for incoming commands
     std::mutex command_mutex_;              ///< Mutex to protect command queue
-
-    // ROS2 Subscriptions - MOVED TO DroneState
-    // rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr status_sub_;
-    // rclcpp::Subscription<px4_msgs::msg::VehicleLandDetected>::SharedPtr land_detected_sub_;
-    // rclcpp::Subscription<px4_msgs::msg::VehicleGlobalPosition>::SharedPtr global_pos_sub_;
-    // rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr local_pos_sub_;
 
     // Core Components
     std::unique_ptr<DroneAgent> drone_agent_;    ///< Command relay for PX4 communication
@@ -225,7 +183,6 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr disarm_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_offboard_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_position_mode_service_;
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr return_to_launch_service_;
     // TODO: Add services for RTL, SetBehavior, etc. later
 
     /**
@@ -237,19 +194,6 @@ private:
      * @brief Processes one command from the queue, if available
      */
     void process_command_queue();
-
-    // --- Mission Helper Methods (NEW) ---
-    /**
-     * @brief Checks if the current waypoint has been reached.
-     *        If reached, advances to the next waypoint or completes the mission.
-     * @return true if the waypoint was reached (and potentially advanced), false otherwise.
-     */
-    bool check_waypoint_reached();
-
-    /**
-     * @brief Handles mission execution steps within the main run loop.
-     */
-    void process_mission_step();
 
     // Service Callbacks (Added)
     void arm_callback(const std::shared_ptr<rmw_request_id_t> request_header,
@@ -275,10 +219,6 @@ private:
     void set_position_mode_callback(const std::shared_ptr<rmw_request_id_t> request_header,
                                     const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                                     std::shared_ptr<std_srvs::srv::Trigger::Response> response);
-
-    void return_to_launch_callback(const std::shared_ptr<rmw_request_id_t> request_header,
-                                   const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
-                                   std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
     // TODO: Add callbacks for other services later
 
