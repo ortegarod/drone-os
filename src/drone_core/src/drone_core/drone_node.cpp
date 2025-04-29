@@ -9,7 +9,7 @@ DroneNode::DroneNode()
 
     // Declare parameters with default values
     // These can be overridden via launch files or command line
-    this->declare_parameter<std::string>("drone_name", "drone"); // Default name
+    this->declare_parameter<std::string>("drone_name", "drone1"); // Default name
     this->declare_parameter<std::string>("px4_namespace", "/fmu/"); // Default PX4 namespace
     
     RCLCPP_INFO(this->get_logger(), "Parameters declared. Call init() to finalize setup.");
@@ -121,3 +121,21 @@ void DroneNode::handle_land(
 
 // TODO: Implement callbacks for set_position, set_velocity, etc.
 // TODO: Implement status publishing logic 
+
+// --- Destructor Definition ---
+DroneNode::~DroneNode()
+{
+    RCLCPP_INFO(this->get_logger(), "DroneNode '%s' destructor called.", this->get_name());
+    // Stop controller thread if it exists and is running
+    stop();
+}
+
+// --- Stop Method ---
+void DroneNode::stop()
+{
+    if (drone_controller_) {
+        RCLCPP_INFO(this->get_logger(), "Stopping drone controller for %s...", drone_name_.c_str());
+        // drone_controller_->stop(); // REMOVED: DroneController's destructor handles thread joining
+    }
+    RCLCPP_INFO(this->get_logger(), "DroneNode '%s' stopped.", this->get_name());
+} 

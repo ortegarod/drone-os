@@ -276,7 +276,6 @@ void DroneController::run()
 {
     RCLCPP_INFO(node_->get_logger(), "%s controller run loop started.", name_.c_str());
     while(running_.load()) {
-        process_command_queue();
 
         // TODO: Add periodic status checks or other background tasks
         
@@ -284,45 +283,6 @@ void DroneController::run()
         std::this_thread::sleep_for(10ms); // Adjust rate as needed
     }
     RCLCPP_INFO(node_->get_logger(), "%s controller run loop stopped.", name_.c_str());
-}
-
-void DroneController::process_command_queue() {
-    std::unique_lock<std::mutex> lock(command_mutex_, std::try_to_lock);
-    if (lock.owns_lock() && !command_queue_.empty()) {
-        Command cmd = command_queue_.front();
-        command_queue_.pop();
-        lock.unlock(); // Unlock as soon as possible
-
-        RCLCPP_INFO(node_->get_logger(), "%s Processing command: %d", name_.c_str(), static_cast<int>(cmd.type));
-
-        switch (cmd.type) {
-            case CommandType::ARM:
-                arm();
-                break;
-            case CommandType::DISARM:
-                disarm();
-                break;
-            case CommandType::TAKEOFF:
-                takeoff();
-                break;
-            case CommandType::LAND:
-                land();
-                break;
-            case CommandType::SET_POSITION:
-                set_position(cmd.x, cmd.y, cmd.z, cmd.yaw);
-                break;
-            case CommandType::SET_VELOCITY:
-                set_velocity(cmd.x, cmd.y, cmd.z, cmd.yaw); // Assuming yaw maps to yaw_rate here
-                break;
-            case CommandType::SET_POSITION_MODE:
-                set_position_mode();
-                break;
-             case CommandType::SET_ALTITUDE_MODE:
-                set_altitude_mode();
-                break;
-            // TODO: Add cases for other commands
-        }
-    }
 }
 
 // --- Private Helper Methods ---
