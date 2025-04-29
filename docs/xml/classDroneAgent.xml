@@ -1,0 +1,327 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.1" xml:lang="en-US">
+  <compounddef id="classDroneAgent" kind="class" language="C++" prot="public">
+    <compoundname>DroneAgent</compoundname>
+    <includes refid="drone__agent_8hpp" local="no">drone_agent.hpp</includes>
+      <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classDroneAgent_1afa2f8355a5fb272541d135215a7b9adb" prot="private" static="no" mutable="no">
+        <type>rclcpp::Node *</type>
+        <definition>rclcpp::Node* DroneAgent::node_</definition>
+        <argsstring></argsstring>
+        <name>node_</name>
+        <briefdescription>
+<para>Pointer to ROS2 node. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_agent.hpp" line="56" column="18" bodyfile="src/drone_core/include/drone_core/drone_agent.hpp" bodystart="56" bodyend="-1"/>
+        <referencedby refid="classDroneAgent_1adb6140bdfc817fc0d82e82879b9804d6" compoundref="drone__agent_8cpp" startline="18" endline="32">DroneAgent</referencedby>
+        <referencedby refid="classDroneAgent_1a7afa8ccb5fc6d901175ffb203df1a070" compoundref="drone__agent_8cpp" startline="82" endline="104">log_result</referencedby>
+        <referencedby refid="classDroneAgent_1a131ac36fcdbcd2d788c6b9bcea69428f" compoundref="drone__agent_8cpp" startline="45" endline="67">sendVehicleCommand</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="classDroneAgent_1a09527bad09a705fddd7dcef097d7ffd9" prot="private" static="no" mutable="no">
+        <type>std::string</type>
+        <definition>std::string DroneAgent::name_</definition>
+        <argsstring></argsstring>
+        <name>name_</name>
+        <briefdescription>
+<para>Name of the drone for logging. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_agent.hpp" line="57" column="17" bodyfile="src/drone_core/include/drone_core/drone_agent.hpp" bodystart="57" bodyend="-1"/>
+        <referencedby refid="classDroneAgent_1adb6140bdfc817fc0d82e82879b9804d6" compoundref="drone__agent_8cpp" startline="18" endline="32">DroneAgent</referencedby>
+        <referencedby refid="classDroneAgent_1a7afa8ccb5fc6d901175ffb203df1a070" compoundref="drone__agent_8cpp" startline="82" endline="104">log_result</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="classDroneAgent_1aede2e2c334cd8167c69a796391be1cbc" prot="private" static="no" mutable="no">
+        <type>rclcpp::Client&lt; px4_msgs::srv::VehicleCommand &gt;::SharedPtr</type>
+        <definition>rclcpp::Client&lt;px4_msgs::srv::VehicleCommand&gt;::SharedPtr DroneAgent::client_</definition>
+        <argsstring></argsstring>
+        <name>client_</name>
+        <briefdescription>
+<para>Service client for vehicle commands. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_agent.hpp" line="58" column="32" bodyfile="src/drone_core/include/drone_core/drone_agent.hpp" bodystart="58" bodyend="-1"/>
+        <referencedby refid="classDroneAgent_1adb6140bdfc817fc0d82e82879b9804d6" compoundref="drone__agent_8cpp" startline="18" endline="32">DroneAgent</referencedby>
+        <referencedby refid="classDroneAgent_1a131ac36fcdbcd2d788c6b9bcea69428f" compoundref="drone__agent_8cpp" startline="45" endline="67">sendVehicleCommand</referencedby>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="public-func">
+      <memberdef kind="function" id="classDroneAgent_1adb6140bdfc817fc0d82e82879b9804d6" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>DroneAgent::DroneAgent</definition>
+        <argsstring>(rclcpp::Node *node, const std::string &amp;ns, const std::string &amp;name)</argsstring>
+        <name>DroneAgent</name>
+        <param>
+          <type>rclcpp::Node *</type>
+          <declname>node</declname>
+        </param>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>ns</declname>
+        </param>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>name</declname>
+        </param>
+        <briefdescription>
+<para>Constructs a new <ref refid="classDroneAgent" kindref="compound">DroneAgent</ref> instance. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Initializes the command relay with a ROS2 node and sets up the vehicle command service client.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>node</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the ROS2 node </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>ns</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>PX4 namespace for communication </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone for logging</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+Initializes the command relay with a ROS2 node and sets up the vehicle command service client. The constructor will wait for the service to become available before proceeding.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>node</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the ROS2 node </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>ns</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>PX4 namespace for communication </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone for logging </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_agent.hpp" line="32" column="5" bodyfile="src/drone_core/src/drone_core/drone_agent.cpp" bodystart="18" bodyend="32"/>
+        <references refid="classDroneAgent_1aede2e2c334cd8167c69a796391be1cbc" compoundref="drone__agent_8hpp" startline="58">client_</references>
+        <references refid="classDroneAgent_1a09527bad09a705fddd7dcef097d7ffd9" compoundref="drone__agent_8hpp" startline="57">name_</references>
+        <references refid="classDroneAgent_1afa2f8355a5fb272541d135215a7b9adb" compoundref="drone__agent_8hpp" startline="56">node_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneAgent_1a131ac36fcdbcd2d788c6b9bcea69428f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneAgent::sendVehicleCommand</definition>
+        <argsstring>(uint16_t command, float param1, float param2, std::function&lt; void(uint8_t)&gt; callback)</argsstring>
+        <name>sendVehicleCommand</name>
+        <param>
+          <type>uint16_t</type>
+          <declname>command</declname>
+        </param>
+        <param>
+          <type>float</type>
+          <declname>param1</declname>
+        </param>
+        <param>
+          <type>float</type>
+          <declname>param2</declname>
+        </param>
+        <param>
+          <type>std::function&lt; void(uint8_t)&gt;</type>
+          <declname>callback</declname>
+        </param>
+        <briefdescription>
+<para>Sends a command to the PX4 autopilot. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Creates and sends a vehicle command with the specified parameters. The result is handled asynchronously through the provided callback.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>command</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The command ID (from px4_msgs::msg::VehicleCommand) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>param1</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>First parameter for the command </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>param2</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Second parameter for the command </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>callback</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Function to be called with the command result</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+Creates and sends a vehicle command with the specified parameters. The command is sent asynchronously, and the result is handled through the provided callback.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>command</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The command ID (from px4_msgs::msg::VehicleCommand) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>param1</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>First parameter for the command </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>param2</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Second parameter for the command </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>callback</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Function to be called with the command result </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_agent.hpp" line="45" column="10" bodyfile="src/drone_core/src/drone_core/drone_agent.cpp" bodystart="45" bodyend="67"/>
+        <references refid="classDroneAgent_1aede2e2c334cd8167c69a796391be1cbc" compoundref="drone__agent_8hpp" startline="58">client_</references>
+        <references refid="classDroneAgent_1a7afa8ccb5fc6d901175ffb203df1a070" compoundref="drone__agent_8cpp" startline="82" endline="104">log_result</references>
+        <references refid="classDroneAgent_1afa2f8355a5fb272541d135215a7b9adb" compoundref="drone__agent_8hpp" startline="56">node_</references>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="private-func">
+      <memberdef kind="function" id="classDroneAgent_1a7afa8ccb5fc6d901175ffb203df1a070" prot="private" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneAgent::log_result</definition>
+        <argsstring>(uint8_t result)</argsstring>
+        <name>log_result</name>
+        <param>
+          <type>uint8_t</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Logs the result of a command. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result code from the PX4 autopilot</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+Logs the command result with appropriate severity level based on the result code.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result code from the PX4 autopilot:<itemizedlist>
+<listitem><para>0: Command accepted</para>
+</listitem><listitem><para>1: Command temporarily rejected</para>
+</listitem><listitem><para>2: Command denied</para>
+</listitem><listitem><para>3: Command unsupported</para>
+</listitem><listitem><para>4: Command failed</para>
+</listitem><listitem><para>Other: Unknown result </para>
+</listitem></itemizedlist>
+</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_agent.hpp" line="54" column="10" bodyfile="src/drone_core/src/drone_core/drone_agent.cpp" bodystart="82" bodyend="104"/>
+        <references refid="classDroneAgent_1a09527bad09a705fddd7dcef097d7ffd9" compoundref="drone__agent_8hpp" startline="57">name_</references>
+        <references refid="classDroneAgent_1afa2f8355a5fb272541d135215a7b9adb" compoundref="drone__agent_8hpp" startline="56">node_</references>
+        <referencedby refid="classDroneAgent_1a131ac36fcdbcd2d788c6b9bcea69428f" compoundref="drone__agent_8cpp" startline="45" endline="67">sendVehicleCommand</referencedby>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+<para>Handles communication with PX4 autopilot through ROS2 services. </para>
+    </briefdescription>
+    <detaileddescription>
+<para>This class provides a simplified interface for sending vehicle commands to the PX4 autopilot. It handles the creation of service clients and provides a callback mechanism for command results. </para>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>DroneAgent</label>
+        <link refid="classDroneAgent"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>name_</edgelabel>
+        </childnode>
+      </node>
+      <node id="3">
+        <label>std::basic_string&lt; Char &gt;</label>
+      </node>
+      <node id="2">
+        <label>std::string</label>
+        <childnode refid="3" relation="public-inheritance">
+        </childnode>
+      </node>
+    </collaborationgraph>
+    <location file="src/drone_core/include/drone_core/drone_agent.hpp" line="20" column="1" bodyfile="src/drone_core/include/drone_core/drone_agent.hpp" bodystart="20" bodyend="59"/>
+    <listofallmembers>
+      <member refid="classDroneAgent_1aede2e2c334cd8167c69a796391be1cbc" prot="private" virt="non-virtual"><scope>DroneAgent</scope><name>client_</name></member>
+      <member refid="classDroneAgent_1adb6140bdfc817fc0d82e82879b9804d6" prot="public" virt="non-virtual"><scope>DroneAgent</scope><name>DroneAgent</name></member>
+      <member refid="classDroneAgent_1a7afa8ccb5fc6d901175ffb203df1a070" prot="private" virt="non-virtual"><scope>DroneAgent</scope><name>log_result</name></member>
+      <member refid="classDroneAgent_1a09527bad09a705fddd7dcef097d7ffd9" prot="private" virt="non-virtual"><scope>DroneAgent</scope><name>name_</name></member>
+      <member refid="classDroneAgent_1afa2f8355a5fb272541d135215a7b9adb" prot="private" virt="non-virtual"><scope>DroneAgent</scope><name>node_</name></member>
+      <member refid="classDroneAgent_1a131ac36fcdbcd2d788c6b9bcea69428f" prot="public" virt="non-virtual"><scope>DroneAgent</scope><name>sendVehicleCommand</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

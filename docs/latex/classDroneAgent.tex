@@ -1,0 +1,245 @@
+\hypertarget{classDroneAgent}{}\doxysection{Drone\+Agent Class Reference}
+\label{classDroneAgent}\index{DroneAgent@{DroneAgent}}
+
+
+Handles communication with PX4 autopilot through ROS2 services.  
+
+
+
+
+{\ttfamily \#include $<$drone\+\_\+agent.\+hpp$>$}
+
+
+
+Collaboration diagram for Drone\+Agent\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=184pt]{classDroneAgent__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classDroneAgent_adb6140bdfc817fc0d82e82879b9804d6}{Drone\+Agent}} (rclcpp\+::\+Node $\ast$node, const std\+::string \&ns, const std\+::string \&name)
+\begin{DoxyCompactList}\small\item\em Constructs a new \mbox{\hyperlink{classDroneAgent}{Drone\+Agent}} instance. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classDroneAgent_a131ac36fcdbcd2d788c6b9bcea69428f}{send\+Vehicle\+Command}} (uint16\+\_\+t command, float param1, float param2, std\+::function$<$ void(uint8\+\_\+t)$>$ callback)
+\begin{DoxyCompactList}\small\item\em Sends a command to the PX4 autopilot. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Private Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \mbox{\hyperlink{classDroneAgent_a7afa8ccb5fc6d901175ffb203df1a070}{log\+\_\+result}} (uint8\+\_\+t result)
+\begin{DoxyCompactList}\small\item\em Logs the result of a command. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+rclcpp\+::\+Node $\ast$ \mbox{\hyperlink{classDroneAgent_afa2f8355a5fb272541d135215a7b9adb}{node\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Pointer to ROS2 node. \end{DoxyCompactList}\item 
+std\+::string \mbox{\hyperlink{classDroneAgent_a09527bad09a705fddd7dcef097d7ffd9}{name\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Name of the drone for logging. \end{DoxyCompactList}\item 
+rclcpp\+::\+Client$<$ px4\+\_\+msgs\+::srv\+::\+Vehicle\+Command $>$\+::Shared\+Ptr \mbox{\hyperlink{classDroneAgent_aede2e2c334cd8167c69a796391be1cbc}{client\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Service client for vehicle commands. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Handles communication with PX4 autopilot through ROS2 services. 
+
+This class provides a simplified interface for sending vehicle commands to the PX4 autopilot. It handles the creation of service clients and provides a callback mechanism for command results. 
+
+Definition at line 20 of file drone\+\_\+agent.\+hpp.
+
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classDroneAgent_adb6140bdfc817fc0d82e82879b9804d6}\label{classDroneAgent_adb6140bdfc817fc0d82e82879b9804d6}} 
+\index{DroneAgent@{DroneAgent}!DroneAgent@{DroneAgent}}
+\index{DroneAgent@{DroneAgent}!DroneAgent@{DroneAgent}}
+\doxysubsubsection{\texorpdfstring{DroneAgent()}{DroneAgent()}}
+{\footnotesize\ttfamily Drone\+Agent\+::\+Drone\+Agent (\begin{DoxyParamCaption}\item[{rclcpp\+::\+Node $\ast$}]{node,  }\item[{const std\+::string \&}]{ns,  }\item[{const std\+::string \&}]{name }\end{DoxyParamCaption})}
+
+
+
+Constructs a new \mbox{\hyperlink{classDroneAgent}{Drone\+Agent}} instance. 
+
+Initializes the command relay with a ROS2 node and sets up the vehicle command service client.
+
+
+\begin{DoxyParams}{Parameters}
+{\em node} & Pointer to the ROS2 node \\
+\hline
+{\em ns} & PX4 namespace for communication \\
+\hline
+{\em name} & Name of the drone for logging\\
+\hline
+\end{DoxyParams}
+Initializes the command relay with a ROS2 node and sets up the vehicle command service client. The constructor will wait for the service to become available before proceeding.
+
+
+\begin{DoxyParams}{Parameters}
+{\em node} & Pointer to the ROS2 node \\
+\hline
+{\em ns} & PX4 namespace for communication \\
+\hline
+{\em name} & Name of the drone for logging \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 18 of file drone\+\_\+agent.\+cpp.
+
+
+
+References client\+\_\+, name\+\_\+, and node\+\_\+.
+
+
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classDroneAgent_a7afa8ccb5fc6d901175ffb203df1a070}\label{classDroneAgent_a7afa8ccb5fc6d901175ffb203df1a070}} 
+\index{DroneAgent@{DroneAgent}!log\_result@{log\_result}}
+\index{log\_result@{log\_result}!DroneAgent@{DroneAgent}}
+\doxysubsubsection{\texorpdfstring{log\_result()}{log\_result()}}
+{\footnotesize\ttfamily void Drone\+Agent\+::log\+\_\+result (\begin{DoxyParamCaption}\item[{uint8\+\_\+t}]{result }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Logs the result of a command. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em result} & The result code from the PX4 autopilot\\
+\hline
+\end{DoxyParams}
+Logs the command result with appropriate severity level based on the result code.
+
+
+\begin{DoxyParams}{Parameters}
+{\em result} & The result code from the PX4 autopilot\+:
+\begin{DoxyItemize}
+\item 0\+: Command accepted
+\item 1\+: Command temporarily rejected
+\item 2\+: Command denied
+\item 3\+: Command unsupported
+\item 4\+: Command failed
+\item Other\+: Unknown result 
+\end{DoxyItemize}\\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 82 of file drone\+\_\+agent.\+cpp.
+
+
+
+References name\+\_\+, and node\+\_\+.
+
+
+
+Referenced by send\+Vehicle\+Command().
+
+\mbox{\Hypertarget{classDroneAgent_a131ac36fcdbcd2d788c6b9bcea69428f}\label{classDroneAgent_a131ac36fcdbcd2d788c6b9bcea69428f}} 
+\index{DroneAgent@{DroneAgent}!sendVehicleCommand@{sendVehicleCommand}}
+\index{sendVehicleCommand@{sendVehicleCommand}!DroneAgent@{DroneAgent}}
+\doxysubsubsection{\texorpdfstring{sendVehicleCommand()}{sendVehicleCommand()}}
+{\footnotesize\ttfamily void Drone\+Agent\+::send\+Vehicle\+Command (\begin{DoxyParamCaption}\item[{uint16\+\_\+t}]{command,  }\item[{float}]{param1,  }\item[{float}]{param2,  }\item[{std\+::function$<$ void(uint8\+\_\+t)$>$}]{callback }\end{DoxyParamCaption})}
+
+
+
+Sends a command to the PX4 autopilot. 
+
+Creates and sends a vehicle command with the specified parameters. The result is handled asynchronously through the provided callback.
+
+
+\begin{DoxyParams}{Parameters}
+{\em command} & The command ID (from px4\+\_\+msgs\+::msg\+::\+Vehicle\+Command) \\
+\hline
+{\em param1} & First parameter for the command \\
+\hline
+{\em param2} & Second parameter for the command \\
+\hline
+{\em callback} & Function to be called with the command result\\
+\hline
+\end{DoxyParams}
+Creates and sends a vehicle command with the specified parameters. The command is sent asynchronously, and the result is handled through the provided callback.
+
+
+\begin{DoxyParams}{Parameters}
+{\em command} & The command ID (from px4\+\_\+msgs\+::msg\+::\+Vehicle\+Command) \\
+\hline
+{\em param1} & First parameter for the command \\
+\hline
+{\em param2} & Second parameter for the command \\
+\hline
+{\em callback} & Function to be called with the command result \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 45 of file drone\+\_\+agent.\+cpp.
+
+
+
+References client\+\_\+, log\+\_\+result(), and node\+\_\+.
+
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{classDroneAgent_aede2e2c334cd8167c69a796391be1cbc}\label{classDroneAgent_aede2e2c334cd8167c69a796391be1cbc}} 
+\index{DroneAgent@{DroneAgent}!client\_@{client\_}}
+\index{client\_@{client\_}!DroneAgent@{DroneAgent}}
+\doxysubsubsection{\texorpdfstring{client\_}{client\_}}
+{\footnotesize\ttfamily rclcpp\+::\+Client$<$px4\+\_\+msgs\+::srv\+::\+Vehicle\+Command$>$\+::Shared\+Ptr Drone\+Agent\+::client\+\_\+\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Service client for vehicle commands. 
+
+
+
+Definition at line 58 of file drone\+\_\+agent.\+hpp.
+
+
+
+Referenced by Drone\+Agent(), and send\+Vehicle\+Command().
+
+\mbox{\Hypertarget{classDroneAgent_a09527bad09a705fddd7dcef097d7ffd9}\label{classDroneAgent_a09527bad09a705fddd7dcef097d7ffd9}} 
+\index{DroneAgent@{DroneAgent}!name\_@{name\_}}
+\index{name\_@{name\_}!DroneAgent@{DroneAgent}}
+\doxysubsubsection{\texorpdfstring{name\_}{name\_}}
+{\footnotesize\ttfamily std\+::string Drone\+Agent\+::name\+\_\+\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Name of the drone for logging. 
+
+
+
+Definition at line 57 of file drone\+\_\+agent.\+hpp.
+
+
+
+Referenced by Drone\+Agent(), and log\+\_\+result().
+
+\mbox{\Hypertarget{classDroneAgent_afa2f8355a5fb272541d135215a7b9adb}\label{classDroneAgent_afa2f8355a5fb272541d135215a7b9adb}} 
+\index{DroneAgent@{DroneAgent}!node\_@{node\_}}
+\index{node\_@{node\_}!DroneAgent@{DroneAgent}}
+\doxysubsubsection{\texorpdfstring{node\_}{node\_}}
+{\footnotesize\ttfamily rclcpp\+::\+Node$\ast$ Drone\+Agent\+::node\+\_\+\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Pointer to ROS2 node. 
+
+
+
+Definition at line 56 of file drone\+\_\+agent.\+hpp.
+
+
+
+Referenced by Drone\+Agent(), log\+\_\+result(), and send\+Vehicle\+Command().
+
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+src/drone\+\_\+core/include/drone\+\_\+core/\mbox{\hyperlink{drone__agent_8hpp}{drone\+\_\+agent.\+hpp}}\item 
+src/drone\+\_\+core/src/drone\+\_\+core/\mbox{\hyperlink{drone__agent_8cpp}{drone\+\_\+agent.\+cpp}}\end{DoxyCompactItemize}

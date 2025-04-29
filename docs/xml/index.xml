@@ -1,0 +1,136 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygenindex xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="index.xsd" version="1.9.1" xml:lang="en-US">
+  <compound refid="classDroneAgent" kind="class"><name>DroneAgent</name>
+    <member refid="classDroneAgent_1afa2f8355a5fb272541d135215a7b9adb" kind="variable"><name>node_</name></member>
+    <member refid="classDroneAgent_1a09527bad09a705fddd7dcef097d7ffd9" kind="variable"><name>name_</name></member>
+    <member refid="classDroneAgent_1aede2e2c334cd8167c69a796391be1cbc" kind="variable"><name>client_</name></member>
+    <member refid="classDroneAgent_1adb6140bdfc817fc0d82e82879b9804d6" kind="function"><name>DroneAgent</name></member>
+    <member refid="classDroneAgent_1a131ac36fcdbcd2d788c6b9bcea69428f" kind="function"><name>sendVehicleCommand</name></member>
+    <member refid="classDroneAgent_1a7afa8ccb5fc6d901175ffb203df1a070" kind="function"><name>log_result</name></member>
+  </compound>
+  <compound refid="classDroneController" kind="class"><name>DroneController</name>
+    <member refid="classDroneController_1af288d7ec51c90b73f55e301b25d83133" kind="variable"><name>node_</name></member>
+    <member refid="classDroneController_1aaf16794ef6f05a31a83cfbda3a7457ee" kind="variable"><name>name_</name></member>
+    <member refid="classDroneController_1a0edfab2681011e10cda6f8cb28eaee1a" kind="variable"><name>ns_</name></member>
+    <member refid="classDroneController_1a4f0634d2e3ab89165b015c12e882dbad" kind="variable"><name>target_x_</name></member>
+    <member refid="classDroneController_1a603c64f680b92a15a043cc4fabe720f3" kind="variable"><name>target_y_</name></member>
+    <member refid="classDroneController_1a64733531bff81796dfdbeda4371cb061" kind="variable"><name>target_z_</name></member>
+    <member refid="classDroneController_1a659b19b528332abb67e0fac27a318fe7" kind="variable"><name>target_yaw_</name></member>
+    <member refid="classDroneController_1a07d746e6d02ae63c3117b3721fe070fa" kind="variable"><name>drone_agent_</name></member>
+    <member refid="classDroneController_1a7d11e531cf01b680050f496425118481" kind="variable"><name>offboard_control_</name></member>
+    <member refid="classDroneController_1aa67092201d1fb31334379d7ef5a66235" kind="function"><name>DroneController</name></member>
+    <member refid="classDroneController_1a2bb6bb18bcd5e4c7377bf2c7221bb62f" kind="function"><name>arm</name></member>
+    <member refid="classDroneController_1ae52bb1d50cb5414d78af49962b8ea8b4" kind="function"><name>disarm</name></member>
+    <member refid="classDroneController_1af5698222150a6bf5de479016f10acc63" kind="function"><name>takeoff</name></member>
+    <member refid="classDroneController_1a4b6f5aa78d968a1c680da4b64a3dafcb" kind="function"><name>set_position</name></member>
+    <member refid="classDroneController_1a2da898f4a3cf5b82eafe82e33576791c" kind="function"><name>land</name></member>
+    <member refid="classDroneController_1a4fb59b233337b1e3a16acce4343365d2" kind="function"><name>set_loiter_mode</name></member>
+    <member refid="classDroneController_1a95ea01a8c146f1402af327fd97c993c5" kind="function"><name>set_position_mode</name></member>
+    <member refid="classDroneController_1afde4f7f2ca28f12f12a420ba3756ce34" kind="function"><name>is_ready</name></member>
+  </compound>
+  <compound refid="classDroneManager" kind="class"><name>DroneManager</name>
+    <member refid="classDroneManager_1abcebc371c40b085a8e8d57e5f5296779" kind="variable"><name>node_</name></member>
+    <member refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" kind="variable"><name>drones_</name></member>
+    <member refid="classDroneManager_1a65f89b95fb9a362a6970c46b6a840390" kind="variable"><name>timer_</name></member>
+    <member refid="classDroneManager_1ab67a4727e82d69ffad8ce13d788eccc6" kind="variable"><name>spin_thread_</name></member>
+    <member refid="classDroneManager_1a5cbb4e5c33a7ce1fde6d7f2ca2929444" kind="variable"><name>running_</name></member>
+    <member refid="classDroneManager_1aec864cf3cda1b9b61351338ffdbf5a6d" kind="function"><name>DroneManager</name></member>
+    <member refid="classDroneManager_1a57c93ceb39b0f4b44f059e5666d9d079" kind="function"><name>~DroneManager</name></member>
+    <member refid="classDroneManager_1aa77cfd925d788e108f49b195bc40faa1" kind="function"><name>add_drone</name></member>
+    <member refid="classDroneManager_1a3e47b15e8b85d8215257d354ff86a642" kind="function"><name>start</name></member>
+    <member refid="classDroneManager_1a6eeadbaa8e3869abaf87bfae5e6d6ea3" kind="function"><name>stop</name></member>
+    <member refid="classDroneManager_1accb1ab255272a243241f6cd0d3353455" kind="function"><name>arm</name></member>
+    <member refid="classDroneManager_1ab6e3206cc6616418ebf6e915f1a181ee" kind="function"><name>disarm</name></member>
+    <member refid="classDroneManager_1ad25d1adc2786fea23421d2e935ba7cad" kind="function"><name>takeoff</name></member>
+    <member refid="classDroneManager_1a47014b5bc725812df414e92c0b4f2250" kind="function"><name>set_position</name></member>
+    <member refid="classDroneManager_1a718d800dadcc2e1f3d17e22fab2374ed" kind="function"><name>land</name></member>
+    <member refid="classDroneManager_1aaf19a6ece1c58d5d5c9723725815f89c" kind="function"><name>is_connected</name></member>
+    <member refid="classDroneManager_1a57badc42f388d71facb1a4a3b25f8014" kind="function"><name>is_armed</name></member>
+    <member refid="classDroneManager_1ad791e962b4cf144c61b0d640e5b6e874" kind="function"><name>set_loiter_mode</name></member>
+    <member refid="classDroneManager_1a4239f6f39448a46d98881ca805b679e8" kind="function"><name>set_position_mode</name></member>
+    <member refid="classDroneManager_1a37e627b72d9f83866d9dcc56f8bf6440" kind="function"><name>get_node</name></member>
+  </compound>
+  <compound refid="classOffboardControl" kind="class"><name>OffboardControl</name>
+    <member refid="classOffboardControl_1aae9000ef98e5f4d9a76e2394c4f21f2d" kind="enum"><name>State</name></member>
+    <member refid="classOffboardControl_1aae9000ef98e5f4d9a76e2394c4f21f2dae37f0136aa3ffaf149b351f6a4c948e9" kind="enumvalue"><name>init</name></member>
+    <member refid="classOffboardControl_1aae9000ef98e5f4d9a76e2394c4f21f2da9995f5beaef7b06d427b018b03a5ee39" kind="enumvalue"><name>offboard_requested</name></member>
+    <member refid="classOffboardControl_1aae9000ef98e5f4d9a76e2394c4f21f2da1659dee3f1149c4682f3286422fb57ba" kind="enumvalue"><name>wait_for_stable_offboard_mode</name></member>
+    <member refid="classOffboardControl_1aae9000ef98e5f4d9a76e2394c4f21f2da199c9e9f930e5e397734384245ee61ec" kind="enumvalue"><name>arm_requested</name></member>
+    <member refid="classOffboardControl_1aae9000ef98e5f4d9a76e2394c4f21f2da6e0c631e86ef2402cfa1ca3608a5123e" kind="enumvalue"><name>armed</name></member>
+    <member refid="classOffboardControl_1a83f8d52f2e141d8ca18f64f5ca5efec3" kind="variable"><name>node_</name></member>
+    <member refid="classOffboardControl_1a1f13749a64647c48ca5b75af7a7244f0" kind="variable"><name>ns_</name></member>
+    <member refid="classOffboardControl_1a1dab76f058afd3c8ede86123dfd77a3c" kind="variable"><name>timer_</name></member>
+    <member refid="classOffboardControl_1a384d648577c897e6d860a84212dea06e" kind="variable"><name>offboard_control_mode_pub_</name></member>
+    <member refid="classOffboardControl_1ab157d158b22145e10da19ac12045fef0" kind="variable"><name>trajectory_setpoint_pub_</name></member>
+    <member refid="classOffboardControl_1a44b3c5ef77d57381de1f5658750ba284" kind="variable"><name>vehicle_command_client_</name></member>
+    <member refid="classOffboardControl_1aff0f3a025ec55301c2f94ea30677ed77" kind="variable"><name>state_</name></member>
+    <member refid="classOffboardControl_1ac8de4f5b3343b6830260693c1f451b7d" kind="variable"><name>service_result_</name></member>
+    <member refid="classOffboardControl_1a0a250d3a9fbe795d6a15cdda33492988" kind="variable"><name>service_done_</name></member>
+    <member refid="classOffboardControl_1a91c4e5bcfe03a2e4e79b99664efba5d9" kind="variable"><name>offboard_setpoint_counter_</name></member>
+    <member refid="classOffboardControl_1a19bcc486a8eb3cde63a5970e795663ef" kind="function"><name>OffboardControl</name></member>
+    <member refid="classOffboardControl_1ae4b80998df39efe0cab2ef6b09a6e200" kind="function"><name>start</name></member>
+    <member refid="classOffboardControl_1ada6bd384622490ee569bcc40de89c217" kind="function"><name>stop</name></member>
+    <member refid="classOffboardControl_1a8e7d2f533f95d905cbacab1beec0cca5" kind="function"><name>publish_trajectory_setpoint</name></member>
+    <member refid="classOffboardControl_1ac1c81a5dee97021967854d96e1826025" kind="function"><name>get_state</name></member>
+    <member refid="classOffboardControl_1af8e70b949b4f8b24bc65499d283a3258" kind="function"><name>timer_callback</name></member>
+    <member refid="classOffboardControl_1ab95f56d0d8f9d1c73b139ffbfc8ba6bf" kind="function"><name>send_vehicle_command</name></member>
+    <member refid="classOffboardControl_1a5e9633b6059c739f9993bf710cab83c2" kind="function"><name>command_response_callback</name></member>
+  </compound>
+  <compound refid="namespacedrone__os" kind="namespace"><name>drone_os</name>
+  </compound>
+  <compound refid="namespacepx4__msgs_1_1msg" kind="namespace"><name>px4_msgs::msg</name>
+  </compound>
+  <compound refid="namespacestd" kind="namespace"><name>std</name>
+  </compound>
+  <compound refid="namespacestd_1_1chrono__literals" kind="namespace"><name>std::chrono_literals</name>
+  </compound>
+  <compound refid="drone__agent_8hpp" kind="file"><name>drone_agent.hpp</name>
+  </compound>
+  <compound refid="drone__controller_8hpp" kind="file"><name>drone_controller.hpp</name>
+  </compound>
+  <compound refid="drone__manager_8hpp" kind="file"><name>drone_manager.hpp</name>
+  </compound>
+  <compound refid="offboard__control_8hpp" kind="file"><name>offboard_control.hpp</name>
+  </compound>
+  <compound refid="drone__os_8launch_8py" kind="file"><name>drone_os.launch.py</name>
+  </compound>
+  <compound refid="drone__core_2README_8md" kind="file"><name>README.md</name>
+  </compound>
+  <compound refid="px4__msgs_2README_8md" kind="file"><name>README.md</name>
+  </compound>
+  <compound refid="drone__agent_8cpp" kind="file"><name>drone_agent.cpp</name>
+  </compound>
+  <compound refid="drone__controller_8cpp" kind="file"><name>drone_controller.cpp</name>
+  </compound>
+  <compound refid="drone__manager_8cpp" kind="file"><name>drone_manager.cpp</name>
+  </compound>
+  <compound refid="offboard__control_8cpp" kind="file"><name>offboard_control.cpp</name>
+  </compound>
+  <compound refid="main_8cpp" kind="file"><name>main.cpp</name>
+    <member refid="main_8cpp_1a0ddf1224851353fc92bfbff6f499fa97" kind="function"><name>main</name></member>
+  </compound>
+  <compound refid="CONTRIBUTING_8md" kind="file"><name>CONTRIBUTING.md</name>
+  </compound>
+  <compound refid="md_src_drone_core_README" kind="page"><name>md_src_drone_core_README</name>
+  </compound>
+  <compound refid="md_src_px4_msgs_CONTRIBUTING" kind="page"><name>md_src_px4_msgs_CONTRIBUTING</name>
+  </compound>
+  <compound refid="md_src_px4_msgs_README" kind="page"><name>md_src_px4_msgs_README</name>
+  </compound>
+  <compound refid="dir_2ae0e22b243c663b60ab3d129ceb7017" kind="dir"><name>src/drone_core</name>
+  </compound>
+  <compound refid="dir_cbc0bd98f452b5a4f9134d182dedef48" kind="dir"><name>src/drone_core/include/drone_core</name>
+  </compound>
+  <compound refid="dir_3cf17f821ca72b4631ad4f0aad054774" kind="dir"><name>src/drone_core/src/drone_core</name>
+  </compound>
+  <compound refid="dir_dd303b3f8883388780aaecabcf18bc15" kind="dir"><name>src/drone_core/include</name>
+  </compound>
+  <compound refid="dir_04253a26e86a92c123aee16e600192a3" kind="dir"><name>src/drone_core/launch</name>
+  </compound>
+  <compound refid="dir_e58707b6be4c65e6afda01a43add17ea" kind="dir"><name>src/px4_msgs</name>
+  </compound>
+  <compound refid="dir_68267d1309a1af8e8297ef4c3efbcdba" kind="dir"><name>src</name>
+  </compound>
+  <compound refid="dir_66aeaf1843773e45119e7e5c26a862b5" kind="dir"><name>src/drone_core/src</name>
+  </compound>
+</doxygenindex>

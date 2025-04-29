@@ -1,0 +1,74 @@
+{\bfseries{drone\+OS}} is a proprietary, ROS 2-\/based modular SDK for commanding PX4-\/compatible autonomous drone fleets. It provides reusable mission logic, low-\/level PX4 communication, and real-\/time control infrastructure for scalable, multi-\/agent operations.\hypertarget{md_src_drone_core_README_autotoc_md1}{}\doxysection{✈️ Features}\label{md_src_drone_core_README_autotoc_md1}
+
+\begin{DoxyItemize}
+\item Fleet-\/level drone management via {\ttfamily \mbox{\hyperlink{classDroneAgent}{Drone\+Agent}}} and {\ttfamily \mbox{\hyperlink{classDroneManager}{Drone\+Manager}}}
+\item YAML-\/driven waypoint missions with auto-\/progress logic
+\item Real-\/time position tracking using PX4 telemetry
+\item Modular architecture designed for expansion into AI-\/driven command layers
+\item Compatible with PX4 Autopilot and ROS 2 middleware
+\item Thread-\/safe drone state management
+\item Configurable mission parameters and behaviors
+\end{DoxyItemize}\hypertarget{md_src_drone_core_README_autotoc_md2}{}\doxysection{🏗️ Architecture}\label{md_src_drone_core_README_autotoc_md2}
+The SDK is built around a core set of components\+:
+
+
+\begin{DoxyItemize}
+\item {\ttfamily \mbox{\hyperlink{classDroneAgent}{Drone\+Agent}}}\+: Individual drone control and state management
+\item {\ttfamily \mbox{\hyperlink{classDroneManager}{Drone\+Manager}}}\+: Fleet-\/level coordination and mission execution
+\item Mission Parser\+: YAML-\/based mission configuration
+\item PX4 Interface\+: Low-\/level communication with PX4 autopilot
+\end{DoxyItemize}\hypertarget{md_src_drone_core_README_autotoc_md3}{}\doxysection{🚀 Getting Started}\label{md_src_drone_core_README_autotoc_md3}
+\doxysubsection*{Requirements}
+
+
+\begin{DoxyItemize}
+\item ROS 2 Humble or newer
+\item PX4 Autopilot + {\ttfamily px4\+\_\+msgs}
+\item {\ttfamily yaml-\/cpp} and standard ROS 2 build tools
+\item C++17 compatible compiler
+\end{DoxyItemize}
+
+\doxysubsection*{Dependencies}
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\# Install ROS 2 dependencies}
+\DoxyCodeLine{sudo apt install ros-\/\$\{ROS\_DISTRO\}-\/px4-\/msgs}
+\DoxyCodeLine{sudo apt install libyaml-\/cpp-\/dev}
+
+\end{DoxyCode}
+
+
+\doxysubsection*{Build}
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{cd \string~/ws\_droneOS}
+\DoxyCodeLine{colcon build -\/-\/packages-\/select drone\_os}
+\DoxyCodeLine{source install/setup.bash}
+
+\end{DoxyCode}
+
+
+\doxysubsection*{Usage}
+
+
+\begin{DoxyEnumerate}
+\item Launch the drone core\+: 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{ros2 launch drone\_os drone\_core.launch.py}
+
+\end{DoxyCode}
+
+\item Configure missions using YAML files (see examples in {\ttfamily config/})
+\item Use the ROS 2 API to\+:
+\begin{DoxyItemize}
+\item Monitor drone states
+\item Send commands
+\item Manage missions
+\item Coordinate fleet operations
+\end{DoxyItemize}
+\end{DoxyEnumerate}\hypertarget{md_src_drone_core_README_autotoc_md4}{}\doxysection{📚 Documentation}\label{md_src_drone_core_README_autotoc_md4}
+For detailed API documentation and examples, see the {\ttfamily docs/} directory.\hypertarget{md_src_drone_core_README_autotoc_md5}{}\doxysection{🤝 Contributing}\label{md_src_drone_core_README_autotoc_md5}
+This is a proprietary project. For contribution inquiries, please contact the maintainer.\hypertarget{md_src_drone_core_README_autotoc_md6}{}\doxysection{📄 License}\label{md_src_drone_core_README_autotoc_md6}
+Proprietary -\/ All rights reserved 

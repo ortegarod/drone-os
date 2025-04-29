@@ -1,0 +1,641 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.1" xml:lang="en-US">
+  <compounddef id="classDroneManager" kind="class" language="C++" prot="public">
+    <compoundname>DroneManager</compoundname>
+    <includes refid="drone__manager_8hpp" local="no">drone_manager.hpp</includes>
+      <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classDroneManager_1abcebc371c40b085a8e8d57e5f5296779" prot="private" static="no" mutable="no">
+        <type>std::shared_ptr&lt; rclcpp::Node &gt;</type>
+        <definition>std::shared_ptr&lt;rclcpp::Node&gt; DroneManager::node_</definition>
+        <argsstring></argsstring>
+        <name>node_</name>
+        <briefdescription>
+<para>ROS2 node for communication. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="165" column="21" bodyfile="src/drone_core/include/drone_core/drone_manager.hpp" bodystart="165" bodyend="-1"/>
+        <referencedby refid="classDroneManager_1aa77cfd925d788e108f49b195bc40faa1" compoundref="drone__manager_8cpp" startline="44" endline="53">add_drone</referencedby>
+        <referencedby refid="classDroneManager_1aec864cf3cda1b9b61351338ffdbf5a6d" compoundref="drone__manager_8cpp" startline="13" endline="18">DroneManager</referencedby>
+        <referencedby refid="classDroneManager_1a37e627b72d9f83866d9dcc56f8bf6440" compoundref="drone__manager_8hpp" startline="162" endline="162">get_node</referencedby>
+        <referencedby refid="classDroneManager_1ad791e962b4cf144c61b0d640e5b6e874" compoundref="drone__manager_8cpp" startline="180" endline="186">set_loiter_mode</referencedby>
+        <referencedby refid="classDroneManager_1a47014b5bc725812df414e92c0b4f2250" compoundref="drone__manager_8cpp" startline="127" endline="133">set_position</referencedby>
+        <referencedby refid="classDroneManager_1a4239f6f39448a46d98881ca805b679e8" compoundref="drone__manager_8cpp" startline="195" endline="201">set_position_mode</referencedby>
+        <referencedby refid="classDroneManager_1a3e47b15e8b85d8215257d354ff86a642" compoundref="drone__manager_8cpp" startline="61" endline="68">start</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" prot="private" static="no" mutable="no">
+        <type>std::unordered_map&lt; std::string, std::shared_ptr&lt; <ref refid="classDroneController" kindref="compound">DroneController</ref> &gt; &gt;</type>
+        <definition>std::unordered_map&lt;std::string, std::shared_ptr&lt;DroneController&gt; &gt; DroneManager::drones_</definition>
+        <argsstring></argsstring>
+        <name>drones_</name>
+        <briefdescription>
+<para>Map of managed drones. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="166" column="24" bodyfile="src/drone_core/include/drone_core/drone_manager.hpp" bodystart="166" bodyend="-1"/>
+        <referencedby refid="classDroneManager_1aa77cfd925d788e108f49b195bc40faa1" compoundref="drone__manager_8cpp" startline="44" endline="53">add_drone</referencedby>
+        <referencedby refid="classDroneManager_1accb1ab255272a243241f6cd0d3353455" compoundref="drone__manager_8cpp" startline="90" endline="92">arm</referencedby>
+        <referencedby refid="classDroneManager_1ab6e3206cc6616418ebf6e915f1a181ee" compoundref="drone__manager_8cpp" startline="101" endline="103">disarm</referencedby>
+        <referencedby refid="classDroneManager_1aaf19a6ece1c58d5d5c9723725815f89c" compoundref="drone__manager_8cpp" startline="155" endline="157">is_connected</referencedby>
+        <referencedby refid="classDroneManager_1a718d800dadcc2e1f3d17e22fab2374ed" compoundref="drone__manager_8cpp" startline="142" endline="144">land</referencedby>
+        <referencedby refid="classDroneManager_1ad791e962b4cf144c61b0d640e5b6e874" compoundref="drone__manager_8cpp" startline="180" endline="186">set_loiter_mode</referencedby>
+        <referencedby refid="classDroneManager_1a47014b5bc725812df414e92c0b4f2250" compoundref="drone__manager_8cpp" startline="127" endline="133">set_position</referencedby>
+        <referencedby refid="classDroneManager_1a4239f6f39448a46d98881ca805b679e8" compoundref="drone__manager_8cpp" startline="195" endline="201">set_position_mode</referencedby>
+        <referencedby refid="classDroneManager_1ad25d1adc2786fea23421d2e935ba7cad" compoundref="drone__manager_8cpp" startline="112" endline="114">takeoff</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="classDroneManager_1a65f89b95fb9a362a6970c46b6a840390" prot="private" static="no" mutable="no">
+        <type>rclcpp::TimerBase::SharedPtr</type>
+        <definition>rclcpp::TimerBase::SharedPtr DroneManager::timer_</definition>
+        <argsstring></argsstring>
+        <name>timer_</name>
+        <briefdescription>
+<para>Timer for periodic updates. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="167" column="34" bodyfile="src/drone_core/include/drone_core/drone_manager.hpp" bodystart="167" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classDroneManager_1ab67a4727e82d69ffad8ce13d788eccc6" prot="private" static="no" mutable="no">
+        <type>std::thread</type>
+        <definition>std::thread DroneManager::spin_thread_</definition>
+        <argsstring></argsstring>
+        <name>spin_thread_</name>
+        <briefdescription>
+<para>Thread for ROS2 spin. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="168" column="17" bodyfile="src/drone_core/include/drone_core/drone_manager.hpp" bodystart="168" bodyend="-1"/>
+        <referencedby refid="classDroneManager_1a3e47b15e8b85d8215257d354ff86a642" compoundref="drone__manager_8cpp" startline="61" endline="68">start</referencedby>
+        <referencedby refid="classDroneManager_1a6eeadbaa8e3869abaf87bfae5e6d6ea3" compoundref="drone__manager_8cpp" startline="76" endline="81">stop</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="classDroneManager_1a5cbb4e5c33a7ce1fde6d7f2ca2929444" prot="private" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool DroneManager::running_</definition>
+        <argsstring></argsstring>
+        <name>running_</name>
+        <initializer>= false</initializer>
+        <briefdescription>
+<para>Flag indicating if the manager is running. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="169" column="10" bodyfile="src/drone_core/include/drone_core/drone_manager.hpp" bodystart="169" bodyend="-1"/>
+        <referencedby refid="classDroneManager_1a3e47b15e8b85d8215257d354ff86a642" compoundref="drone__manager_8cpp" startline="61" endline="68">start</referencedby>
+        <referencedby refid="classDroneManager_1a6eeadbaa8e3869abaf87bfae5e6d6ea3" compoundref="drone__manager_8cpp" startline="76" endline="81">stop</referencedby>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="public-func">
+      <memberdef kind="function" id="classDroneManager_1aec864cf3cda1b9b61351338ffdbf5a6d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>DroneManager::DroneManager</definition>
+        <argsstring>()</argsstring>
+        <name>DroneManager</name>
+        <briefdescription>
+<para>Constructs a new <ref refid="classDroneManager" kindref="compound">DroneManager</ref> instance. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Initializes the ROS2 node and sets up a timer for periodic updates.</para>
+<para>Initializes the ROS2 node for managing multiple drones. </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="31" column="5" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="13" bodyend="18"/>
+        <references refid="classDroneManager_1abcebc371c40b085a8e8d57e5f5296779" compoundref="drone__manager_8hpp" startline="165">node_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1a57c93ceb39b0f4b44f059e5666d9d079" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>DroneManager::~DroneManager</definition>
+        <argsstring>()</argsstring>
+        <name>~DroneManager</name>
+        <briefdescription>
+<para>Destroys the <ref refid="classDroneManager" kindref="compound">DroneManager</ref> instance. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Ensures proper cleanup of resources and ROS2 shutdown.</para>
+<para>Ensures proper cleanup by stopping the ROS2 node and any running threads. Calls <ref refid="classDroneManager_1a6eeadbaa8e3869abaf87bfae5e6d6ea3" kindref="member">stop()</ref> to clean up resources and shuts down ROS2 if it was initialized. </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="38" column="5" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="26" bodyend="31"/>
+        <references refid="classDroneManager_1a6eeadbaa8e3869abaf87bfae5e6d6ea3" compoundref="drone__manager_8cpp" startline="76" endline="81">stop</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1aa77cfd925d788e108f49b195bc40faa1" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool DroneManager::add_drone</definition>
+        <argsstring>(const std::string &amp;drone_name, const std::string &amp;px4_namespace=&quot;/fmu/&quot;)</argsstring>
+        <name>add_drone</name>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>drone_name</declname>
+        </param>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>px4_namespace</declname>
+          <defval>&quot;/fmu/&quot;</defval>
+        </param>
+        <briefdescription>
+<para>Adds a new drone to be managed. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Creates a new <ref refid="classDroneController" kindref="compound">DroneController</ref> instance for the specified drone and adds it to the internal management system. Each drone must have a unique name.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>drone_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Unique identifier for the drone </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>px4_namespace</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>PX4 namespace for communication (default: &quot;/fmu/&quot;) </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>true if the drone was successfully added </para>
+</simplesect>
+<simplesect kind="return"><para>false if a drone with the same name already exists </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="51" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="44" bodyend="53"/>
+        <references refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" compoundref="drone__manager_8hpp" startline="166">drones_</references>
+        <references refid="classDroneManager_1abcebc371c40b085a8e8d57e5f5296779" compoundref="drone__manager_8hpp" startline="165">node_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1a3e47b15e8b85d8215257d354ff86a642" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneManager::start</definition>
+        <argsstring>()</argsstring>
+        <name>start</name>
+        <briefdescription>
+<para>Starts the internal ROS2 processing. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Launches a new thread to handle ROS2 callbacks and starts the timer for periodic updates.</para>
+<para>Launches a new thread to handle ROS2 callbacks. This method should be called after adding all desired drones. </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="59" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="61" bodyend="68"/>
+        <references refid="classDroneManager_1abcebc371c40b085a8e8d57e5f5296779" compoundref="drone__manager_8hpp" startline="165">node_</references>
+        <references refid="classDroneManager_1a5cbb4e5c33a7ce1fde6d7f2ca2929444" compoundref="drone__manager_8hpp" startline="169">running_</references>
+        <references refid="classDroneManager_1ab67a4727e82d69ffad8ce13d788eccc6" compoundref="drone__manager_8hpp" startline="168">spin_thread_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1a6eeadbaa8e3869abaf87bfae5e6d6ea3" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneManager::stop</definition>
+        <argsstring>()</argsstring>
+        <name>stop</name>
+        <briefdescription>
+<para>Stops the internal ROS2 processing. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Cancels the timer, stops the ROS2 spin thread, and cleans up resources.</para>
+<para>Stops the ROS2 spin thread and cleans up resources. This method is automatically called by the destructor. </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="66" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="76" bodyend="81"/>
+        <references refid="classDroneManager_1a5cbb4e5c33a7ce1fde6d7f2ca2929444" compoundref="drone__manager_8hpp" startline="169">running_</references>
+        <references refid="classDroneManager_1ab67a4727e82d69ffad8ce13d788eccc6" compoundref="drone__manager_8hpp" startline="168">spin_thread_</references>
+        <referencedby refid="classDroneManager_1a57c93ceb39b0f4b44f059e5666d9d079" compoundref="drone__manager_8cpp" startline="26" endline="31">~DroneManager</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1accb1ab255272a243241f6cd0d3353455" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneManager::arm</definition>
+        <argsstring>(const std::string &amp;drone_name)</argsstring>
+        <name>arm</name>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>drone_name</declname>
+        </param>
+        <briefdescription>
+<para>Arms a specific drone. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Sends the arm command to the specified drone if it exists.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>drone_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone to arm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="75" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="90" bodyend="92"/>
+        <references refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" compoundref="drone__manager_8hpp" startline="166">drones_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1ab6e3206cc6616418ebf6e915f1a181ee" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneManager::disarm</definition>
+        <argsstring>(const std::string &amp;drone_name)</argsstring>
+        <name>disarm</name>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>drone_name</declname>
+        </param>
+        <briefdescription>
+<para>Disarms a specific drone. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Sends the disarm command to the specified drone if it exists.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>drone_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone to disarm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="84" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="101" bodyend="103"/>
+        <references refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" compoundref="drone__manager_8hpp" startline="166">drones_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1ad25d1adc2786fea23421d2e935ba7cad" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneManager::takeoff</definition>
+        <argsstring>(const std::string &amp;drone_name)</argsstring>
+        <name>takeoff</name>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>drone_name</declname>
+        </param>
+        <briefdescription>
+<para>Commands a specific drone to takeoff. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Initiates the takeoff sequence for the specified drone if it exists.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>drone_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone to takeoff </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="93" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="112" bodyend="114"/>
+        <references refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" compoundref="drone__manager_8hpp" startline="166">drones_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1a47014b5bc725812df414e92c0b4f2250" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneManager::set_position</definition>
+        <argsstring>(const std::string &amp;drone_name, float x, float y, float z, float yaw=0.0f)</argsstring>
+        <name>set_position</name>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>drone_name</declname>
+        </param>
+        <param>
+          <type>float</type>
+          <declname>x</declname>
+        </param>
+        <param>
+          <type>float</type>
+          <declname>y</declname>
+        </param>
+        <param>
+          <type>float</type>
+          <declname>z</declname>
+        </param>
+        <param>
+          <type>float</type>
+          <declname>yaw</declname>
+          <defval>0.0f</defval>
+        </param>
+        <briefdescription>
+<para>Sets the target position for a specific drone. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Commands the specified drone to move to the given position and orientation.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>drone_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone to control </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>x</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Target x position in meters </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>y</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Target y position in meters </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>z</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Target z position in meters </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>yaw</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Target yaw angle in radians (default: 0.0) </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="106" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="127" bodyend="133"/>
+        <references refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" compoundref="drone__manager_8hpp" startline="166">drones_</references>
+        <references refid="classDroneManager_1abcebc371c40b085a8e8d57e5f5296779" compoundref="drone__manager_8hpp" startline="165">node_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1a718d800dadcc2e1f3d17e22fab2374ed" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneManager::land</definition>
+        <argsstring>(const std::string &amp;drone_name)</argsstring>
+        <name>land</name>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>drone_name</declname>
+        </param>
+        <briefdescription>
+<para>Commands a specific drone to land. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Initiates the landing sequence for the specified drone if it exists.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>drone_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone to land </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="115" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="142" bodyend="144"/>
+        <references refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" compoundref="drone__manager_8hpp" startline="166">drones_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1aaf19a6ece1c58d5d5c9723725815f89c" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool DroneManager::is_connected</definition>
+        <argsstring>(const std::string &amp;drone_name) const</argsstring>
+        <name>is_connected</name>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>drone_name</declname>
+        </param>
+        <briefdescription>
+<para>Checks if a drone is connected. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Verifies if the specified drone exists in the management system.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>drone_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone to check </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>true if the drone exists and is being managed </para>
+</simplesect>
+<simplesect kind="return"><para>false if the drone is not being managed </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="126" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="155" bodyend="157"/>
+        <references refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" compoundref="drone__manager_8hpp" startline="166">drones_</references>
+        <referencedby refid="classDroneManager_1a57badc42f388d71facb1a4a3b25f8014" compoundref="drone__manager_8cpp" startline="169" endline="171">is_armed</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1a57badc42f388d71facb1a4a3b25f8014" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool DroneManager::is_armed</definition>
+        <argsstring>(const std::string &amp;drone_name) const</argsstring>
+        <name>is_armed</name>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>drone_name</declname>
+        </param>
+        <briefdescription>
+<para>Checks if a drone is armed. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Currently only checks if the drone exists in the system. TODO: Implement actual armed state checking.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>drone_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone to check </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>true if the drone exists </para>
+</simplesect>
+<simplesect kind="return"><para>false if the drone is not being managed </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="138" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="169" bodyend="171"/>
+        <references refid="classDroneManager_1aaf19a6ece1c58d5d5c9723725815f89c" compoundref="drone__manager_8cpp" startline="155" endline="157">is_connected</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1ad791e962b4cf144c61b0d640e5b6e874" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneManager::set_loiter_mode</definition>
+        <argsstring>(const std::string &amp;drone_name)</argsstring>
+        <name>set_loiter_mode</name>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>drone_name</declname>
+        </param>
+        <briefdescription>
+<para>Sets a drone to loiter mode. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Commands the specified drone to enter loiter mode if it exists.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>drone_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone to set to loiter mode </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="147" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="180" bodyend="186"/>
+        <references refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" compoundref="drone__manager_8hpp" startline="166">drones_</references>
+        <references refid="classDroneManager_1abcebc371c40b085a8e8d57e5f5296779" compoundref="drone__manager_8hpp" startline="165">node_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1a4239f6f39448a46d98881ca805b679e8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void DroneManager::set_position_mode</definition>
+        <argsstring>(const std::string &amp;drone_name)</argsstring>
+        <name>set_position_mode</name>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>drone_name</declname>
+        </param>
+        <briefdescription>
+<para>Sets a drone to position control mode. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Commands the specified drone to enter position control mode if it exists.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>drone_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Name of the drone to set to position control mode </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="156" column="10" bodyfile="src/drone_core/src/drone_core/drone_manager.cpp" bodystart="195" bodyend="201"/>
+        <references refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" compoundref="drone__manager_8hpp" startline="166">drones_</references>
+        <references refid="classDroneManager_1abcebc371c40b085a8e8d57e5f5296779" compoundref="drone__manager_8hpp" startline="165">node_</references>
+      </memberdef>
+      <memberdef kind="function" id="classDroneManager_1a37e627b72d9f83866d9dcc56f8bf6440" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::shared_ptr&lt; rclcpp::Node &gt;</type>
+        <definition>std::shared_ptr&lt;rclcpp::Node&gt; DroneManager::get_node</definition>
+        <argsstring>() const</argsstring>
+        <name>get_node</name>
+        <briefdescription>
+<para>Get the ROS2 node. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><simplesect kind="return"><para>Shared pointer to the ROS2 node </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="162" column="21" bodyfile="src/drone_core/include/drone_core/drone_manager.hpp" bodystart="162" bodyend="162"/>
+        <references refid="classDroneManager_1abcebc371c40b085a8e8d57e5f5296779" compoundref="drone__manager_8hpp" startline="165">node_</references>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+<para>Manages multiple drones through <ref refid="classDroneController" kindref="compound">DroneController</ref> instances. </para>
+    </briefdescription>
+    <detaileddescription>
+<para>This class provides a high-level interface for managing multiple drones. It handles the creation and lifecycle of <ref refid="classDroneController" kindref="compound">DroneController</ref> instances, each of which manages a single drone. The class provides methods for controlling the drones and managing their states. </para>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="3">
+        <label>std::unordered_map&lt; std::string, std::shared_ptr&lt; DroneController &gt; &gt;</label>
+        <childnode refid="4" relation="usage">
+          <edgelabel>elements</edgelabel>
+        </childnode>
+        <childnode refid="5" relation="usage">
+          <edgelabel>keys</edgelabel>
+        </childnode>
+      </node>
+      <node id="6">
+        <label>std::basic_string&lt; Char &gt;</label>
+      </node>
+      <node id="7">
+        <label>std::thread</label>
+      </node>
+      <node id="1">
+        <label>DroneManager</label>
+        <link refid="classDroneManager"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>node_</edgelabel>
+        </childnode>
+        <childnode refid="3" relation="usage">
+          <edgelabel>drones_</edgelabel>
+        </childnode>
+        <childnode refid="7" relation="usage">
+          <edgelabel>spin_thread_</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::shared_ptr&lt; rclcpp::Node &gt;</label>
+      </node>
+      <node id="4">
+        <label>std::shared_ptr&lt; DroneController &gt;</label>
+      </node>
+      <node id="5">
+        <label>std::string</label>
+        <childnode refid="6" relation="public-inheritance">
+        </childnode>
+      </node>
+    </collaborationgraph>
+    <location file="src/drone_core/include/drone_core/drone_manager.hpp" line="24" column="1" bodyfile="src/drone_core/include/drone_core/drone_manager.hpp" bodystart="24" bodyend="170"/>
+    <listofallmembers>
+      <member refid="classDroneManager_1aa77cfd925d788e108f49b195bc40faa1" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>add_drone</name></member>
+      <member refid="classDroneManager_1accb1ab255272a243241f6cd0d3353455" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>arm</name></member>
+      <member refid="classDroneManager_1ab6e3206cc6616418ebf6e915f1a181ee" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>disarm</name></member>
+      <member refid="classDroneManager_1aec864cf3cda1b9b61351338ffdbf5a6d" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>DroneManager</name></member>
+      <member refid="classDroneManager_1a34eef5f6034244ff1b506b543a139bee" prot="private" virt="non-virtual"><scope>DroneManager</scope><name>drones_</name></member>
+      <member refid="classDroneManager_1a37e627b72d9f83866d9dcc56f8bf6440" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>get_node</name></member>
+      <member refid="classDroneManager_1a57badc42f388d71facb1a4a3b25f8014" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>is_armed</name></member>
+      <member refid="classDroneManager_1aaf19a6ece1c58d5d5c9723725815f89c" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>is_connected</name></member>
+      <member refid="classDroneManager_1a718d800dadcc2e1f3d17e22fab2374ed" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>land</name></member>
+      <member refid="classDroneManager_1abcebc371c40b085a8e8d57e5f5296779" prot="private" virt="non-virtual"><scope>DroneManager</scope><name>node_</name></member>
+      <member refid="classDroneManager_1a5cbb4e5c33a7ce1fde6d7f2ca2929444" prot="private" virt="non-virtual"><scope>DroneManager</scope><name>running_</name></member>
+      <member refid="classDroneManager_1ad791e962b4cf144c61b0d640e5b6e874" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>set_loiter_mode</name></member>
+      <member refid="classDroneManager_1a47014b5bc725812df414e92c0b4f2250" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>set_position</name></member>
+      <member refid="classDroneManager_1a4239f6f39448a46d98881ca805b679e8" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>set_position_mode</name></member>
+      <member refid="classDroneManager_1ab67a4727e82d69ffad8ce13d788eccc6" prot="private" virt="non-virtual"><scope>DroneManager</scope><name>spin_thread_</name></member>
+      <member refid="classDroneManager_1a3e47b15e8b85d8215257d354ff86a642" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>start</name></member>
+      <member refid="classDroneManager_1a6eeadbaa8e3869abaf87bfae5e6d6ea3" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>stop</name></member>
+      <member refid="classDroneManager_1ad25d1adc2786fea23421d2e935ba7cad" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>takeoff</name></member>
+      <member refid="classDroneManager_1a65f89b95fb9a362a6970c46b6a840390" prot="private" virt="non-virtual"><scope>DroneManager</scope><name>timer_</name></member>
+      <member refid="classDroneManager_1a57c93ceb39b0f4b44f059e5666d9d079" prot="public" virt="non-virtual"><scope>DroneManager</scope><name>~DroneManager</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

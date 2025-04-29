@@ -1,0 +1,9 @@
+<map id="src/drone_core/include/drone_core/command_relay.hpp" name="src/drone_core/include/drone_core/command_relay.hpp">
+<area shape="rect" id="node1" title="Defines the CommandRelay class for sending commands to PX4 autopilot." alt="" coords="336,5,569,47"/>
+<area shape="rect" id="node2" href="$drone__agent_8hpp.html" title="Defines the DroneAgent class for managing drone operations and state." alt="" coords="242,102,453,143"/>
+<area shape="rect" id="node7" href="$command__relay_8cpp.html" title="Implementation of the CommandRelay class for sending commands to PX4 autopilot." alt="" coords="476,95,643,151"/>
+<area shape="rect" id="node3" href="$drone__manager_8hpp.html" title="Header file for the DroneManager class that manages multiple drones." alt="" coords="109,199,340,240"/>
+<area shape="rect" id="node6" href="$drone__agent_8cpp.html" title="Implementation of the DroneAgent class." alt="" coords="365,199,575,240"/>
+<area shape="rect" id="node4" href="$drone__manager_8cpp.html" title="Implementation of the DroneManager class for managing multiple drones." alt="" coords="5,288,236,329"/>
+<area shape="rect" id="node5" href="$main_8cpp.html" title=" " alt="" coords="260,288,400,329"/>
+</map>

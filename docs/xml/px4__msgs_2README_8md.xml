@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.1" xml:lang="en-US">
+  <compounddef id="px4__msgs_2README_8md" kind="file" language="Markdown">
+    <compoundname>README.md</compoundname>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline><highlight class="normal">#<sp/>px4_msgs</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">[![GitHub<sp/>license](https://img.shields.io/github/license/PX4/px4_msgs.svg)](https://github.com/PX4/px4_msg/blob/master/LICENSE)<sp/>[![Build<sp/>package](https://github.com/PX4/px4_msgs/workflows/Build%20package/badge.svg)](https://github.com/PX4/px4_msgs/actions)</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">[![Discord<sp/>Shield](https://discordapp.com/api/guilds/1022170275984457759/widget.png?style=shield)](https://discord.gg/dronecode)</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">ROS<sp/>2<sp/>message<sp/>definitions<sp/>for<sp/>the<sp/>[PX4<sp/>Autopilot](https://px4.io/)<sp/>project.</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">Building<sp/>this<sp/>package<sp/>generates<sp/>all<sp/>the<sp/>required<sp/>interfaces<sp/>to<sp/>interface<sp/>ROS<sp/>2<sp/>nodes<sp/>with<sp/>the<sp/>PX4<sp/>internals.</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">##<sp/>Supported<sp/>versions<sp/>and<sp/>compatibility</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">Depending<sp/>on<sp/>the<sp/>PX4<sp/>and<sp/>ROS<sp/>versions<sp/>you<sp/>want<sp/>to<sp/>use,<sp/>you<sp/>need<sp/>to<sp/>checkout<sp/>the<sp/>appropriate<sp/>branch<sp/>of<sp/>this<sp/>package:</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">|<sp/>PX4<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>ROS<sp/>2<sp/><sp/><sp/>|<sp/>Ubuntu<sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>branch<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|</highlight></codeline>
+<codeline><highlight class="normal">|----------------|---------|--------------|-------------------------------------------------------------------|</highlight></codeline>
+<codeline><highlight class="normal">|<sp/>[v1.13](https://github.com/PX4/px4_msgs/tree/release/1.13)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>Foxy<sp/><sp/><sp/><sp/>|<sp/>Ubuntu<sp/>20.04<sp/>|<sp/>[release/1.13](https://github.com/PX4/px4_msgs/tree/release/1.13)<sp/>|</highlight></codeline>
+<codeline><highlight class="normal">|<sp/>[v1.14](https://github.com/PX4/px4_msgs/tree/release/1.14)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>Foxy<sp/><sp/><sp/><sp/>|<sp/>Ubuntu<sp/>20.04<sp/>|<sp/>[release/1.14](https://github.com/PX4/px4_msgs/tree/release/1.14)<sp/>|</highlight></codeline>
+<codeline><highlight class="normal">|<sp/>[v1.14](https://github.com/PX4/px4_msgs/tree/release/1.14)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>Humble<sp/><sp/>|<sp/>Ubuntu<sp/>22.04<sp/>|<sp/>[release/1.14](https://github.com/PX4/px4_msgs/tree/release/1.14)<sp/>|</highlight></codeline>
+<codeline><highlight class="normal">|<sp/>[v1.14](https://github.com/PX4/px4_msgs/tree/release/1.14)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>Rolling<sp/>|<sp/>Ubuntu<sp/>22.04<sp/>|<sp/>[release/1.14](https://github.com/PX4/px4_msgs/tree/release/1.14)<sp/>|</highlight></codeline>
+<codeline><highlight class="normal">|<sp/>[v1.15](https://github.com/PX4/px4_msgs/tree/release/1.15)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>Foxy<sp/><sp/><sp/><sp/>|<sp/>Ubuntu<sp/>20.04<sp/>|<sp/>[release/1.15](https://github.com/PX4/px4_msgs/tree/release/1.15)<sp/>|</highlight></codeline>
+<codeline><highlight class="normal">|<sp/>[v1.15](https://github.com/PX4/px4_msgs/tree/release/1.15)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>Humble<sp/><sp/>|<sp/>Ubuntu<sp/>22.04<sp/>|<sp/>[release/1.15](https://github.com/PX4/px4_msgs/tree/release/1.15)<sp/>|</highlight></codeline>
+<codeline><highlight class="normal">|<sp/>[v1.15](https://github.com/PX4/px4_msgs/tree/release/1.15)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>Rolling<sp/>|<sp/>Ubuntu<sp/>22.04<sp/>|<sp/>[release/1.15](https://github.com/PX4/px4_msgs/tree/release/1.15)<sp/>|</highlight></codeline>
+<codeline><highlight class="normal">|<sp/>[main](https://github.com/PX4/px4_msgs/tree/main)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>Foxy<sp/><sp/><sp/><sp/>|<sp/>Ubuntu<sp/>22.04<sp/>|<sp/>[main](https://github.com/PX4/px4_msgs)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|</highlight></codeline>
+<codeline><highlight class="normal">|<sp/>[main](https://github.com/PX4/px4_msgs/tree/main)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>Humble<sp/><sp/>|<sp/>Ubuntu<sp/>22.04<sp/>|<sp/>[main](https://github.com/PX4/px4_msgs)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|</highlight></codeline>
+<codeline><highlight class="normal">|<sp/>[main](https://github.com/PX4/px4_msgs/tree/main)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|<sp/>Rolling<sp/>|<sp/>Ubuntu<sp/>22.04<sp/>|<sp/>[main](https://github.com/PX4/px4_msgs)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>|</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">###<sp/>Messages<sp/>Sync<sp/>from<sp/>PX4</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">When<sp/>PX4<sp/>message<sp/>definitions<sp/>in<sp/>the<sp/>`main`<sp/>branch<sp/>of<sp/>[PX4<sp/>Autopilot](https://github.com/PX4/PX4-Autopilot)<sp/>change,<sp/>a<sp/>[CI/CD<sp/>pipeline](https://github.com/PX4/PX4-Autopilot/blob/main/.github/workflows/metadata.yml#L119)<sp/>automatically<sp/>copies<sp/>and<sp/>pushes<sp/>updated<sp/>ROS<sp/>message<sp/>definitions<sp/>to<sp/>this<sp/>repository.<sp/>This<sp/>ensures<sp/>that<sp/>this<sp/>repository<sp/>`main`<sp/>branch<sp/>and<sp/>the<sp/>PX4-Autopilot<sp/>`main`<sp/>branch<sp/>are<sp/>always<sp/>up<sp/>to<sp/>date.</highlight></codeline>
+<codeline><highlight class="normal">However,<sp/>if<sp/>you<sp/>are<sp/>using<sp/>a<sp/>custom<sp/>PX4<sp/>version<sp/>and<sp/>you<sp/>modified<sp/>existing<sp/>messages<sp/>or<sp/>created<sp/>new<sp/>one,<sp/>then<sp/>you<sp/>have<sp/>to<sp/>manually<sp/>synchronize<sp/>them<sp/>in<sp/>this<sp/>repository:</highlight></codeline>
+<codeline><highlight class="normal">###<sp/>Manual<sp/>Message<sp/>Sync</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">-<sp/>Checkout<sp/>the<sp/>correct<sp/>branch<sp/>associated<sp/>to<sp/>the<sp/>PX4<sp/>version<sp/>from<sp/>which<sp/>you<sp/>detached<sp/>you<sp/>custom<sp/>version.</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>Delete<sp/>all<sp/>`*.msg`<sp/>and<sp/>`*.srv`<sp/>files<sp/>in<sp/>`msg/`<sp/>and<sp/><sp/>`srv/`.</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>Copy<sp/>all<sp/>`*.msg`<sp/>and<sp/><sp/>`*.srv`<sp/>files<sp/>from<sp/>`PX4-Autopilot/msg/`<sp/>and<sp/>`PX4-Autopilot/srv/`<sp/>in<sp/><sp/>`msg/`<sp/>and<sp/><sp/>`srv/`,<sp/>respectively.<sp/>Assuming<sp/>that<sp/>this<sp/>repository<sp/>and<sp/>the<sp/>PX4-Autopilot<sp/>repository<sp/>are<sp/>placed<sp/>in<sp/>your<sp/>home<sp/>folder,<sp/>you<sp/>can<sp/>run:</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/>```sh</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/>rm<sp/>-f<sp/>~/px4_msgs/msg/*.msg</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/>rm<sp/>-f<sp/>~/px4_msgs/srv/*.srv</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/>cp<sp/>~/PX4-Autopilot/msg/*.msg<sp/>~/px4_msgs/msg/</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/>cp<sp/>~/PX4-Autopilot/msg/versioned/*.msg<sp/>~/px4_msgs/msg/</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/>cp<sp/>~/PX4-Autopilot/srv/*.srv<sp/>~/px4_msgs/srv/</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/>```</highlight></codeline>
+<codeline><highlight class="normal">**Note:**<sp/>The<sp/>ROS<sp/>2<sp/>message<sp/>generation<sp/>pipeline<sp/>requires<sp/>all<sp/>messages<sp/>to<sp/>be<sp/>directly<sp/>under<sp/>`msg/`<sp/>and<sp/>doesn&apos;t<sp/>support<sp/>sub-directories.</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">##<sp/>Install,<sp/>build<sp/>and<sp/>usage</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">Check<sp/>[Using<sp/>colcon<sp/>to<sp/>build<sp/>packages](https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Creating-Your-First-ROS2-Package.html#build-a-package)<sp/>to<sp/>understand<sp/>how<sp/>this<sp/>can<sp/>be<sp/>built<sp/>inside<sp/>a<sp/>workspace.<sp/>Check<sp/>the<sp/>[PX4<sp/>ROS<sp/>2<sp/>User<sp/>Guide](https://docs.px4.io/main/en/ros/ros2_comm.html)<sp/>section<sp/>on<sp/>the<sp/>PX4<sp/>documentation<sp/>for<sp/>further<sp/>details<sp/>on<sp/>how<sp/>this<sp/>integrates<sp/>PX4<sp/>and<sp/>how<sp/>to<sp/>exchange<sp/>messages<sp/>with<sp/>the<sp/>autopilot.</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">##<sp/>Bug<sp/>tracking<sp/>and<sp/>feature<sp/>requests</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">Use<sp/>the<sp/>[Issues](https://github.com/PX4/px4_msgs/issues)<sp/>section<sp/>to<sp/>create<sp/>a<sp/>new<sp/>issue.<sp/>Report<sp/>your<sp/>issue<sp/>or<sp/>feature<sp/>request<sp/>[here](https://github.com/PX4/px4_msgs/issues/new).</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">##<sp/>Questions<sp/>and<sp/>troubleshooting</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">Reach<sp/>the<sp/>PX4<sp/>development<sp/>team<sp/>on<sp/>the<sp/>[PX4<sp/>Discord<sp/>Server](https://discord.gg/dronecode).</highlight></codeline>
+<codeline></codeline>
+    </programlisting>
+    <location file="src/px4_msgs/README.md"/>
+  </compounddef>
+</doxygen>

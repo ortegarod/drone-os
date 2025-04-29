@@ -1,0 +1,11 @@
+<map id="src/drone_core/include/drone_core/drone_controller.hpp" name="src/drone_core/include/drone_core/drone_controller.hpp">
+<area shape="rect" id="node1" title="Defines the DroneController class for managing drone operations and state." alt="" coords="408,5,643,47"/>
+<area shape="rect" id="node2" title=" " alt="" coords="387,191,519,218"/>
+<area shape="rect" id="node3" href="$drone__agent_8hpp.html" title="Defines the DroneAgent class for sending commands to PX4 autopilot." alt="" coords="210,102,417,129"/>
+<area shape="rect" id="node6" href="$offboard__control_8hpp.html" title="Defines the OffboardControl class for managing offboard control mode." alt="" coords="540,95,692,136"/>
+<area shape="rect" id="node9" title=" " alt="" coords="957,191,1035,218"/>
+<area shape="rect" id="node4" title=" " alt="" coords="200,184,363,225"/>
+<area shape="rect" id="node5" title=" " alt="" coords="5,184,176,225"/>
+<area shape="rect" id="node7" title=" " alt="" coords="544,184,723,225"/>
+<area shape="rect" id="node8" title=" " alt="" coords="747,184,933,225"/>
+</map>

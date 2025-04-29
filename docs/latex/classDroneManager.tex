@@ -1,0 +1,560 @@
+\hypertarget{classDroneManager}{}\doxysection{Drone\+Manager Class Reference}
+\label{classDroneManager}\index{DroneManager@{DroneManager}}
+
+
+Manages multiple drones through \mbox{\hyperlink{classDroneController}{Drone\+Controller}} instances.  
+
+
+
+
+{\ttfamily \#include $<$drone\+\_\+manager.\+hpp$>$}
+
+
+
+Collaboration diagram for Drone\+Manager\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classDroneManager__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classDroneManager_aec864cf3cda1b9b61351338ffdbf5a6d}{Drone\+Manager}} ()
+\begin{DoxyCompactList}\small\item\em Constructs a new \mbox{\hyperlink{classDroneManager}{Drone\+Manager}} instance. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{classDroneManager_a57c93ceb39b0f4b44f059e5666d9d079}{$\sim$\+Drone\+Manager}} ()
+\begin{DoxyCompactList}\small\item\em Destroys the \mbox{\hyperlink{classDroneManager}{Drone\+Manager}} instance. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{classDroneManager_aa77cfd925d788e108f49b195bc40faa1}{add\+\_\+drone}} (const std\+::string \&drone\+\_\+name, const std\+::string \&px4\+\_\+namespace=\char`\"{}/fmu/\char`\"{})
+\begin{DoxyCompactList}\small\item\em Adds a new drone to be managed. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classDroneManager_a3e47b15e8b85d8215257d354ff86a642}{start}} ()
+\begin{DoxyCompactList}\small\item\em Starts the internal ROS2 processing. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classDroneManager_a6eeadbaa8e3869abaf87bfae5e6d6ea3}{stop}} ()
+\begin{DoxyCompactList}\small\item\em Stops the internal ROS2 processing. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classDroneManager_accb1ab255272a243241f6cd0d3353455}{arm}} (const std\+::string \&drone\+\_\+name)
+\begin{DoxyCompactList}\small\item\em Arms a specific drone. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classDroneManager_ab6e3206cc6616418ebf6e915f1a181ee}{disarm}} (const std\+::string \&drone\+\_\+name)
+\begin{DoxyCompactList}\small\item\em Disarms a specific drone. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classDroneManager_ad25d1adc2786fea23421d2e935ba7cad}{takeoff}} (const std\+::string \&drone\+\_\+name)
+\begin{DoxyCompactList}\small\item\em Commands a specific drone to takeoff. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classDroneManager_a47014b5bc725812df414e92c0b4f2250}{set\+\_\+position}} (const std\+::string \&drone\+\_\+name, float x, float y, float z, float yaw=0.\+0f)
+\begin{DoxyCompactList}\small\item\em Sets the target position for a specific drone. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classDroneManager_a718d800dadcc2e1f3d17e22fab2374ed}{land}} (const std\+::string \&drone\+\_\+name)
+\begin{DoxyCompactList}\small\item\em Commands a specific drone to land. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{classDroneManager_aaf19a6ece1c58d5d5c9723725815f89c}{is\+\_\+connected}} (const std\+::string \&drone\+\_\+name) const
+\begin{DoxyCompactList}\small\item\em Checks if a drone is connected. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{classDroneManager_a57badc42f388d71facb1a4a3b25f8014}{is\+\_\+armed}} (const std\+::string \&drone\+\_\+name) const
+\begin{DoxyCompactList}\small\item\em Checks if a drone is armed. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classDroneManager_ad791e962b4cf144c61b0d640e5b6e874}{set\+\_\+loiter\+\_\+mode}} (const std\+::string \&drone\+\_\+name)
+\begin{DoxyCompactList}\small\item\em Sets a drone to loiter mode. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classDroneManager_a4239f6f39448a46d98881ca805b679e8}{set\+\_\+position\+\_\+mode}} (const std\+::string \&drone\+\_\+name)
+\begin{DoxyCompactList}\small\item\em Sets a drone to position control mode. \end{DoxyCompactList}\item 
+std\+::shared\+\_\+ptr$<$ rclcpp\+::\+Node $>$ \mbox{\hyperlink{classDroneManager_a37e627b72d9f83866d9dcc56f8bf6440}{get\+\_\+node}} () const
+\begin{DoxyCompactList}\small\item\em Get the ROS2 node. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+std\+::shared\+\_\+ptr$<$ rclcpp\+::\+Node $>$ \mbox{\hyperlink{classDroneManager_abcebc371c40b085a8e8d57e5f5296779}{node\+\_\+}}
+\begin{DoxyCompactList}\small\item\em ROS2 node for communication. \end{DoxyCompactList}\item 
+std\+::unordered\+\_\+map$<$ std\+::string, std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classDroneController}{Drone\+Controller}} $>$ $>$ \mbox{\hyperlink{classDroneManager_a34eef5f6034244ff1b506b543a139bee}{drones\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Map of managed drones. \end{DoxyCompactList}\item 
+rclcpp\+::\+Timer\+Base\+::\+Shared\+Ptr \mbox{\hyperlink{classDroneManager_a65f89b95fb9a362a6970c46b6a840390}{timer\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Timer for periodic updates. \end{DoxyCompactList}\item 
+std\+::thread \mbox{\hyperlink{classDroneManager_ab67a4727e82d69ffad8ce13d788eccc6}{spin\+\_\+thread\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Thread for ROS2 spin. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{classDroneManager_a5cbb4e5c33a7ce1fde6d7f2ca2929444}{running\+\_\+}} = false
+\begin{DoxyCompactList}\small\item\em Flag indicating if the manager is running. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Manages multiple drones through \mbox{\hyperlink{classDroneController}{Drone\+Controller}} instances. 
+
+This class provides a high-\/level interface for managing multiple drones. It handles the creation and lifecycle of \mbox{\hyperlink{classDroneController}{Drone\+Controller}} instances, each of which manages a single drone. The class provides methods for controlling the drones and managing their states. 
+
+Definition at line 24 of file drone\+\_\+manager.\+hpp.
+
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classDroneManager_aec864cf3cda1b9b61351338ffdbf5a6d}\label{classDroneManager_aec864cf3cda1b9b61351338ffdbf5a6d}} 
+\index{DroneManager@{DroneManager}!DroneManager@{DroneManager}}
+\index{DroneManager@{DroneManager}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{DroneManager()}{DroneManager()}}
+{\footnotesize\ttfamily Drone\+Manager\+::\+Drone\+Manager (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+Constructs a new \mbox{\hyperlink{classDroneManager}{Drone\+Manager}} instance. 
+
+Initializes the ROS2 node and sets up a timer for periodic updates.
+
+Initializes the ROS2 node for managing multiple drones. 
+
+Definition at line 13 of file drone\+\_\+manager.\+cpp.
+
+
+
+References node\+\_\+.
+
+\mbox{\Hypertarget{classDroneManager_a57c93ceb39b0f4b44f059e5666d9d079}\label{classDroneManager_a57c93ceb39b0f4b44f059e5666d9d079}} 
+\index{DroneManager@{DroneManager}!````~DroneManager@{$\sim$DroneManager}}
+\index{````~DroneManager@{$\sim$DroneManager}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{$\sim$DroneManager()}{~DroneManager()}}
+{\footnotesize\ttfamily Drone\+Manager\+::$\sim$\+Drone\+Manager (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+Destroys the \mbox{\hyperlink{classDroneManager}{Drone\+Manager}} instance. 
+
+Ensures proper cleanup of resources and ROS2 shutdown.
+
+Ensures proper cleanup by stopping the ROS2 node and any running threads. Calls \mbox{\hyperlink{classDroneManager_a6eeadbaa8e3869abaf87bfae5e6d6ea3}{stop()}} to clean up resources and shuts down ROS2 if it was initialized. 
+
+Definition at line 26 of file drone\+\_\+manager.\+cpp.
+
+
+
+References stop().
+
+
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classDroneManager_aa77cfd925d788e108f49b195bc40faa1}\label{classDroneManager_aa77cfd925d788e108f49b195bc40faa1}} 
+\index{DroneManager@{DroneManager}!add\_drone@{add\_drone}}
+\index{add\_drone@{add\_drone}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{add\_drone()}{add\_drone()}}
+{\footnotesize\ttfamily bool Drone\+Manager\+::add\+\_\+drone (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{drone\+\_\+name,  }\item[{const std\+::string \&}]{px4\+\_\+namespace = {\ttfamily \char`\"{}/fmu/\char`\"{}} }\end{DoxyParamCaption})}
+
+
+
+Adds a new drone to be managed. 
+
+Creates a new \mbox{\hyperlink{classDroneController}{Drone\+Controller}} instance for the specified drone and adds it to the internal management system. Each drone must have a unique name.
+
+
+\begin{DoxyParams}{Parameters}
+{\em drone\+\_\+name} & Unique identifier for the drone \\
+\hline
+{\em px4\+\_\+namespace} & PX4 namespace for communication (default\+: \char`\"{}/fmu/\char`\"{}) \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+true if the drone was successfully added 
+
+false if a drone with the same name already exists 
+\end{DoxyReturn}
+
+
+Definition at line 44 of file drone\+\_\+manager.\+cpp.
+
+
+
+References drones\+\_\+, and node\+\_\+.
+
+\mbox{\Hypertarget{classDroneManager_accb1ab255272a243241f6cd0d3353455}\label{classDroneManager_accb1ab255272a243241f6cd0d3353455}} 
+\index{DroneManager@{DroneManager}!arm@{arm}}
+\index{arm@{arm}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{arm()}{arm()}}
+{\footnotesize\ttfamily void Drone\+Manager\+::arm (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{drone\+\_\+name }\end{DoxyParamCaption})}
+
+
+
+Arms a specific drone. 
+
+Sends the arm command to the specified drone if it exists.
+
+
+\begin{DoxyParams}{Parameters}
+{\em drone\+\_\+name} & Name of the drone to arm \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 90 of file drone\+\_\+manager.\+cpp.
+
+
+
+References drones\+\_\+.
+
+\mbox{\Hypertarget{classDroneManager_ab6e3206cc6616418ebf6e915f1a181ee}\label{classDroneManager_ab6e3206cc6616418ebf6e915f1a181ee}} 
+\index{DroneManager@{DroneManager}!disarm@{disarm}}
+\index{disarm@{disarm}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{disarm()}{disarm()}}
+{\footnotesize\ttfamily void Drone\+Manager\+::disarm (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{drone\+\_\+name }\end{DoxyParamCaption})}
+
+
+
+Disarms a specific drone. 
+
+Sends the disarm command to the specified drone if it exists.
+
+
+\begin{DoxyParams}{Parameters}
+{\em drone\+\_\+name} & Name of the drone to disarm \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 101 of file drone\+\_\+manager.\+cpp.
+
+
+
+References drones\+\_\+.
+
+\mbox{\Hypertarget{classDroneManager_a37e627b72d9f83866d9dcc56f8bf6440}\label{classDroneManager_a37e627b72d9f83866d9dcc56f8bf6440}} 
+\index{DroneManager@{DroneManager}!get\_node@{get\_node}}
+\index{get\_node@{get\_node}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{get\_node()}{get\_node()}}
+{\footnotesize\ttfamily std\+::shared\+\_\+ptr$<$rclcpp\+::\+Node$>$ Drone\+Manager\+::get\+\_\+node (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+Get the ROS2 node. 
+
+\begin{DoxyReturn}{Returns}
+Shared pointer to the ROS2 node 
+\end{DoxyReturn}
+
+
+Definition at line 162 of file drone\+\_\+manager.\+hpp.
+
+
+
+References node\+\_\+.
+
+\mbox{\Hypertarget{classDroneManager_a57badc42f388d71facb1a4a3b25f8014}\label{classDroneManager_a57badc42f388d71facb1a4a3b25f8014}} 
+\index{DroneManager@{DroneManager}!is\_armed@{is\_armed}}
+\index{is\_armed@{is\_armed}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{is\_armed()}{is\_armed()}}
+{\footnotesize\ttfamily bool Drone\+Manager\+::is\+\_\+armed (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{drone\+\_\+name }\end{DoxyParamCaption}) const}
+
+
+
+Checks if a drone is armed. 
+
+Currently only checks if the drone exists in the system. TODO\+: Implement actual armed state checking.
+
+
+\begin{DoxyParams}{Parameters}
+{\em drone\+\_\+name} & Name of the drone to check \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+true if the drone exists 
+
+false if the drone is not being managed 
+\end{DoxyReturn}
+
+
+Definition at line 169 of file drone\+\_\+manager.\+cpp.
+
+
+
+References is\+\_\+connected().
+
+\mbox{\Hypertarget{classDroneManager_aaf19a6ece1c58d5d5c9723725815f89c}\label{classDroneManager_aaf19a6ece1c58d5d5c9723725815f89c}} 
+\index{DroneManager@{DroneManager}!is\_connected@{is\_connected}}
+\index{is\_connected@{is\_connected}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{is\_connected()}{is\_connected()}}
+{\footnotesize\ttfamily bool Drone\+Manager\+::is\+\_\+connected (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{drone\+\_\+name }\end{DoxyParamCaption}) const}
+
+
+
+Checks if a drone is connected. 
+
+Verifies if the specified drone exists in the management system.
+
+
+\begin{DoxyParams}{Parameters}
+{\em drone\+\_\+name} & Name of the drone to check \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+true if the drone exists and is being managed 
+
+false if the drone is not being managed 
+\end{DoxyReturn}
+
+
+Definition at line 155 of file drone\+\_\+manager.\+cpp.
+
+
+
+References drones\+\_\+.
+
+
+
+Referenced by is\+\_\+armed().
+
+\mbox{\Hypertarget{classDroneManager_a718d800dadcc2e1f3d17e22fab2374ed}\label{classDroneManager_a718d800dadcc2e1f3d17e22fab2374ed}} 
+\index{DroneManager@{DroneManager}!land@{land}}
+\index{land@{land}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{land()}{land()}}
+{\footnotesize\ttfamily void Drone\+Manager\+::land (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{drone\+\_\+name }\end{DoxyParamCaption})}
+
+
+
+Commands a specific drone to land. 
+
+Initiates the landing sequence for the specified drone if it exists.
+
+
+\begin{DoxyParams}{Parameters}
+{\em drone\+\_\+name} & Name of the drone to land \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 142 of file drone\+\_\+manager.\+cpp.
+
+
+
+References drones\+\_\+.
+
+\mbox{\Hypertarget{classDroneManager_ad791e962b4cf144c61b0d640e5b6e874}\label{classDroneManager_ad791e962b4cf144c61b0d640e5b6e874}} 
+\index{DroneManager@{DroneManager}!set\_loiter\_mode@{set\_loiter\_mode}}
+\index{set\_loiter\_mode@{set\_loiter\_mode}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{set\_loiter\_mode()}{set\_loiter\_mode()}}
+{\footnotesize\ttfamily void Drone\+Manager\+::set\+\_\+loiter\+\_\+mode (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{drone\+\_\+name }\end{DoxyParamCaption})}
+
+
+
+Sets a drone to loiter mode. 
+
+Commands the specified drone to enter loiter mode if it exists.
+
+
+\begin{DoxyParams}{Parameters}
+{\em drone\+\_\+name} & Name of the drone to set to loiter mode \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 180 of file drone\+\_\+manager.\+cpp.
+
+
+
+References drones\+\_\+, and node\+\_\+.
+
+\mbox{\Hypertarget{classDroneManager_a47014b5bc725812df414e92c0b4f2250}\label{classDroneManager_a47014b5bc725812df414e92c0b4f2250}} 
+\index{DroneManager@{DroneManager}!set\_position@{set\_position}}
+\index{set\_position@{set\_position}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{set\_position()}{set\_position()}}
+{\footnotesize\ttfamily void Drone\+Manager\+::set\+\_\+position (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{drone\+\_\+name,  }\item[{float}]{x,  }\item[{float}]{y,  }\item[{float}]{z,  }\item[{float}]{yaw = {\ttfamily 0.0f} }\end{DoxyParamCaption})}
+
+
+
+Sets the target position for a specific drone. 
+
+Commands the specified drone to move to the given position and orientation.
+
+
+\begin{DoxyParams}{Parameters}
+{\em drone\+\_\+name} & Name of the drone to control \\
+\hline
+{\em x} & Target x position in meters \\
+\hline
+{\em y} & Target y position in meters \\
+\hline
+{\em z} & Target z position in meters \\
+\hline
+{\em yaw} & Target yaw angle in radians (default\+: 0.\+0) \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 127 of file drone\+\_\+manager.\+cpp.
+
+
+
+References drones\+\_\+, and node\+\_\+.
+
+\mbox{\Hypertarget{classDroneManager_a4239f6f39448a46d98881ca805b679e8}\label{classDroneManager_a4239f6f39448a46d98881ca805b679e8}} 
+\index{DroneManager@{DroneManager}!set\_position\_mode@{set\_position\_mode}}
+\index{set\_position\_mode@{set\_position\_mode}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{set\_position\_mode()}{set\_position\_mode()}}
+{\footnotesize\ttfamily void Drone\+Manager\+::set\+\_\+position\+\_\+mode (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{drone\+\_\+name }\end{DoxyParamCaption})}
+
+
+
+Sets a drone to position control mode. 
+
+Commands the specified drone to enter position control mode if it exists.
+
+
+\begin{DoxyParams}{Parameters}
+{\em drone\+\_\+name} & Name of the drone to set to position control mode \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 195 of file drone\+\_\+manager.\+cpp.
+
+
+
+References drones\+\_\+, and node\+\_\+.
+
+\mbox{\Hypertarget{classDroneManager_a3e47b15e8b85d8215257d354ff86a642}\label{classDroneManager_a3e47b15e8b85d8215257d354ff86a642}} 
+\index{DroneManager@{DroneManager}!start@{start}}
+\index{start@{start}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{start()}{start()}}
+{\footnotesize\ttfamily void Drone\+Manager\+::start (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+Starts the internal ROS2 processing. 
+
+Launches a new thread to handle ROS2 callbacks and starts the timer for periodic updates.
+
+Launches a new thread to handle ROS2 callbacks. This method should be called after adding all desired drones. 
+
+Definition at line 61 of file drone\+\_\+manager.\+cpp.
+
+
+
+References node\+\_\+, running\+\_\+, and spin\+\_\+thread\+\_\+.
+
+\mbox{\Hypertarget{classDroneManager_a6eeadbaa8e3869abaf87bfae5e6d6ea3}\label{classDroneManager_a6eeadbaa8e3869abaf87bfae5e6d6ea3}} 
+\index{DroneManager@{DroneManager}!stop@{stop}}
+\index{stop@{stop}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{stop()}{stop()}}
+{\footnotesize\ttfamily void Drone\+Manager\+::stop (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+Stops the internal ROS2 processing. 
+
+Cancels the timer, stops the ROS2 spin thread, and cleans up resources.
+
+Stops the ROS2 spin thread and cleans up resources. This method is automatically called by the destructor. 
+
+Definition at line 76 of file drone\+\_\+manager.\+cpp.
+
+
+
+References running\+\_\+, and spin\+\_\+thread\+\_\+.
+
+
+
+Referenced by $\sim$\+Drone\+Manager().
+
+\mbox{\Hypertarget{classDroneManager_ad25d1adc2786fea23421d2e935ba7cad}\label{classDroneManager_ad25d1adc2786fea23421d2e935ba7cad}} 
+\index{DroneManager@{DroneManager}!takeoff@{takeoff}}
+\index{takeoff@{takeoff}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{takeoff()}{takeoff()}}
+{\footnotesize\ttfamily void Drone\+Manager\+::takeoff (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{drone\+\_\+name }\end{DoxyParamCaption})}
+
+
+
+Commands a specific drone to takeoff. 
+
+Initiates the takeoff sequence for the specified drone if it exists.
+
+
+\begin{DoxyParams}{Parameters}
+{\em drone\+\_\+name} & Name of the drone to takeoff \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 112 of file drone\+\_\+manager.\+cpp.
+
+
+
+References drones\+\_\+.
+
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{classDroneManager_a34eef5f6034244ff1b506b543a139bee}\label{classDroneManager_a34eef5f6034244ff1b506b543a139bee}} 
+\index{DroneManager@{DroneManager}!drones\_@{drones\_}}
+\index{drones\_@{drones\_}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{drones\_}{drones\_}}
+{\footnotesize\ttfamily std\+::unordered\+\_\+map$<$std\+::string, std\+::shared\+\_\+ptr$<$\mbox{\hyperlink{classDroneController}{Drone\+Controller}}$>$ $>$ Drone\+Manager\+::drones\+\_\+\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Map of managed drones. 
+
+
+
+Definition at line 166 of file drone\+\_\+manager.\+hpp.
+
+
+
+Referenced by add\+\_\+drone(), arm(), disarm(), is\+\_\+connected(), land(), set\+\_\+loiter\+\_\+mode(), set\+\_\+position(), set\+\_\+position\+\_\+mode(), and takeoff().
+
+\mbox{\Hypertarget{classDroneManager_abcebc371c40b085a8e8d57e5f5296779}\label{classDroneManager_abcebc371c40b085a8e8d57e5f5296779}} 
+\index{DroneManager@{DroneManager}!node\_@{node\_}}
+\index{node\_@{node\_}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{node\_}{node\_}}
+{\footnotesize\ttfamily std\+::shared\+\_\+ptr$<$rclcpp\+::\+Node$>$ Drone\+Manager\+::node\+\_\+\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+ROS2 node for communication. 
+
+
+
+Definition at line 165 of file drone\+\_\+manager.\+hpp.
+
+
+
+Referenced by add\+\_\+drone(), Drone\+Manager(), get\+\_\+node(), set\+\_\+loiter\+\_\+mode(), set\+\_\+position(), set\+\_\+position\+\_\+mode(), and start().
+
+\mbox{\Hypertarget{classDroneManager_a5cbb4e5c33a7ce1fde6d7f2ca2929444}\label{classDroneManager_a5cbb4e5c33a7ce1fde6d7f2ca2929444}} 
+\index{DroneManager@{DroneManager}!running\_@{running\_}}
+\index{running\_@{running\_}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{running\_}{running\_}}
+{\footnotesize\ttfamily bool Drone\+Manager\+::running\+\_\+ = false\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Flag indicating if the manager is running. 
+
+
+
+Definition at line 169 of file drone\+\_\+manager.\+hpp.
+
+
+
+Referenced by start(), and stop().
+
+\mbox{\Hypertarget{classDroneManager_ab67a4727e82d69ffad8ce13d788eccc6}\label{classDroneManager_ab67a4727e82d69ffad8ce13d788eccc6}} 
+\index{DroneManager@{DroneManager}!spin\_thread\_@{spin\_thread\_}}
+\index{spin\_thread\_@{spin\_thread\_}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{spin\_thread\_}{spin\_thread\_}}
+{\footnotesize\ttfamily std\+::thread Drone\+Manager\+::spin\+\_\+thread\+\_\+\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Thread for ROS2 spin. 
+
+
+
+Definition at line 168 of file drone\+\_\+manager.\+hpp.
+
+
+
+Referenced by start(), and stop().
+
+\mbox{\Hypertarget{classDroneManager_a65f89b95fb9a362a6970c46b6a840390}\label{classDroneManager_a65f89b95fb9a362a6970c46b6a840390}} 
+\index{DroneManager@{DroneManager}!timer\_@{timer\_}}
+\index{timer\_@{timer\_}!DroneManager@{DroneManager}}
+\doxysubsubsection{\texorpdfstring{timer\_}{timer\_}}
+{\footnotesize\ttfamily rclcpp\+::\+Timer\+Base\+::\+Shared\+Ptr Drone\+Manager\+::timer\+\_\+\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Timer for periodic updates. 
+
+
+
+Definition at line 167 of file drone\+\_\+manager.\+hpp.
+
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+src/drone\+\_\+core/include/drone\+\_\+core/\mbox{\hyperlink{drone__manager_8hpp}{drone\+\_\+manager.\+hpp}}\item 
+src/drone\+\_\+core/src/drone\+\_\+core/\mbox{\hyperlink{drone__manager_8cpp}{drone\+\_\+manager.\+cpp}}\end{DoxyCompactItemize}

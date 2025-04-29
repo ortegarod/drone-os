@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.1" xml:lang="en-US">
+  <compounddef id="md_src_px4_msgs_CONTRIBUTING" kind="page">
+    <compoundname>md_src_px4_msgs_CONTRIBUTING</compoundname>
+    <title>Contributing</title>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para><emphasis>Do not</emphasis> commit changes directly to this repository that change the message definitions. All the message definitions are directly generated from the <ulink url="https://github.com/PX4/Firmware/tree/master/msg">uORB msg definitions</ulink> on the <ulink url="https://github.com/PX4/Firmware">PX4 Firmware repository</ulink>. Any fixes or improvements one finds suitable to apply to the message definitions should be directly done on the uORB message files. The deployment of these are taken care by a Jenkins CI/CD stage.</para>
+<para><heading level="2">Contributing to the PX4 Firmware repository (or to this repository, not including message definitions)</heading>
+</para>
+<para>Follow the <ulink url="https://github.com/PX4/Firmware/blob/master/CONTRIBUTING.md"><computeroutput>Contributing</computeroutput> guide</ulink> from the PX4 Firmware repo. </para>
+    </detaileddescription>
+    <location file="src/px4_msgs/CONTRIBUTING.md"/>
+  </compounddef>
+</doxygen>

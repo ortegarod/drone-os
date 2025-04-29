@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.1" xml:lang="en-US">
+  <compounddef id="drone__core_2README_8md" kind="file" language="Markdown">
+    <compoundname>README.md</compoundname>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline><highlight class="normal">#<sp/>droneOS</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">**droneOS**<sp/>is<sp/>a<sp/>proprietary,<sp/>ROS<sp/>2-based<sp/>modular<sp/>SDK<sp/>for<sp/>commanding<sp/>PX4-compatible<sp/>autonomous<sp/>drone<sp/>fleets.<sp/>It<sp/>provides<sp/>reusable<sp/>mission<sp/>logic,<sp/>low-level<sp/>PX4<sp/>communication,<sp/>and<sp/>real-time<sp/>control<sp/>infrastructure<sp/>for<sp/>scalable,<sp/>multi-agent<sp/>operations.</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">##<sp/>✈️<sp/>Features</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">-<sp/>Fleet-level<sp/>drone<sp/>management<sp/>via<sp/>`DroneAgent`<sp/>and<sp/>`DroneManager`</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>YAML-driven<sp/>waypoint<sp/>missions<sp/>with<sp/>auto-progress<sp/>logic</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>Real-time<sp/>position<sp/>tracking<sp/>using<sp/>PX4<sp/>telemetry</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>Modular<sp/>architecture<sp/>designed<sp/>for<sp/>expansion<sp/>into<sp/>AI-driven<sp/>command<sp/>layers</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>Compatible<sp/>with<sp/>PX4<sp/>Autopilot<sp/>and<sp/>ROS<sp/>2<sp/>middleware</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>Thread-safe<sp/>drone<sp/>state<sp/>management</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>Configurable<sp/>mission<sp/>parameters<sp/>and<sp/>behaviors</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">##<sp/>🏗️<sp/>Architecture</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">The<sp/>SDK<sp/>is<sp/>built<sp/>around<sp/>a<sp/>core<sp/>set<sp/>of<sp/>components:</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">-<sp/>`DroneAgent`:<sp/>Individual<sp/>drone<sp/>control<sp/>and<sp/>state<sp/>management</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>`DroneManager`:<sp/>Fleet-level<sp/>coordination<sp/>and<sp/>mission<sp/>execution</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>Mission<sp/>Parser:<sp/>YAML-based<sp/>mission<sp/>configuration</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>PX4<sp/>Interface:<sp/>Low-level<sp/>communication<sp/>with<sp/>PX4<sp/>autopilot</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">##<sp/>🚀<sp/>Getting<sp/>Started</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">###<sp/>Requirements</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">-<sp/>ROS<sp/>2<sp/>Humble<sp/>or<sp/>newer</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>PX4<sp/>Autopilot<sp/>+<sp/>`px4_msgs`</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>`yaml-cpp`<sp/>and<sp/>standard<sp/>ROS<sp/>2<sp/>build<sp/>tools</highlight></codeline>
+<codeline><highlight class="normal">-<sp/>C++17<sp/>compatible<sp/>compiler</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">###<sp/>Dependencies</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">```bash</highlight></codeline>
+<codeline><highlight class="normal">#<sp/>Install<sp/>ROS<sp/>2<sp/>dependencies</highlight></codeline>
+<codeline><highlight class="normal">sudo<sp/>apt<sp/>install<sp/>ros-${ROS_DISTRO}-px4-msgs</highlight></codeline>
+<codeline><highlight class="normal">sudo<sp/>apt<sp/>install<sp/>libyaml-cpp-dev</highlight></codeline>
+<codeline><highlight class="normal">```</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">###<sp/>Build</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">```bash</highlight></codeline>
+<codeline><highlight class="normal">cd<sp/>~/ws_droneOS</highlight></codeline>
+<codeline><highlight class="normal">colcon<sp/>build<sp/>--packages-select<sp/>drone_os</highlight></codeline>
+<codeline><highlight class="normal">source<sp/>install/setup.bash</highlight></codeline>
+<codeline><highlight class="normal">```</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">###<sp/>Usage</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">1.<sp/>Launch<sp/>the<sp/>drone<sp/>core:</highlight></codeline>
+<codeline><highlight class="normal">```bash</highlight></codeline>
+<codeline><highlight class="normal">ros2<sp/>launch<sp/>drone_os<sp/>drone_core.launch.py</highlight></codeline>
+<codeline><highlight class="normal">```</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">2.<sp/>Configure<sp/>missions<sp/>using<sp/>YAML<sp/>files<sp/>(see<sp/>examples<sp/>in<sp/>`config/`)</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">3.<sp/>Use<sp/>the<sp/>ROS<sp/>2<sp/>API<sp/>to:</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/>-<sp/>Monitor<sp/>drone<sp/>states</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/>-<sp/>Send<sp/>commands</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/>-<sp/>Manage<sp/>missions</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/>-<sp/>Coordinate<sp/>fleet<sp/>operations</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">##<sp/>📚<sp/>Documentation</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">For<sp/>detailed<sp/>API<sp/>documentation<sp/>and<sp/>examples,<sp/>see<sp/>the<sp/>`docs/`<sp/>directory.</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">##<sp/>🤝<sp/>Contributing</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">This<sp/>is<sp/>a<sp/>proprietary<sp/>project.<sp/>For<sp/>contribution<sp/>inquiries,<sp/>please<sp/>contact<sp/>the<sp/>maintainer.</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">##<sp/>📄<sp/>License</highlight></codeline>
+<codeline></codeline>
+<codeline><highlight class="normal">Proprietary<sp/>-<sp/>All<sp/>rights<sp/>reserved</highlight></codeline>
+    </programlisting>
+    <location file="src/drone_core/README.md"/>
+  </compounddef>
+</doxygen>

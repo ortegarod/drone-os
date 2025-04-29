@@ -1,0 +1,23 @@
+services:
+  ros2_drone:
+    build: .
+    container_name: ros2_drone
+    network_mode: "host"
+    privileged: true
+    volumes:
+      - ./logs:/root/ws_droneOS/logs
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+    depends_on:
+      - micro_agent
+
+  micro_agent:
+    build:
+      context: .
+      dockerfile: micro_agent.Dockerfile
+    container_name: micro_agent
+    network_mode: "host"
+    privileged: true
+    # Mount your local agent source in case you want it live (optional)
+    # volumes:
+    #   - ./Micro-XRCE-DDS-Agent:/root/Micro-XRCE-DDS-Agent

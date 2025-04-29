@@ -1,0 +1,246 @@
+\hypertarget{classCommandRelay}{}\doxysection{Command\+Relay Class Reference}
+\label{classCommandRelay}\index{CommandRelay@{CommandRelay}}
+
+
+Handles communication with PX4 autopilot through ROS2 services.  
+
+
+
+
+{\ttfamily \#include $<$command\+\_\+relay.\+hpp$>$}
+
+
+
+Collaboration diagram for Command\+Relay\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=184pt]{classCommandRelay__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classCommandRelay_aa3a9437e553c33253aef89bfcc222fea}{Command\+Relay}} (rclcpp\+::\+Node $\ast$node, const std\+::string \&ns, const std\+::string \&name)
+\begin{DoxyCompactList}\small\item\em Constructs a new \mbox{\hyperlink{classCommandRelay}{Command\+Relay}} instance. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classCommandRelay_ada6a602884c63a6c19ad115b98d0b04c}{send}} (uint16\+\_\+t command, float param1, float param2, std\+::function$<$ void(uint8\+\_\+t)$>$ callback)
+\begin{DoxyCompactList}\small\item\em Sends a command to the PX4 autopilot. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Private Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \mbox{\hyperlink{classCommandRelay_a04bc36012847e453fe3b77dac09be1bd}{log\+\_\+result}} (uint8\+\_\+t result)
+\begin{DoxyCompactList}\small\item\em Logs the result of a command. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+rclcpp\+::\+Node $\ast$ \mbox{\hyperlink{classCommandRelay_a9406cc21600ee431f45f610cc3f8d3b8}{node\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Pointer to ROS2 node. \end{DoxyCompactList}\item 
+std\+::string \mbox{\hyperlink{classCommandRelay_a69504fa0ec9c8d71fbc44279ae9b2fe4}{name\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Name of the drone for logging. \end{DoxyCompactList}\item 
+rclcpp\+::\+Client$<$ px4\+\_\+msgs\+::srv\+::\+Vehicle\+Command $>$\+::Shared\+Ptr \mbox{\hyperlink{classCommandRelay_adbc4ab7c90747335d86874542660c994}{client\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Service client for vehicle commands. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Handles communication with PX4 autopilot through ROS2 services. 
+
+This class provides a simplified interface for sending vehicle commands to the PX4 autopilot. It handles the creation of service clients and provides a callback mechanism for command results. 
+
+Definition at line 20 of file command\+\_\+relay.\+hpp.
+
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classCommandRelay_aa3a9437e553c33253aef89bfcc222fea}\label{classCommandRelay_aa3a9437e553c33253aef89bfcc222fea}} 
+\index{CommandRelay@{CommandRelay}!CommandRelay@{CommandRelay}}
+\index{CommandRelay@{CommandRelay}!CommandRelay@{CommandRelay}}
+\doxysubsubsection{\texorpdfstring{CommandRelay()}{CommandRelay()}}
+{\footnotesize\ttfamily Command\+Relay\+::\+Command\+Relay (\begin{DoxyParamCaption}\item[{rclcpp\+::\+Node $\ast$}]{node,  }\item[{const std\+::string \&}]{ns,  }\item[{const std\+::string \&}]{name }\end{DoxyParamCaption})}
+
+
+
+Constructs a new \mbox{\hyperlink{classCommandRelay}{Command\+Relay}} instance. 
+
+Initializes the command relay with a ROS2 node and sets up the vehicle command service client.
+
+
+\begin{DoxyParams}{Parameters}
+{\em node} & Pointer to the ROS2 node \\
+\hline
+{\em ns} & PX4 namespace for communication \\
+\hline
+{\em name} & Name of the drone for logging\\
+\hline
+\end{DoxyParams}
+Initializes the command relay with a ROS2 node and sets up the vehicle command service client. The constructor will wait for the service to become available before proceeding.
+
+
+\begin{DoxyParams}{Parameters}
+{\em node} & Pointer to the ROS2 node \\
+\hline
+{\em ns} & PX4 namespace for communication \\
+\hline
+{\em name} & Name of the drone for logging \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 18 of file command\+\_\+relay.\+cpp.
+
+
+
+References client\+\_\+, name\+\_\+, and node\+\_\+.
+
+
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classCommandRelay_a04bc36012847e453fe3b77dac09be1bd}\label{classCommandRelay_a04bc36012847e453fe3b77dac09be1bd}} 
+\index{CommandRelay@{CommandRelay}!log\_result@{log\_result}}
+\index{log\_result@{log\_result}!CommandRelay@{CommandRelay}}
+\doxysubsubsection{\texorpdfstring{log\_result()}{log\_result()}}
+{\footnotesize\ttfamily void Command\+Relay\+::log\+\_\+result (\begin{DoxyParamCaption}\item[{uint8\+\_\+t}]{result }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Logs the result of a command. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em result} & The result code from the PX4 autopilot\\
+\hline
+\end{DoxyParams}
+Logs the command result with appropriate severity level based on the result code.
+
+
+\begin{DoxyParams}{Parameters}
+{\em result} & The result code from the PX4 autopilot\+:
+\begin{DoxyItemize}
+\item 0\+: Command accepted
+\item 1\+: Command temporarily rejected
+\item 2\+: Command denied
+\item 3\+: Command unsupported
+\item 4\+: Command failed
+\item Other\+: Unknown result 
+\end{DoxyItemize}\\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 82 of file command\+\_\+relay.\+cpp.
+
+
+
+References name\+\_\+, and node\+\_\+.
+
+
+
+Referenced by send().
+
+\mbox{\Hypertarget{classCommandRelay_ada6a602884c63a6c19ad115b98d0b04c}\label{classCommandRelay_ada6a602884c63a6c19ad115b98d0b04c}} 
+\index{CommandRelay@{CommandRelay}!send@{send}}
+\index{send@{send}!CommandRelay@{CommandRelay}}
+\doxysubsubsection{\texorpdfstring{send()}{send()}}
+{\footnotesize\ttfamily void Command\+Relay\+::send (\begin{DoxyParamCaption}\item[{uint16\+\_\+t}]{command,  }\item[{float}]{param1,  }\item[{float}]{param2,  }\item[{std\+::function$<$ void(uint8\+\_\+t)$>$}]{callback }\end{DoxyParamCaption})}
+
+
+
+Sends a command to the PX4 autopilot. 
+
+Creates and sends a vehicle command with the specified parameters. The result is handled asynchronously through the provided callback.
+
+
+\begin{DoxyParams}{Parameters}
+{\em command} & The command ID (from px4\+\_\+msgs\+::msg\+::\+Vehicle\+Command) \\
+\hline
+{\em param1} & First parameter for the command \\
+\hline
+{\em param2} & Second parameter for the command \\
+\hline
+{\em callback} & Function to be called with the command result\\
+\hline
+\end{DoxyParams}
+Creates and sends a vehicle command with the specified parameters. The command is sent asynchronously, and the result is handled through the provided callback.
+
+
+\begin{DoxyParams}{Parameters}
+{\em command} & The command ID (from px4\+\_\+msgs\+::msg\+::\+Vehicle\+Command) \\
+\hline
+{\em param1} & First parameter for the command \\
+\hline
+{\em param2} & Second parameter for the command \\
+\hline
+{\em callback} & Function to be called with the command result \\
+\hline
+\end{DoxyParams}
+
+
+Definition at line 45 of file command\+\_\+relay.\+cpp.
+
+
+
+References client\+\_\+, log\+\_\+result(), and node\+\_\+.
+
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{classCommandRelay_adbc4ab7c90747335d86874542660c994}\label{classCommandRelay_adbc4ab7c90747335d86874542660c994}} 
+\index{CommandRelay@{CommandRelay}!client\_@{client\_}}
+\index{client\_@{client\_}!CommandRelay@{CommandRelay}}
+\doxysubsubsection{\texorpdfstring{client\_}{client\_}}
+{\footnotesize\ttfamily rclcpp\+::\+Client$<$px4\+\_\+msgs\+::srv\+::\+Vehicle\+Command$>$\+::Shared\+Ptr Command\+Relay\+::client\+\_\+\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Service client for vehicle commands. 
+
+
+
+Definition at line 58 of file command\+\_\+relay.\+hpp.
+
+
+
+Referenced by Command\+Relay(), and send().
+
+\mbox{\Hypertarget{classCommandRelay_a69504fa0ec9c8d71fbc44279ae9b2fe4}\label{classCommandRelay_a69504fa0ec9c8d71fbc44279ae9b2fe4}} 
+\index{CommandRelay@{CommandRelay}!name\_@{name\_}}
+\index{name\_@{name\_}!CommandRelay@{CommandRelay}}
+\doxysubsubsection{\texorpdfstring{name\_}{name\_}}
+{\footnotesize\ttfamily std\+::string Command\+Relay\+::name\+\_\+\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Name of the drone for logging. 
+
+
+
+Definition at line 57 of file command\+\_\+relay.\+hpp.
+
+
+
+Referenced by Command\+Relay(), and log\+\_\+result().
+
+\mbox{\Hypertarget{classCommandRelay_a9406cc21600ee431f45f610cc3f8d3b8}\label{classCommandRelay_a9406cc21600ee431f45f610cc3f8d3b8}} 
+\index{CommandRelay@{CommandRelay}!node\_@{node\_}}
+\index{node\_@{node\_}!CommandRelay@{CommandRelay}}
+\doxysubsubsection{\texorpdfstring{node\_}{node\_}}
+{\footnotesize\ttfamily rclcpp\+::\+Node$\ast$ Command\+Relay\+::node\+\_\+\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+Pointer to ROS2 node. 
+
+
+
+Definition at line 56 of file command\+\_\+relay.\+hpp.
+
+
+
+Referenced by Command\+Relay(), log\+\_\+result(), and send().
+
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+src/drone\+\_\+core/include/drone\+\_\+core/\mbox{\hyperlink{command__relay_8hpp}{command\+\_\+relay.\+hpp}}\item 
+src/drone\+\_\+core/src/drone\+\_\+core/\mbox{\hyperlink{command__relay_8cpp}{command\+\_\+relay.\+cpp}}\end{DoxyCompactItemize}
