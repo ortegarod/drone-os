@@ -52,6 +52,18 @@ DroneState::DroneState(rclcpp::Node* node, const std::string& ns, const std::str
     RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %s", name_.c_str(), local_pos_topic.c_str());
 }
 
+/**
+ * @brief Destructor for DroneState.
+ */
+DroneState::~DroneState() {
+    RCLCPP_INFO(node_->get_logger(), "[%s][State] Destructor called. Releasing subscriptions...", name_.c_str());
+    status_sub_.reset();
+    land_detected_sub_.reset();
+    global_pos_sub_.reset();
+    local_pos_sub_.reset();
+    RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscriptions released.", name_.c_str());
+}
+
 // --- Callbacks ---
 
 void DroneState::vehicle_status_callback(const px4_msgs::msg::VehicleStatus::SharedPtr msg) {
@@ -114,7 +126,7 @@ void DroneState::vehicle_global_position_callback(const px4_msgs::msg::VehicleGl
     }
     
     // Update latest data if valid
-    std::lock_guard<std::mutex> lock(data_mutex_); // Protect write access to data
+    // std::lock_guard<std::mutex> lock(data_mutex_); // Protect write access to data // DEBUG: Removed mutex
     bool pos_changed = false;
     std::string pos_changes_str;
 
@@ -148,7 +160,7 @@ void DroneState::vehicle_local_position_callback(const px4_msgs::msg::VehicleLoc
     v_z_valid_.store(msg->v_z_valid, relaxed);
 
     // Update latest data if valid
-    std::lock_guard<std::mutex> lock(data_mutex_); // Protect write access to data
+    // std::lock_guard<std::mutex> lock(data_mutex_); // Protect write access to data // DEBUG: Removed mutex
     bool local_data_changed = false;
     std::string local_changes_str;
 
@@ -188,8 +200,8 @@ void DroneState::vehicle_local_position_callback(const px4_msgs::msg::VehicleLoc
     }
 
     // Update latest data (protected by mutex)
-    {
-        std::lock_guard<std::mutex> lock(data_mutex_);
+    // {
+        // std::lock_guard<std::mutex> lock(data_mutex_); // DEBUG: Removed mutex
         latest_local_x_ = msg->x;
         latest_local_y_ = msg->y;
         latest_local_z_ = msg->z;
@@ -202,7 +214,7 @@ void DroneState::vehicle_local_position_callback(const px4_msgs::msg::VehicleLoc
         // RCLCPP_DEBUG(node_->get_logger(), "[%s] Local Pos: x=%.2f, y=%.2f, z=%.2f, vx=%.2f, vy=%.2f, vz=%.2f, hdg=%.2f", 
         //             name_.c_str(), latest_local_x_, latest_local_y_, latest_local_z_, 
         //             latest_local_vx_, latest_local_vy_, latest_local_vz_, latest_local_yaw_);
-    }
+    // }
 }
 
 // --- Getters ---
@@ -224,7 +236,7 @@ ArmingState DroneState::get_arming_state() const {
 }
 
 bool DroneState::get_latest_global_position(double& lat, double& lon, float& alt) const {
-    std::lock_guard<std::mutex> lock(data_mutex_); // Protect read access
+    // std::lock_guard<std::mutex> lock(data_mutex_); // Protect read access // DEBUG: Removed mutex
     lat = latest_lat_;
     lon = latest_lon_;
     alt = latest_alt_;
@@ -233,7 +245,7 @@ bool DroneState::get_latest_global_position(double& lat, double& lon, float& alt
 }
 
 bool DroneState::get_latest_local_position(float& x, float& y, float& z) const {
-    std::lock_guard<std::mutex> lock(data_mutex_); // Protect read access
+    // std::lock_guard<std::mutex> lock(data_mutex_); // Protect read access // DEBUG: Removed mutex
     x = latest_local_x_;
     y = latest_local_y_;
     z = latest_local_z_;
@@ -242,7 +254,7 @@ bool DroneState::get_latest_local_position(float& x, float& y, float& z) const {
 }
 
 bool DroneState::get_latest_local_velocity(float& vx, float& vy, float& vz) const {
-    std::lock_guard<std::mutex> lock(data_mutex_); // Protect read access
+    // std::lock_guard<std::mutex> lock(data_mutex_); // Protect read access // DEBUG: Removed mutex
     vx = latest_local_vx_;
     vy = latest_local_vy_;
     vz = latest_local_vz_;
@@ -257,7 +269,7 @@ bool DroneState::get_latest_local_velocity(float& vx, float& vy, float& vz) cons
  * @return The latest yaw angle in radians (North=0, East=PI/2). Returns NAN if not available/valid.
  */
 float DroneState::get_latest_local_yaw() const {
-    std::lock_guard<std::mutex> lock(data_mutex_); // Protect read
+    // std::lock_guard<std::mutex> lock(data_mutex_); // Protect read // DEBUG: Removed mutex
     // We might consider adding a specific validity flag for heading if needed,
     // but often its validity is tied to xy position validity.
     if (xy_valid_.load()) {

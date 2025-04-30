@@ -165,10 +165,6 @@ private:
     std::unique_ptr<OffboardControl> offboard_control_;    ///< Offboard control manager
     std::unique_ptr<DroneState> drone_state_;       ///< Drone state tracker
 
-    // Agent loop members
-    std::thread agent_thread_;              ///< Thread for the agent loop
-    std::atomic<bool> running_{false};      ///< Flag to control the agent loop
-
     // Mission Execution Members (NEW)
     std::vector<Waypoint> mission_waypoints_; ///< Current mission waypoints
     size_t current_waypoint_index_{0};      ///< Index of the waypoint the drone is heading towards
@@ -184,11 +180,6 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_offboard_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_position_mode_service_;
     // TODO: Add services for RTL, SetBehavior, etc. later
-
-    /**
-     * @brief The persistent agent loop
-     */
-    void run();
 
     /**
      * @brief Processes one command from the queue, if available

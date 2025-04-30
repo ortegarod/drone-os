@@ -32,6 +32,12 @@ public:
     DroneAgent(rclcpp::Node* node, const std::string& ns, const std::string& name);
 
     /**
+     * @brief Destructor for DroneAgent.
+     * Ensures the service client is released.
+     */
+    ~DroneAgent();
+
+    /**
      * @brief Sends a command to the PX4 autopilot
      * 
      * Creates and sends a vehicle command with the specified parameters.

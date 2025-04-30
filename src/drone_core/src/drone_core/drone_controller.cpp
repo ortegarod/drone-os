@@ -29,23 +29,12 @@ using std::placeholders::_3;
 DroneController::DroneController(rclcpp::Node* node, const std::string& name, const std::string& px4_namespace)
     : node_(node), name_(name), ns_(px4_namespace)
 {
+    RCLCPP_WARN(node_->get_logger(), "[%s][Controller] DEBUG: Skipping creation of Agent, OffboardControl", name_.c_str());
     drone_agent_ = std::make_unique<DroneAgent>(node_, ns_, name_);
     offboard_control_ = std::make_unique<OffboardControl>(node_, ns_);
-    drone_state_ = std::make_unique<DroneState>(node_, ns_, name_); // Create DroneState instance
-
-    // Set initial position (hover at 50 meters)
-    target_x_ = 0.0f;
-    target_y_ = 0.0f;
-    target_z_ = -50.0f;  // Negative Z is up in NED frame
-    target_yaw_ = 0.0f;
+    drone_state_ = std::make_unique<DroneState>(node_, ns_, name_); // Re-enabled DroneState
     
-    // --- Initialize OffboardControl with the initial target --- 
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Initializing OffboardControl target to (%.1f, %.1f, %.1f) Yaw: %.1f", 
-              name_.c_str(), target_x_, target_y_, target_z_, target_yaw_);
-    offboard_control_->set_target_position(target_x_, target_y_, target_z_, target_yaw_);
-    // ---------------------------------------------------------
-    
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Drone connected and ready for commands", name_.c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Drone connected and ready for commands (Agent/Offboard Skipped)", name_.c_str());
 
     // --- Create Services (Added) ---
     arm_service_ = node_->create_service<std_srvs::srv::Trigger>(
@@ -84,23 +73,8 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
 
 DroneController::~DroneController()
 {
-    if (running_) {
-        running_ = false; // Signal the loop to stop
-        if (agent_thread_.joinable()) {
-            agent_thread_.join(); // Wait for the thread to finish
-            RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Agent thread joined", name_.c_str());
-        } else {
-            // This might happen if the thread was detached or never started
-            RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Agent thread was not joinable on destruction", name_.c_str());
-        }
-    } else {
-        // If the thread was already stopped or never started
-        if (agent_thread_.joinable()) {
-             // Attempt to join even if running_ is false, just in case
-            agent_thread_.join();
-             RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Agent thread joined (was already stopped)", name_.c_str());
-        }
-    }
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Destructor called", name_.c_str());
+    // No thread management needed as agent_thread_ was removed
 }
 
 /**
@@ -230,13 +204,6 @@ bool DroneController::is_ready() const {
     return offboard_control_->get_state() == OffboardControl::State::armed;
 }
 
-// Added enqueue implementation
-void DroneController::enqueue(const Command& cmd) {
-    std::lock_guard<std::mutex> lock(command_mutex_);
-    command_queue_.push(cmd);
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Command enqueued: %d", name_.c_str(), static_cast<int>(cmd.type));
-}
-
 // Added getter implementation
 NavState DroneController::get_nav_state() const {
     // Delegate to DroneState
@@ -258,32 +225,6 @@ ArmingState DroneController::get_arming_state() const {
     return drone_state_->get_arming_state();
 }
 
-// ---- NEW METHODS ----
-
-void DroneController::start()
-{
-    if (running_) {
-        RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Agent loop already running", name_.c_str());
-        return;
-    }
-    running_ = true;
-    // Start the thread. It will be joined in the destructor.
-    agent_thread_ = std::thread([this]() { run(); });
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Agent thread started", name_.c_str());
-}
-
-void DroneController::run()
-{
-    RCLCPP_INFO(node_->get_logger(), "%s controller run loop started.", name_.c_str());
-    while(running_.load()) {
-
-        // TODO: Add periodic status checks or other background tasks
-        
-        // Sleep to prevent busy-waiting
-        std::this_thread::sleep_for(10ms); // Adjust rate as needed
-    }
-    RCLCPP_INFO(node_->get_logger(), "%s controller run loop stopped.", name_.c_str());
-}
 
 // --- Private Helper Methods ---
 

@@ -51,6 +51,12 @@ public:
     OffboardControl(rclcpp::Node* node, const std::string& px4_namespace);
 
     /**
+     * @brief Destructor for OffboardControl.
+     * Ensures the timer is stopped.
+     */
+    ~OffboardControl();
+
+    /**
      * @brief Start publishing offboard control mode messages and state machine
      */
     void start();

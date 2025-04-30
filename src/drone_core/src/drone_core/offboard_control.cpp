@@ -39,6 +39,14 @@ OffboardControl::OffboardControl(rclcpp::Node* node, const std::string& px4_name
 }
 
 /**
+ * @brief Destructor for OffboardControl.
+ */
+OffboardControl::~OffboardControl() {
+    RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Destructor called. Stopping timer...");
+    stop(); // Ensure the timer is stopped and reset
+}
+
+/**
  * @brief Starts the offboard control mode
  * 
  * Initializes the timer for publishing offboard control mode messages at 10 Hz (recommended for offboard control)

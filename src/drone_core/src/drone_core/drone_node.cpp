@@ -5,20 +5,19 @@
 DroneNode::DroneNode()
 : rclcpp::Node("drone_node") // Renamed base node name
 {
-    RCLCPP_INFO(this->get_logger(), "[%s][DroneNode] Constructing DroneNode...", drone_name_.c_str());
+    RCLCPP_INFO(this->get_logger(), "[DroneNode] Initializing DroneNode...");
 
     // Declare parameters with default values
     // These can be overridden via launch files or command line
     this->declare_parameter<std::string>("drone_name", "drone1"); // Default name
     this->declare_parameter<std::string>("px4_namespace", "/fmu/"); // Default PX4 namespace
     
-    RCLCPP_INFO(this->get_logger(), "Parameters declared. Call init() to finalize setup.");
 }
 
 // Initialization method: Get params, create controller and services
 bool DroneNode::init()
 {
-    RCLCPP_INFO(this->get_logger(), "[%s][DroneNode] Initializing internals...", drone_name_.c_str());
+    RCLCPP_INFO(this->get_logger(), "[DroneNode] Initializing internals...");
 
     // Get parameters
     this->get_parameter("drone_name", drone_name_);
@@ -37,9 +36,6 @@ bool DroneNode::init()
         RCLCPP_FATAL(this->get_logger(), "Failed to create DroneController: %s", e.what());
         return false;
     }
-
-    // Start the controller's internal operations (subscriptions, agent thread, etc.)
-    drone_controller_->start();
 
     // --- Create Services (namespaced relative to the node) ---
     // Service names will be like /drone1/takeoff if node name is drone1
@@ -119,23 +115,30 @@ void DroneNode::handle_land(
     }
 }
 
-// TODO: Implement callbacks for set_position, set_velocity, etc.
-// TODO: Implement status publishing logic 
 
 // --- Destructor Definition ---
 DroneNode::~DroneNode()
 {
-    RCLCPP_INFO(this->get_logger(), "DroneNode '%s' destructor called.", this->get_name());
-    // Stop controller thread if it exists and is running
-    stop();
+    RCLCPP_INFO(this->get_logger(), "DroneNode '%s' destructor called. Explicitly stopping controller...", this->get_name());
+    if (drone_controller_) {
+        // Resetting the shared_ptr triggers the DroneController destructor
+        // and consequently the destructors of DroneAgent, OffboardControl, DroneState.
+        drone_controller_.reset(); 
+        RCLCPP_INFO(this->get_logger(), "DroneController instance reset.");
+    } else {
+        RCLCPP_WARN(this->get_logger(), "DroneController was already null in destructor.");
+    }
+    // Original stop() method is now less relevant as reset() handles controller destruction.
+    // stop(); // Removing call to stop() as reset() handles it.
+    RCLCPP_INFO(this->get_logger(), "DroneNode '%s' destructor finished.", this->get_name());
 }
 
-// --- Stop Method ---
+// --- Stop Method --- // This method might become redundant
 void DroneNode::stop()
 {
-    if (drone_controller_) {
-        RCLCPP_INFO(this->get_logger(), "Stopping drone controller for %s...", drone_name_.c_str());
-        // drone_controller_->stop(); // REMOVED: DroneController's destructor handles thread joining
-    }
-    RCLCPP_INFO(this->get_logger(), "DroneNode '%s' stopped.", this->get_name());
+    // This logic is now handled by drone_controller_.reset() in the destructor
+    // If stop() is not called elsewhere, it could potentially be removed later.
+    RCLCPP_INFO(this->get_logger(), "DroneNode::stop() called for %s (may be redundant).", this->get_name());
+    // Original logic removed as it's handled by reset()
+    // if (drone_controller_) { ... }
 } 

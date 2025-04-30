@@ -33,6 +33,12 @@ public:
      */
     DroneState(rclcpp::Node* node, const std::string& ns, const std::string& name);
 
+    /**
+     * @brief Destructor for DroneState.
+     * Ensures subscriptions are released.
+     */
+    ~DroneState();
+
     // --- Public Getters ---
 
     /** @brief Get the currently tracked navigation state. */

@@ -32,6 +32,15 @@ DroneAgent::DroneAgent(rclcpp::Node* node, const std::string& ns, const std::str
 }
 
 /**
+ * @brief Destructor for DroneAgent.
+ */
+DroneAgent::~DroneAgent() {
+    RCLCPP_INFO(node_->get_logger(), "[%s][Agent] Destructor called. Releasing service client...", name_.c_str());
+    client_.reset(); // Explicitly reset the client shared pointer
+    RCLCPP_INFO(node_->get_logger(), "[%s][Agent] Service client released.", name_.c_str());
+}
+
+/**
  * @brief Sends a command to the PX4 autopilot
  * 
  * Creates and sends a vehicle command with the specified parameters.
