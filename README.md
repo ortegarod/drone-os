@@ -1,20 +1,20 @@
 # DroneOS Workspace
 
-DroneOS is a ROS 2 workspace designed for developing and operating autonomous drone systems using the **PX4 Autopilot**. It provides a core C++ SDK (`drone_core`), a Python-based CLI (`drone_gcs_cli`), and integrates essential third-party tools (`px4_msgs`, `Micro-XRCE-DDS-Agent`) for communication and control.
+DroneOS is a ROS 2 workspace designed for developing and operating autonomous drone systems using the **PX4 Autopilot**. It provides a core C++ SDK (`drone_core`), a Python-based CLI (`drone_gcs_cli`), and integrates essential third-party tools (`px4_msgs`, `Micro-XRCE-DDS-Agent`) for communication and control, **with support for multi-vehicle scenarios.**
 
 ## 🎯 Purpose
 
 - **Modular Drone Control**: Offer a reusable C++ library (`drone_core_lib`) for common drone control tasks (state tracking, command execution, offboard control).
-- **PX4 Integration**: Seamlessly communicate with PX4 using standard ROS 2 messages (`px4_msgs`) via the Micro XRCE-DDS bridge.
-- **Simplified Interaction**: Provide a command-line interface (`drone_gcs_cli`) for basic drone commands and monitoring.
+- **PX4 Integration**: Seamlessly communicate with PX4 using standard ROS 2 messages (`px4_msgs`) via the Micro XRCE-DDS bridge, **correctly handling ROS 2 namespaces and MAVLink System IDs for multi-drone targeting.**
+- **Simplified Interaction**: Provide a command-line interface (`drone_gcs_cli`) for basic drone commands and monitoring, **allowing targeting of specific drones in a multi-vehicle setup.**
 - **Foundation for Autonomy**: Establish a base for building higher-level autonomous behaviors and multi-drone coordination.
 
 ## 📦 Core Components
 
 ### `drone_core` (C++, Proprietary)
 
-The central package providing the core SDK library (`drone_core_lib`) and a ROS 2 node executable (`drone_core`) for controlling a single drone.
-- **Features**: Layered architecture (State, Agent, Controller, Offboard), service-based command execution (takeoff, land, arm, etc.), PX4 state tracking, offboard mode management.
+The central package providing the core SDK library (`drone_core_lib`) and a ROS 2 node executable (`drone_core`) for controlling a single drone **within a potentially multi-drone environment**.
+- **Features**: Layered architecture (State, Agent, Controller, Offboard), service-based command execution (takeoff, land, arm, set_position, etc.), PX4 state tracking, offboard mode management, **parameterized MAVLink System ID targeting and ROS 2 namespacing for multi-vehicle compatibility.**
 - **See**: `src/drone_core/README.md` for details.
 
 ### `drone_gcs_cli` (Python, Proprietary)
@@ -76,6 +76,70 @@ Acts as a broker between the ROS 2 DDS network and the PX4 Autopilot (which typi
     ```bash
     ros2 run drone_gcs_cli cli --default-drone drone1
     ```
+
+### Example: Running a Multi-Drone Simulation (2 Drones)
+
+This outlines the steps to run a simulation with two drones (drone1 and drone2) controlled by separate `drone_core` instances.
+
+1.  **Build & Source**: Ensure the workspace is built and sourced:
+    ```bash
+    cd /path/to/ws_droneOS
+    colcon build --symlink-install
+    source install/setup.bash
+    ```
+
+2.  **Start PX4 SITL Instances**: Open two separate terminals. Navigate to your PX4-Autopilot directory in each.
+    *   **Terminal 1 (Drone 1):** Start PX4 instance 0 (`MAV_SYS_ID=1`). It will use the default namespace `/fmu/`.
+        ```bash
+        # In PX4-Autopilot directory
+        PX4_SYS_AUTOSTART=4001 PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 0
+        ```
+        *(Note: The model `gz_x500` is an example, use your desired model)*
+    *   **Terminal 2 (Drone 2):** Start PX4 instance 1 (`MAV_SYS_ID=2`). It will use namespace `/px4_1/fmu/`. Add `PX4_GZ_MODEL_POSE` to spawn it at a different location.
+        ```bash
+        # In PX4-Autopilot directory
+        PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 1
+        ```
+    *   **(Optional) Headless & QGroundControl:** You can run SITL without the Gazebo GUI by prepending `HEADLESS=1` to the PX4 launch commands above. You can then connect QGroundControl (typically listening on UDP port 14550 by default for the first instance) to monitor status and view the drones on the map.
+
+3.  **Start Micro XRCE-DDS Agent**: Open a new terminal. Source the workspace and run the agent (using UDP in this example).
+    ```bash
+    cd /path/to/ws_droneOS
+    source install/setup.bash 
+    MicroXRCEAgent udp4 -p 8888
+    ```
+    *The agent should detect connections from both PX4 instances.* 
+
+4.  **Launch Drone Core Nodes**: Open two more terminals. Source the workspace in each.
+    *   **Terminal 4 (Drone 1 Controller):** Launch `drone_core` targeting `MAV_SYS_ID=1` and using the default namespace.
+        ```bash
+        cd /path/to/ws_droneOS
+        source install/setup.bash
+        ros2 run drone_core drone_core --ros-args \
+            -r __node:=drone1 \
+            -p drone_name:=drone1 \
+            -p px4_namespace:=/fmu/ \
+            -p mav_sys_id:=1
+        ```
+    *   **Terminal 5 (Drone 2 Controller):** Launch `drone_core` targeting `MAV_SYS_ID=2` and using the `/px4_1/fmu/` namespace.
+        ```bash
+        cd /path/to/ws_droneOS
+        source install/setup.bash
+        ros2 run drone_core drone_core --ros-args \
+            -r __node:=drone2 \
+            -p drone_name:=drone2 \
+            -p px4_namespace:=/px4_1/fmu/ \
+            -p mav_sys_id:=2 
+        ```
+
+5.  **Use GCS CLI**: Open a final terminal. Source the workspace.
+    ```bash
+    cd /path/to/ws_droneOS
+    source install/setup.bash
+    ros2 run drone_gcs_cli gcs
+    ```
+    *   Use `target drone1` or `target drone2` to switch focus.
+    *   Send commands (e.g., `set_offboard`, `arm`, `pos 0 0 -5 0`, `land`). Only the targeted drone should react.
 
 ## 🛠️ Workspace Structure
 

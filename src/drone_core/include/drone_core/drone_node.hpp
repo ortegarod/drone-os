@@ -1,12 +1,9 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
-#include <std_srvs/srv/trigger.hpp>
 #include <memory>
 #include <string>
 #include "drone_core/drone_controller.hpp"
-
-// TODO: Include headers for custom services (SetPosition, SetVelocity) when defined
 
 /**
  * @brief ROS 2 Node acting as the primary controller for a single drone.
@@ -43,33 +40,11 @@ public:
      */
     std::shared_ptr<DroneController> get_controller() { return drone_controller_; }
 
-    /**
-     * @brief Stops the node's components, particularly the controller's thread.
-     */
-    void stop();
-
 private:
     // Core controller for this specific drone
     std::shared_ptr<DroneController> drone_controller_;
 
     // Drone Identification Parameters
     std::string drone_name_; 
-    std::string px4_namespace_; 
-
-    // --- Service Servers --- 
-    // REMOVED: Redundant takeoff_service_
-    // REMOVED: Redundant land_service_
-    // rclcpp::Service<your_interfaces::srv::SetPosition>::SharedPtr set_position_service_;
-    // rclcpp::Service<your_interfaces::srv::SetVelocity>::SharedPtr set_velocity_service_;
-
-    // REMOVED: Redundant handle_takeoff
-    // REMOVED: Redundant handle_land
-
-    // TODO: Add callbacks for set_position, set_velocity services
-
-    // TODO: Add publishers for status/telemetry
-    // rclcpp::Publisher<your_interfaces::msg::DroneStatus>::SharedPtr status_publisher_;
-    // rclcpp::TimerBase::SharedPtr status_publish_timer_;
-    // void publish_status();
-
+    std::string px4_namespace_;
 }; 

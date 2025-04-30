@@ -8,7 +8,6 @@
 #include <functional> // Required for std::bind
 #include <thread> // Required for std::this_thread::sleep_for
 #include <cmath> // For std::sqrt, std::isnan
-// #include "drone_core/utils/state_enums.hpp" // Included via drone_controller.hpp
 
 using namespace px4_msgs::msg;
 using namespace std::chrono_literals;
@@ -25,16 +24,16 @@ using std::placeholders::_3;
  * @param node Pointer to the ROS2 node
  * @param name Name of the drone
  * @param px4_namespace PX4 namespace for communication
+ * @param mav_sys_id MAVLink System ID of the target PX4
  */
-DroneController::DroneController(rclcpp::Node* node, const std::string& name, const std::string& px4_namespace)
+DroneController::DroneController(rclcpp::Node* node, const std::string& name, const std::string& px4_namespace, int mav_sys_id)
     : node_(node), name_(name), ns_(px4_namespace)
 {
-    RCLCPP_WARN(node_->get_logger(), "[%s][Controller] DEBUG: Skipping creation of Agent, OffboardControl", name_.c_str());
-    drone_agent_ = std::make_unique<DroneAgent>(node_, ns_, name_);
+    drone_agent_ = std::make_unique<DroneAgent>(node_, ns_, name_, mav_sys_id);
     offboard_control_ = std::make_unique<OffboardControl>(node_, ns_);
     drone_state_ = std::make_unique<DroneState>(node_, ns_, name_); // Re-enabled DroneState
     
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Drone connected and ready for commands (Agent/Offboard Skipped)", name_.c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Drone components initialized.", name_.c_str());
 
     // --- Create Services (Added) ---
     arm_service_ = node_->create_service<std_srvs::srv::Trigger>(
@@ -73,8 +72,6 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
         "/" + name_ + "/set_position",
         std::bind(&DroneController::set_position_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_position_service_->get_service_name());
-
-    // TODO: Create other services (RTL, SetBehavior) later
 }
 
 DroneController::~DroneController()
@@ -117,14 +114,6 @@ void DroneController::disarm() {
             }
         });
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Disarm command sent", name_.c_str());
-}
-
-/**
- * @brief Initiates the takeoff sequence
- * 
- */
-void DroneController::takeoff() {
-    // TODO: Implement takeoff sequence for non-offboard modes
 }
 
 /**
@@ -207,7 +196,10 @@ void DroneController::set_position_mode() {
  * @return true if the drone is in offboard mode and armed
  */
 bool DroneController::is_ready() const {
-    return offboard_control_->get_state() == OffboardControl::State::armed;
+    // Check arming state and navigation state from DroneState
+    bool is_armed = (this->get_arming_state() == ArmingState::ARMED);
+    bool is_offboard = (this->get_nav_state() == NavState::OFFBOARD);
+    return is_armed && is_offboard;
 }
 
 // Added getter implementation
@@ -231,6 +223,16 @@ ArmingState DroneController::get_arming_state() const {
     return drone_state_->get_arming_state();
 }
 
+/**
+ * @brief Initiates the takeoff sequence (Placeholder)
+ * 
+ * Currently unimplemented. For autonomous takeoff, consider entering 
+ * Offboard mode and using set_position() to command a position above ground.
+ */
+void DroneController::takeoff() {
+    // TODO: Implement takeoff sequence for non-offboard modes (e.g., using VEHICLE_CMD_NAV_TAKEOFF)
+    RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Takeoff method called, but not implemented.", name_.c_str());
+}
 
 // --- Private Helper Methods ---
 
@@ -368,8 +370,8 @@ void DroneController::takeoff_callback(
     std::shared_ptr<std_srvs::srv::Trigger::Response> response)
 {
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff service called", name_.c_str());
-    // TODO: Add more robust checks - is drone already flying? Is state valid?
-    // Drone should ALREADY BE ARMED before calling takeoff.
+
+    // Basic check: Drone must be armed.
     if (get_arming_state() != ArmingState::ARMED) {
         RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Takeoff rejected: Drone must be ARMED first.", name_.c_str());
         response->success = false;
@@ -377,10 +379,14 @@ void DroneController::takeoff_callback(
         return;
     }
     
+    // Note: Takeoff logic itself is currently a placeholder.
+    // Consider using offboard mode + set_position as an alternative.
     try {
-        this->takeoff(); // Call the existing internal method
+        this->takeoff(); // Call the placeholder internal method
         response->success = true;
-        response->message = "Takeoff command initiated";
+        response->message = "Takeoff command initiated (NOTE: Implementation is placeholder)";
+        RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Takeoff command sent, but implementation is placeholder.", name_.c_str());
+
     } catch (const std::exception& e) {
         RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during takeoff command: %s", name_.c_str(), e.what());
         response->success = false;
@@ -394,7 +400,6 @@ void DroneController::land_callback(
     std::shared_ptr<std_srvs::srv::Trigger::Response> response)
 {
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Land service called", name_.c_str());
-    // TODO: Add checks - is drone actually flying?
     try {
         this->land(); // Call the existing internal method
         response->success = true;
@@ -412,13 +417,11 @@ void DroneController::disarm_callback(
     std::shared_ptr<std_srvs::srv::Trigger::Response> response)
 {
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Disarm service called", name_.c_str());
-    // TODO: Add checks - e.g., only allow disarm if landed?
     if (drone_state_->get_landing_state() != LandingState::LANDED && 
         drone_state_->get_landing_state() != LandingState::MAYBE_LANDED) {
          RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Disarm rejected: Drone is not landed.", name_.c_str());
          response->success = false;
          response->message = "Disarm rejected: Drone is not landed.";
-         // return; // Decide if we enforce this strictly
     }
 
     try {

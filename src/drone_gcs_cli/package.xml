@@ -3,9 +3,9 @@
 <package format="3">
   <name>drone_gcs_cli</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="rodrigo@todo.todo">rodrigo</maintainer>
-  <license>TODO: License declaration</license>
+  <description>Command-line interface (CLI) for interacting with DroneOS core nodes.</description>
+  <maintainer email="ortegarod000@gmail.com">rodrigo</maintainer>
+  <license>Proprietary</license>
 
   <depend>rclpy</depend>
   <depend>std_srvs</depend>

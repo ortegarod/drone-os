@@ -14,9 +14,10 @@
  * @param node Pointer to the ROS2 node
  * @param ns PX4 namespace for communication
  * @param name Name of the drone for logging
+ * @param mav_sys_id MAVLink System ID of the target PX4
  */
-DroneAgent::DroneAgent(rclcpp::Node* node, const std::string& ns, const std::string& name)
-    : node_(node), name_(name)
+DroneAgent::DroneAgent(rclcpp::Node* node, const std::string& ns, const std::string& name, int mav_sys_id)
+    : node_(node), name_(name), mav_sys_id_(mav_sys_id)
 {
     client_ = node_->create_client<px4_msgs::srv::VehicleCommand>(ns + "vehicle_command");
 
@@ -59,7 +60,7 @@ void DroneAgent::sendVehicleCommand(uint16_t command, float param1, float param2
     msg.param1 = param1;
     msg.param2 = param2;
     msg.command = command;
-    msg.target_system = 1;
+    msg.target_system = this->mav_sys_id_;
     msg.target_component = 1;
     msg.source_system = 1;
     msg.source_component = 1;

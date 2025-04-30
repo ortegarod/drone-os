@@ -28,8 +28,9 @@ public:
      * @param node Pointer to the ROS2 node
      * @param ns PX4 namespace for communication
      * @param name Name of the drone for logging
+     * @param mav_sys_id MAVLink System ID of the target PX4
      */
-    DroneAgent(rclcpp::Node* node, const std::string& ns, const std::string& name);
+    DroneAgent(rclcpp::Node* node, const std::string& ns, const std::string& name, int mav_sys_id);
 
     /**
      * @brief Destructor for DroneAgent.
@@ -61,5 +62,6 @@ private:
 
     rclcpp::Node* node_;                    ///< Pointer to ROS2 node
     std::string name_;                      ///< Name of the drone for logging
+    int mav_sys_id_;                      ///< MAVLink System ID of the target drone
     rclcpp::Client<px4_msgs::srv::VehicleCommand>::SharedPtr client_;    ///< Service client for vehicle commands
 }; 

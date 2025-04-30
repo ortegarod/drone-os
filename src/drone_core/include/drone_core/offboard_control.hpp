@@ -8,7 +8,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
-#include <px4_msgs/srv/vehicle_command.hpp>
 #include <memory>
 #include <atomic>
 #include <mutex>
@@ -20,21 +19,9 @@
  * This class handles:
  * - Continuous publishing of offboard control mode messages
  * - On-demand publishing of trajectory setpoints
- * - State machine for offboard control sequence
  */
 class OffboardControl {
 public:
-    /**
-     * @brief Enumeration of possible offboard control states
-     */
-    enum class State {
-        init,                           ///< Initial state
-        offboard_requested,             ///< Offboard mode requested
-        wait_for_stable_offboard_mode,  ///< Waiting for offboard mode to stabilize
-        arm_requested,                  ///< Arm command sent
-        armed                           ///< Drone is armed and ready
-    };
-
     /**
      * @brief Enumeration for setpoint type
      */
@@ -84,12 +71,6 @@ public:
      */
     void set_target_velocity(float vx, float vy, float vz, float yaw_rate = NAN);
 
-    /**
-     * @brief Get the current state of the offboard control
-     * @return Current state
-     */
-    State get_state() const { return state_; }
-
 private:
     /**
      * @brief Timer callback for publishing offboard control mode and state machine
@@ -114,12 +95,6 @@ private:
     rclcpp::TimerBase::SharedPtr offboard_control_loop_timer_;    ///< Timer for periodic publishing (renamed from timer_)
     rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr offboard_control_mode_pub_;    ///< Publisher for offboard control mode
     rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr trajectory_setpoint_pub_;       ///< Publisher for trajectory setpoints
-    rclcpp::Client<px4_msgs::srv::VehicleCommand>::SharedPtr vehicle_command_client_;               ///< Client for vehicle commands
-
-    State state_ = State::init;             ///< Current state
-    uint8_t service_result_ = 0;            ///< Result of last service call
-    bool service_done_ = false;             ///< Service call completion flag
-    int offboard_setpoint_counter_ = 0;     ///< Counter for offboard setpoints
 
     // Store latest setpoint
     float target_x_{0.0f};

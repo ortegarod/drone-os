@@ -24,18 +24,7 @@ OffboardControl::OffboardControl(rclcpp::Node* node, const std::string& px4_name
 {
     offboard_control_mode_pub_ = node_->create_publisher<px4_msgs::msg::OffboardControlMode>(ns_ + "in/offboard_control_mode", 10);
     trajectory_setpoint_pub_ = node_->create_publisher<px4_msgs::msg::TrajectorySetpoint>(ns_ + "in/trajectory_setpoint", 10);
-    vehicle_command_client_ = node_->create_client<px4_msgs::srv::VehicleCommand>(ns_ + "vehicle_command");
-
-    // Wait for vehicle command service
-    RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Waiting for vehicle command service...");
-    while (!vehicle_command_client_->wait_for_service(1s)) {
-        if (!rclcpp::ok()) {
-            RCLCPP_ERROR(node_->get_logger(), "[OffboardControl] Interrupted while waiting for service");
-            return;
-        }
-        RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Service not available, waiting again...");
-    }
-    RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Vehicle command service ready");
+    RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Initialized publishers for OffboardControlMode and TrajectorySetpoint.");
 }
 
 /**
@@ -115,80 +104,6 @@ void OffboardControl::offboard_control_loop_timer_callback() {
     sp_msg.timestamp = node_->get_clock()->now().nanoseconds() / 1000;
     trajectory_setpoint_pub_->publish(sp_msg);
 
-}
-
-/**
- * @brief Sends a vehicle command to PX4
- * 
- * Constructs and sends a vehicle command message to PX4 through the vehicle command service.
- * 
- * @param command The command ID to send
- * @param param1 First parameter for the command
- * @param param2 Second parameter for the command
- */
-void OffboardControl::send_vehicle_command(uint16_t command, float param1, float param2) {
-    auto request = std::make_shared<px4_msgs::srv::VehicleCommand::Request>();
-    px4_msgs::msg::VehicleCommand msg{};
-    msg.param1 = param1;
-    msg.param2 = param2;
-    msg.command = command;
-    msg.target_system = 1;
-    msg.target_component = 1;
-    msg.source_system = 1;
-    msg.source_component = 1;
-    msg.from_external = true;
-    msg.timestamp = node_->get_clock()->now().nanoseconds() / 1000;
-    request->request = msg;
-
-    vehicle_command_client_->async_send_request(request,
-        [this](rclcpp::Client<px4_msgs::srv::VehicleCommand>::SharedFuture future) {
-            command_response_callback(future);
-        });
-}
-
-/**
- * @brief Callback for vehicle command service responses
- * 
- * Handles the response from the vehicle command service, logging the result
- * and updating the service status.
- * 
- * @param future Future object containing the service response
- */
-void OffboardControl::command_response_callback(
-    rclcpp::Client<px4_msgs::srv::VehicleCommand>::SharedFuture future) {
-    auto status = future.wait_for(1s);
-    if (status == std::future_status::ready) {
-        auto reply = future.get()->reply;
-        service_result_ = reply.result;
-        switch (service_result_) {
-            case reply.VEHICLE_CMD_RESULT_ACCEPTED:
-                RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Command accepted (callback)");
-                break;
-            case reply.VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED:
-                RCLCPP_WARN(node_->get_logger(), "[OffboardControl] Command temporarily rejected (callback)");
-                break;
-            case reply.VEHICLE_CMD_RESULT_DENIED:
-                RCLCPP_WARN(node_->get_logger(), "[OffboardControl] Command denied (callback)");
-                break;
-            case reply.VEHICLE_CMD_RESULT_UNSUPPORTED:
-                RCLCPP_WARN(node_->get_logger(), "[OffboardControl] Command unsupported (callback)");
-                break;
-            case reply.VEHICLE_CMD_RESULT_FAILED:
-                RCLCPP_WARN(node_->get_logger(), "[OffboardControl] Command failed (callback)");
-                break;
-            case reply.VEHICLE_CMD_RESULT_IN_PROGRESS:
-                RCLCPP_WARN(node_->get_logger(), "[OffboardControl] Command in progress (callback)");
-                break;
-            case reply.VEHICLE_CMD_RESULT_CANCELLED:
-                RCLCPP_WARN(node_->get_logger(), "[OffboardControl] Command cancelled (callback)");
-                break;
-            default:
-                RCLCPP_WARN(node_->get_logger(), "[OffboardControl] Command reply unknown (callback, Result: %d)", service_result_);
-                break;
-        }
-    } else {
-        RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Service In-Progress... (callback)");
-    }
 }
 
 /**

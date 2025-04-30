@@ -4,15 +4,12 @@ from rclpy.executors import SingleThreadedExecutor
 from std_srvs.srv import Trigger
 import time
 from drone_interfaces.srv import SetPosition # Import custom service
-# TODO: Import custom service/message types (e.g., from drone_interfaces) when defined
 
 class GCSNode(Node):
     def __init__(self, default_drone_name='drone1'):
         super().__init__('gcs_cli_node')
         self.target_drone = default_drone_name
         self._gcs_clients = {} # Renamed from self.clients
-        self.status_sub = None
-        self.latest_status = None # Store latest received status message
 
         # Executor for handling service calls within the node
         self._executor = SingleThreadedExecutor()
@@ -20,7 +17,6 @@ class GCSNode(Node):
 
         self.get_logger().info(f"GCS Node initialized. Targeting drone: '{self.target_drone}'")
         self._create_clients_for_target()
-        self._create_status_subscriber()
 
     def _create_clients_for_target(self):
         '''Create/reuse service clients for the current target drone.'''
@@ -38,23 +34,11 @@ class GCSNode(Node):
         set_position_service_name = f'/{self.target_drone}/set_position'
         self._gcs_clients['set_position'] = self.create_client(SetPosition, set_position_service_name)
         self.get_logger().debug(f"  - Client created for {set_position_service_name}")
-        
+            
         # TODO: Add client creation for custom services like SetBehavior later
         
         # Allow some time for discovery (optional, but can help in noisy networks)
         # time.sleep(0.5)
-
-    def _create_status_subscriber(self):
-        '''Create/reuse status subscriber for the current target drone.'''
-        self.get_logger().info(f"Creating status subscriber for '{self.target_drone}'...")
-        # TODO: Implement status subscription when message is defined
-        pass # Placeholder
-
-    def status_callback(self, msg):
-        '''Callback function for drone status messages.'''
-        # TODO: Implement status processing when message is defined
-        self.latest_status = msg
-        pass # Placeholder
 
     def change_target(self, new_drone_name):
         '''Change the target drone and recreate clients/subscriptions.'''
@@ -64,23 +48,15 @@ class GCSNode(Node):
         
         self.get_logger().info(f"Changing target drone from '{self.target_drone}' to '{new_drone_name}'.")
         
-        # Destroy existing clients and subscriber
-        # Note: This simple approach assumes we don't need to maintain connections to multiple drones simultaneously.
+        # Destroy existing clients
         for srv_name, client in self._gcs_clients.items():
             self.destroy_client(client)
             self.get_logger().debug(f"Destroyed client for {srv_name}")
         self._gcs_clients = {}
-        
-        if self.status_sub:
-            self.destroy_subscription(self.status_sub)
-            self.status_sub = None
-            self.get_logger().debug(f"Destroyed status subscriber for {self.target_drone}")
 
         # Update target and recreate
         self.target_drone = new_drone_name
-        self.latest_status = None # Reset status for new target
         self._create_clients_for_target()
-        self._create_status_subscriber()
 
     def call_service_trigger(self, service_name):
         '''Helper to call a simple Trigger service and wait for the result.'''
@@ -194,25 +170,6 @@ class GCSNode(Node):
 
     def call_disarm(self):
         return self.call_service_trigger('disarm')
-    
-    def call_return_home(self):
-        # TODO: Assuming RTL uses Trigger for now. Change if needed.
-        # return self.call_service_trigger('rtl') 
-        print(f"[TODO] Call Return Home on {self.target_drone}")
-        return True, "TODO: RTL service call not implemented yet."
-        
-    def call_set_behavior(self, behavior):
-         # TODO: Define custom service type SetBehavior(string behavior_name) and implement call
-        print(f"[TODO] Call Set Behavior '{behavior}' on {self.target_drone}")
-        return True, f"TODO: Set Behavior '{behavior}' not implemented."
-
-    def get_formatted_status(self):
-        '''Return the latest status in a printable format.'''
-        # TODO: Implement status formatting when message is defined
-        if self.latest_status:
-            return f"[TODO] Status received (needs formatting): {self.latest_status}"
-        else:
-            return "Status implementation pending."
             
     def spin_once(self):
         ''' Spin the node once to process callbacks. '''

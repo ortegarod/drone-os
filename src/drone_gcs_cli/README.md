@@ -11,22 +11,21 @@
 
 ## 🏗️ Architecture
 
-- **`cli.py`**: The main executable script (`ros2 run drone_gcs_cli cli`). It handles command parsing from user input and interacts with `GCSNode`.
+- **`cli.py`**: The main executable script (`ros2 run drone_gcs_cli gcs`). It handles command parsing from user input and interacts with `GCSNode`.
 - **`gcs_node.py`**: Defines the `GCSNode` class:
     - Initializes as a ROS 2 node (`gcs_cli_node`).
     - Creates ROS 2 **service clients** dynamically based on a `target_drone` name (e.g., `/drone1/arm`, `/drone2/takeoff`).
-    - Currently uses `std_srvs.srv.Trigger` for most commands.
-    - Includes placeholders (`TODO`) for status subscription and custom service types.
+    - Uses `std_srvs.srv.Trigger` for most commands and `drone_interfaces.srv.SetPosition` for position control.
     - Manages asynchronous service calls.
-- **Dependencies**: `rclpy`, `std_srvs`.
+- **Dependencies**: `rclpy`, `std_srvs`, `drone_interfaces`.
 
 ## ✨ Features & Commands
 
 - **Targeting**: `target <drone_name>` - Switch the CLI's focus to a different drone.
-- **Mode Control**: `set_offboard`, `set_posctl` - Request PX4 mode changes.
-- **Basic Flight**: `arm`, `disarm`, `takeoff`, `land` - Send fundamental flight commands.
+- **Mode Control**: `set_offboard`, `set_posctl` - Request PX4 mode changes via Trigger services.
+- **Basic Flight**: `arm`, `disarm`, `takeoff`, `land` - Send fundamental flight commands via Trigger services.
+- **Position Control**: `pos <x> <y> <z> <yaw>` - Set target position/yaw in Offboard mode via `drone_interfaces/SetPosition` service.
 - **Status**: `status` - Display current drone status (Implementation TBD).
-- **Advanced (Placeholders)**: `rtl` (Return To Launch), `behavior <name>` - Placeholders for future command implementation.
 - **Help**: `help` - Display available commands.
 - **Exit**: `exit` - Quit the CLI.
 
@@ -43,10 +42,10 @@
 3.  **Run**: Launch the `drone_core` node(s) for the target drone(s) first. Then run the CLI:
     ```bash
     # Example: Target drone1 by default
-    ros2 run drone_gcs_cli cli 
+    ros2 run drone_gcs_cli gcs 
 
     # Example: Specify a different default drone
-    ros2 run drone_gcs_cli cli --default-drone drone2
+    ros2 run drone_gcs_cli gcs --default-drone drone2
     ```
 4.  **Interact**: Use the commands listed above (e.g., `target drone1`, `arm`, `takeoff`).
 

@@ -9,22 +9,14 @@
 #include "drone_core/drone_agent.hpp"
 #include "drone_core/offboard_control.hpp"
 #include <memory>
-#include <thread>
-#include <atomic>
-#include <queue>
-#include <mutex>
-#include <px4_msgs/msg/vehicle_status.hpp>
-#include <px4_msgs/msg/vehicle_land_detected.hpp>
-#include <px4_msgs/msg/vehicle_global_position.hpp>
-#include <px4_msgs/msg/vehicle_local_position.hpp>
-#include <future>     // Added include for std::promise/future
-#include <chrono>     // Added include for std::chrono
-#include "drone_core/utils/state_enums.hpp" // Added include for shared enums
-#include "drone_core/drone_state.hpp" // Added DroneState include
-#include <std_srvs/srv/trigger.hpp> // Include for Trigger service
-#include <vector>
-#include <cmath> // For std::isnan
-#include <drone_interfaces/srv/set_position.hpp> // Include custom service
+#include <future>     // Used for sync methods
+#include <chrono>     // Used for sync methods
+#include "drone_core/utils/state_enums.hpp" // Used for state enums and potentially Command struct
+#include "drone_core/drone_state.hpp" // Used for DroneState member
+#include <std_srvs/srv/trigger.hpp> // Used for Trigger services
+#include <vector> // Potentially used internally or by included headers
+#include <cmath> // Used for std::isnan in cpp, potentially by included headers
+#include <drone_interfaces/srv/set_position.hpp> // Used for SetPosition service
 
 /**
  * @class DroneController
@@ -40,19 +32,15 @@ public:
      * @param node Pointer to the ROS2 node
      * @param name Name of the drone
      * @param px4_namespace PX4 namespace for communication
+     * @param mav_sys_id MAVLink System ID of the target PX4
      */
-    DroneController(rclcpp::Node* node, const std::string& name, const std::string& px4_namespace);
+    DroneController(rclcpp::Node* node, const std::string& name, const std::string& px4_namespace, int mav_sys_id);
 
     /**
      * @brief Destroy the Drone Controller object
      * Cleans up resources, like joining the agent thread.
      */
     ~DroneController();
-
-    /**
-     * @brief Start the drone's internal agent loop
-     */
-    void start();
 
     /**
      * @brief Arm the drone
@@ -103,13 +91,6 @@ public:
     void set_altitude_mode();
 
     /**
-     * @brief Sets the drone to loiter mode and waits for acknowledgement.
-     * @param timeout_ms Maximum time to wait for acknowledgement in milliseconds.
-     * @return true if command was acknowledged successfully within timeout, false otherwise.
-     */
-    bool set_loiter_mode_sync(std::chrono::milliseconds timeout_ms = std::chrono::milliseconds(2000));
-
-    /**
      * @brief Sets the drone to position control mode and waits for acknowledgement.
      * @param timeout_ms Maximum time to wait for acknowledgement in milliseconds.
      * @return true if command was acknowledged successfully within timeout, false otherwise.
@@ -141,12 +122,6 @@ public:
      */
     ArmingState get_arming_state() const;
 
-    /**
-     * @brief Enqueue a command for the drone to execute
-     * @param cmd The command to add to the queue
-     */
-    void enqueue(const Command& cmd);
-
 private:
     rclcpp::Node* node_;                    ///< Pointer to ROS2 node
     std::string name_;                      ///< Name of the drone
@@ -156,10 +131,6 @@ private:
     float target_y_ = 0.0f;                 ///< Target y position for commands
     float target_z_ = 0.0f;                 ///< Target z position
     float target_yaw_ = 0.0f;               ///< Target yaw angle
-
-    // Command Queue members
-    std::queue<Command> command_queue_;     ///< Queue for incoming commands
-    std::mutex command_mutex_;              ///< Mutex to protect command queue
 
     // Core Components
     std::unique_ptr<DroneAgent> drone_agent_;    ///< Command relay for PX4 communication
@@ -177,9 +148,18 @@ private:
     // TODO: Add services for RTL, SetBehavior, etc. later
 
     /**
-     * @brief Processes one command from the queue, if available
+     * @brief Internal helper to send a VEHICLE_CMD_DO_SET_MODE command
+     * @param mode The target Px4CustomMode
      */
-    void process_command_queue();
+    void set_mode(Px4CustomMode mode);
+
+    /**
+     * @brief Internal helper to send VEHICLE_CMD_DO_SET_MODE and wait for acknowledgement.
+     * @param mode The target Px4CustomMode.
+     * @param timeout_ms Maximum time to wait for acknowledgement.
+     * @return true if command acknowledged successfully, false otherwise.
+     */
+    bool set_mode_sync(Px4CustomMode mode, std::chrono::milliseconds timeout_ms);
 
     // Service Callbacks (Added)
     void arm_callback(const std::shared_ptr<rmw_request_id_t> request_header,
@@ -212,18 +192,4 @@ private:
                                std::shared_ptr<drone_interfaces::srv::SetPosition::Response> response);
 
     // TODO: Add callbacks for other services later
-
-    /**
-     * @brief Internal helper to send a VEHICLE_CMD_DO_SET_MODE command
-     * @param mode The target Px4CustomMode
-     */
-    void set_mode(Px4CustomMode mode);
-
-    /**
-     * @brief Internal helper to send VEHICLE_CMD_DO_SET_MODE and wait for acknowledgement.
-     * @param mode The target Px4CustomMode.
-     * @param timeout_ms Maximum time to wait for acknowledgement.
-     * @return true if command acknowledged successfully, false otherwise.
-     */
-    bool set_mode_sync(Px4CustomMode mode, std::chrono::milliseconds timeout_ms);
 };

@@ -46,8 +46,7 @@ def main(args=None):
                 print("Exiting.")
                 break
             elif command == "help":
-                # TODO: Implement help command
-                print("Available commands (TODO: Implement fully):")
+                print("Available commands:")
                 print("  set_offboard     - Command PX4 to enter Offboard mode")
                 print("  set_posctl       - Command PX4 to enter Position Control mode")
                 print("  arm              - Arm the drone")
@@ -55,10 +54,7 @@ def main(args=None):
                 print("  land             - Command the drone to land")
                 print("  disarm           - Disarm the drone")
                 print("  pos <x> <y> <z> <yaw> - Set target position/yaw in Offboard mode (NED frame)")
-                print("  status           - Show current drone status")
                 print("  target <name>    - Change the target drone")
-                print("  rtl              - Command Return To Launch")
-                print("  behavior <name>  - Set drone behavior (e.g., patrol)")
                 print("  help             - Show this help message")
                 print("  exit             - Exit the CLI")
             elif command == "set_offboard":
@@ -94,23 +90,11 @@ def main(args=None):
                         print(f"Error calling set_position: {e}")
                 else:
                     print("Usage: pos <x> <y> <z> <yaw>")
-            elif command == "status":
-                status_str = gcs_node.get_formatted_status()
-                print(status_str)
             elif command == "target":
                 if len(cmd_args) == 1:
                     gcs_node.change_target(cmd_args[0])
                 else:
                     print("Usage: target <drone_name>")
-            elif command == "rtl":
-                 success, message = gcs_node.call_return_home()
-                 print(message)
-            elif command == "behavior":
-                if len(cmd_args) == 1:
-                    success, message = gcs_node.call_set_behavior(cmd_args[0])
-                    print(message)
-                else:
-                    print("Usage: behavior <behavior_name>")
             else:
                 print(f"Unknown command: '{command}'. Type 'help' for options.")
             

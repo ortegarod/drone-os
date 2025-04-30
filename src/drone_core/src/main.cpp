@@ -2,7 +2,6 @@
 #include <rclcpp/rclcpp.hpp>             // Include the ROS 2 C++ client library
 #include <memory>                         // Required for std::make_shared
 #include <vector>                         // Required for std::vector
-#include "drone_core/utils/state_enums.hpp" // Required for Waypoint struct
 
 /**
  * @brief Main entry point for the Drone Node executable.
