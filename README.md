@@ -83,7 +83,7 @@ This outlines the steps to run a simulation with two drones (drone1 and drone2) 
 
 1.  **Build & Source**: Ensure the workspace is built and sourced:
     ```bash
-    cd /path/to/ws_droneOS
+    cd ws_droneOS
     colcon build --symlink-install
     source install/setup.bash
     ```
@@ -92,15 +92,15 @@ This outlines the steps to run a simulation with two drones (drone1 and drone2) 
     *   **Terminal 1 (Drone 1):** Start PX4 instance 0 (`MAV_SYS_ID=1`). It will use the default namespace `/fmu/`.
         ```bash
         cd PX4-Autopilot
-        PX4_SYS_AUTOSTART=4001 PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 0
+        HEADLESS=1 PX4_SYS_AUTOSTART=4001 PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 0
         ```
         *(Note: The model `gz_x500` is an example, use your desired model)*
     *   **Terminal 2 (Drone 2):** Start PX4 instance 1 (`MAV_SYS_ID=2`). It will use namespace `/px4_1/fmu/`. Add `PX4_GZ_MODEL_POSE` to spawn it at a different location.
         ```bash
         cd PX4-Autopilot
-        PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 1
+        HEADLESS=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 1
         ```
-    *   **(Optional) Headless & QGroundControl:** You can run SITL without the Gazebo GUI by prepending `HEADLESS=1` to the PX4 launch commands above. You can then connect QGroundControl (typically listening on UDP port 14550 by default for the first instance) to monitor status and view the drones on the map.
+    *   **(Optional) Headless & QGroundControl:** You can run SITL without the Gazebo GUI by prepending `HEADLESS=1` to the PX4 launch commands above. You can connect QGroundControl (typically listening on UDP port 14550 by default for the first instance) to monitor status and view the drones on the map.
 
 3.  **Start Micro XRCE-DDS Agent**: Open a new terminal and run the agent (using UDP in this example).
     ```bash
