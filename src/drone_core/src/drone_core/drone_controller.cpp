@@ -133,7 +133,7 @@ void DroneController::takeoff() {
  * @param yaw Target yaw angle in radians
  */
 void DroneController::set_position(float x, float y, float z, float yaw) {
-    target_x_ = x; // Still store target for potential use/readback
+    target_x_ = x;
     target_y_ = y;
     target_z_ = z;
     target_yaw_ = yaw;
@@ -435,18 +435,40 @@ void DroneController::set_offboard_callback(
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Set Offboard Mode service called", name_.c_str());
     
     try {
-        // Ensure the OffboardControl loop is started FIRST
+        // 1. Get current position and yaw from DroneState
+        float current_x, current_y, current_z;
+        bool pos_valid = drone_state_->get_latest_local_position(current_x, current_y, current_z);
+        float current_yaw = drone_state_->get_latest_local_yaw(); // Returns NAN if invalid
+        bool yaw_valid = !std::isnan(current_yaw);
+
+        if (!pos_valid || !yaw_valid) {
+            RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Set Offboard rejected: Cannot get valid current pose (PosValid:%d, YawValid:%d)", 
+                         name_.c_str(), pos_valid, yaw_valid);
+            response->success = false;
+            response->message = "Cannot get valid current pose to initialize offboard";
+            return;
+        }
+        
+        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Current pose: X=%.2f, Y=%.2f, Z=%.2f, Yaw=%.2f", 
+                    name_.c_str(), current_x, current_y, current_z, current_yaw);
+
+        // 2. Set initial target to current pose
+        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Setting initial offboard target to current pose.", name_.c_str());
+        offboard_control_->set_target_position(current_x, current_y, current_z, current_yaw);
+
+        // 3. Start the OffboardControl loop FIRST
         RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Calling offboard_control_->start() to ensure heartbeat...", name_.c_str());
         offboard_control_->start(); 
         
-        // Add a delay to allow PX4 to register the stream before switching mode
+        // 4. Add a delay to allow PX4 to register the stream before switching mode
         RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Waiting for 1.1 seconds for offboard stream...", name_.c_str());
         std::this_thread::sleep_for(std::chrono::milliseconds(1100)); // Wait 1.1 seconds
 
+        // 5. Send Offboard mode command.
         RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Sending Offboard mode command.", name_.c_str());
         this->set_mode(Px4CustomMode::OFFBOARD); // Use the corrected enum value via the helper
         response->success = true;
-        response->message = "Set Offboard command initiated after delay";
+        response->message = "Set Offboard command initiated, target set to current pose";
         // Note: Success means the command was sent. Confirmation comes via state updates.
     } catch (const std::exception& e) {
         RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during set_offboard command: %s", name_.c_str(), e.what());

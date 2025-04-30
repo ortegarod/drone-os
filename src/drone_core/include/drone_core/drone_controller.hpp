@@ -165,13 +165,6 @@ private:
     std::unique_ptr<OffboardControl> offboard_control_;    ///< Offboard control manager
     std::unique_ptr<DroneState> drone_state_;       ///< Drone state tracker
 
-    // Mission Execution Members (NEW)
-    std::vector<Waypoint> mission_waypoints_; ///< Current mission waypoints
-    size_t current_waypoint_index_{0};      ///< Index of the waypoint the drone is heading towards
-    std::atomic<bool> mission_active_{false}; ///< Flag indicating if a mission is currently running
-    std::mutex mission_mutex_;               ///< Mutex to protect mission data access
-    float default_acceptance_radius_ = 1.5f;  ///< Default radius for reaching a waypoint (meters)
-
     // ROS 2 Services (Added)
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr arm_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr takeoff_service_;
