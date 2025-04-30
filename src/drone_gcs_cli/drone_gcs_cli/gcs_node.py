@@ -3,6 +3,7 @@ from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
 from std_srvs.srv import Trigger
 import time
+from drone_interfaces.srv import SetPosition # Import custom service
 # TODO: Import custom service/message types (e.g., from drone_interfaces) when defined
 
 class GCSNode(Node):
@@ -33,6 +34,11 @@ class GCSNode(Node):
             self._gcs_clients[srv_name] = self.create_client(Trigger, full_service_name)
             self.get_logger().debug(f"  - Client created for {full_service_name}")
             
+        # Add client for SetPosition service
+        set_position_service_name = f'/{self.target_drone}/set_position'
+        self._gcs_clients['set_position'] = self.create_client(SetPosition, set_position_service_name)
+        self.get_logger().debug(f"  - Client created for {set_position_service_name}")
+        
         # TODO: Add client creation for custom services like SetBehavior later
         
         # Allow some time for discovery (optional, but can help in noisy networks)
@@ -113,6 +119,53 @@ class GCSNode(Node):
                     self.get_logger().info(msg)
                 else:
                      self.get_logger().warning(msg) # Log failure as warning
+                return response.success, msg
+            except Exception as e:
+                msg = f"Service call '{full_service_name}' failed with exception: {e}"
+                self.get_logger().error(msg)
+                return False, msg
+        else:
+            msg = f"Service call '{full_service_name}' timed out after 10 seconds."
+            self.get_logger().error(msg)
+            return False, msg
+
+    # --- Service Call Methods --- 
+
+    def call_set_position(self, x, y, z, yaw):
+        '''Calls the SetPosition service for the target drone.'''
+        service_name = 'set_position'
+        if service_name not in self._gcs_clients:
+            msg = f"Error: Client for service '{service_name}' not found. Available: {list(self._gcs_clients.keys())}"
+            self.get_logger().error(msg)
+            return False, msg
+            
+        client = self._gcs_clients[service_name]
+        full_service_name = client.srv_name
+        
+        if not client.wait_for_service(timeout_sec=3.0):
+            msg = f"Error: Service '{full_service_name}' not available after 3 seconds."
+            self.get_logger().error(msg)
+            return False, msg
+
+        request = SetPosition.Request()
+        request.x = float(x) # Ensure type is float
+        request.y = float(y)
+        request.z = float(z)
+        request.yaw = float(yaw)
+
+        self.get_logger().info(f"Calling service '{full_service_name}' with X={x}, Y={y}, Z={z}, Yaw={yaw}...")
+        future = client.call_async(request)
+        
+        self._executor.spin_until_future_complete(future, timeout_sec=10.0) 
+
+        if future.done():
+            try:
+                response = future.result()
+                msg = f"Service '{full_service_name}' response: Success={response.success}, Message='{response.message}'"
+                if response.success:
+                    self.get_logger().info(msg)
+                else:
+                     self.get_logger().warning(msg)
                 return response.success, msg
             except Exception as e:
                 msg = f"Service call '{full_service_name}' failed with exception: {e}"

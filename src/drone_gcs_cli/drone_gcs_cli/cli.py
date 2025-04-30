@@ -54,6 +54,7 @@ def main(args=None):
                 print("  takeoff          - Command the drone to takeoff (Requires Offboard+Armed)")
                 print("  land             - Command the drone to land")
                 print("  disarm           - Disarm the drone")
+                print("  pos <x> <y> <z> <yaw> - Set target position/yaw in Offboard mode (NED frame)")
                 print("  status           - Show current drone status")
                 print("  target <name>    - Change the target drone")
                 print("  rtl              - Command Return To Launch")
@@ -78,6 +79,21 @@ def main(args=None):
             elif command == "disarm":
                 success, message = gcs_node.call_disarm()
                 print(message)
+            elif command == "pos":
+                if len(cmd_args) == 4:
+                    try:
+                        x = float(cmd_args[0])
+                        y = float(cmd_args[1])
+                        z = float(cmd_args[2])
+                        yaw = float(cmd_args[3])
+                        success, message = gcs_node.call_set_position(x, y, z, yaw)
+                        print(message)
+                    except ValueError:
+                        print("Error: x, y, z, and yaw must be numbers.")
+                    except Exception as e:
+                        print(f"Error calling set_position: {e}")
+                else:
+                    print("Usage: pos <x> <y> <z> <yaw>")
             elif command == "status":
                 status_str = gcs_node.get_formatted_status()
                 print(status_str)

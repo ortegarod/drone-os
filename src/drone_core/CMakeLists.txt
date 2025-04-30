@@ -12,6 +12,7 @@ find_package(rclcpp REQUIRED)
 find_package(px4_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(drone_interfaces REQUIRED)
 
 include_directories(include)
 
@@ -24,7 +25,7 @@ add_library(drone_core_lib
   src/utils/state_enums.cpp
 )
 target_include_directories(drone_core_lib PUBLIC include)
-ament_target_dependencies(drone_core_lib rclcpp px4_msgs yaml-cpp std_srvs)
+ament_target_dependencies(drone_core_lib rclcpp px4_msgs yaml-cpp std_srvs drone_interfaces)
 
 # --- New Executable: Drone Core Node (Decentralized Single Drone Runtime) ---
 add_executable(drone_core
@@ -35,6 +36,7 @@ target_include_directories(drone_core PUBLIC include)
 ament_target_dependencies(drone_core
     rclcpp
     std_srvs # For Trigger service
+    drone_interfaces # Added dependency
     # Add dependencies for custom services/messages later if needed
 )
 target_link_libraries(drone_core

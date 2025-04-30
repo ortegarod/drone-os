@@ -12,6 +12,7 @@
   <depend>px4_msgs</depend>
   <depend>yaml-cpp</depend>
   <depend>std_srvs</depend>
+  <depend>drone_interfaces</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

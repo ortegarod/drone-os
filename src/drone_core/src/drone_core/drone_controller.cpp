@@ -68,6 +68,12 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
         std::bind(&DroneController::set_position_mode_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_position_mode_service_->get_service_name());
 
+    // Create SetPosition service
+    set_position_service_ = node_->create_service<drone_interfaces::srv::SetPosition>(
+        "/" + name_ + "/set_position",
+        std::bind(&DroneController::set_position_callback, this, _1, _2, _3));
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_position_service_->get_service_name());
+
     // TODO: Create other services (RTL, SetBehavior) later
 }
 
@@ -511,5 +517,35 @@ void DroneController::set_position_mode_callback(
         RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during set_position_mode command: %s", name_.c_str(), e.what());
         response->success = false;
         response->message = std::string("Exception during set_position_mode: ") + e.what();
+    } 
+}
+
+// --- Added SetPosition Callback Implementation ---
+void DroneController::set_position_callback(
+    const std::shared_ptr<rmw_request_id_t> /*request_header*/,
+    const std::shared_ptr<drone_interfaces::srv::SetPosition::Request> request,
+    std::shared_ptr<drone_interfaces::srv::SetPosition::Response> response)
+{
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Set Position service called: X=%.2f, Y=%.2f, Z=%.2f, Yaw=%.2f", 
+                name_.c_str(), request->x, request->y, request->z, request->yaw);
+
+    // Basic check: Is the drone in offboard mode? 
+    // You might want more sophisticated checks (e.g., is it armed? is it stable?)
+    if (get_nav_state() != NavState::OFFBOARD) {
+        RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Set Position rejected: Drone is not in OFFBOARD mode.", name_.c_str());
+        response->success = false;
+        response->message = "Set Position rejected: Drone must be in OFFBOARD mode.";
+        return;
+    }
+
+    try {
+        // Call the internal method to update the target in OffboardControl
+        this->set_position(request->x, request->y, request->z, request->yaw);
+        response->success = true;
+        response->message = "Set Position target updated";
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during set_position command: %s", name_.c_str(), e.what());
+        response->success = false;
+        response->message = std::string("Exception during set_position: ") + e.what();
     } 
 }

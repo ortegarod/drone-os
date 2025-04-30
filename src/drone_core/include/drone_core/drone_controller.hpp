@@ -24,6 +24,7 @@
 #include <std_srvs/srv/trigger.hpp> // Include for Trigger service
 #include <vector>
 #include <cmath> // For std::isnan
+#include <drone_interfaces/srv/set_position.hpp> // Include custom service
 
 /**
  * @class DroneController
@@ -172,6 +173,7 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr disarm_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_offboard_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_position_mode_service_;
+    rclcpp::Service<drone_interfaces::srv::SetPosition>::SharedPtr set_position_service_; // Added SetPosition service
     // TODO: Add services for RTL, SetBehavior, etc. later
 
     /**
@@ -203,6 +205,11 @@ private:
     void set_position_mode_callback(const std::shared_ptr<rmw_request_id_t> request_header,
                                     const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                                     std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+
+    // Added SetPosition service callback declaration
+    void set_position_callback(const std::shared_ptr<rmw_request_id_t> request_header,
+                               const std::shared_ptr<drone_interfaces::srv::SetPosition::Request> request,
+                               std::shared_ptr<drone_interfaces::srv::SetPosition::Response> response);
 
     // TODO: Add callbacks for other services later
 

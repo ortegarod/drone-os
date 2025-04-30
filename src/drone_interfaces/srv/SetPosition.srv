@@ -1,0 +1,11 @@
+# Service to set the target position and yaw for offboard control
+
+# Request
+float32 x       # Target X position (meters, NED frame)
+float32 y       # Target Y position (meters, NED frame)
+float32 z       # Target Z position (meters, NED frame, positive down)
+float32 yaw     # Target yaw angle (radians)
+---
+# Response
+bool success    # True if the command was accepted/processed successfully
+string message  # Optional status message 
