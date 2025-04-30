@@ -85,11 +85,6 @@ private:
      */
     void send_vehicle_command(uint16_t command, float param1 = 0.0f, float param2 = 0.0f);
 
-    /**
-     * @brief Callback for vehicle command response
-     */
-    void command_response_callback(rclcpp::Client<px4_msgs::srv::VehicleCommand>::SharedFuture future);
-
     rclcpp::Node* node_;                    ///< Pointer to ROS2 node
     std::string ns_;                        ///< PX4 namespace
     rclcpp::TimerBase::SharedPtr offboard_control_loop_timer_;    ///< Timer for periodic publishing (renamed from timer_)
