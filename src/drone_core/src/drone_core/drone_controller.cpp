@@ -38,33 +38,33 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
 
     // --- Create Services (Added) ---
     arm_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "~/arm",
+        "/" + name_ + "/arm",
         std::bind(&DroneController::arm_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), arm_service_->get_service_name());
 
     takeoff_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "~/takeoff",
+        "/" + name_ + "/takeoff",
         std::bind(&DroneController::takeoff_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), takeoff_service_->get_service_name());
 
     land_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "~/land",
+        "/" + name_ + "/land",
         std::bind(&DroneController::land_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), land_service_->get_service_name());
 
     disarm_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "~/disarm",
+        "/" + name_ + "/disarm",
         std::bind(&DroneController::disarm_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), disarm_service_->get_service_name());
 
     // Added mode setting services
     set_offboard_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "~/set_offboard",
+        "/" + name_ + "/set_offboard",
         std::bind(&DroneController::set_offboard_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_offboard_service_->get_service_name());
 
     set_position_mode_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "~/set_position_mode",
+        "/" + name_ + "/set_position_mode",
         std::bind(&DroneController::set_position_mode_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_position_mode_service_->get_service_name());
 

@@ -57,26 +57,13 @@ private:
     std::string px4_namespace_; 
 
     // --- Service Servers --- 
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr takeoff_service_;
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr land_service_;
+    // REMOVED: Redundant takeoff_service_
+    // REMOVED: Redundant land_service_
     // rclcpp::Service<your_interfaces::srv::SetPosition>::SharedPtr set_position_service_;
     // rclcpp::Service<your_interfaces::srv::SetVelocity>::SharedPtr set_velocity_service_;
 
-    /**
-     * @brief Callback for the takeoff service.
-     */
-    void handle_takeoff(
-        const std::shared_ptr<rmw_request_id_t> request_header,
-        const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
-        std::shared_ptr<std_srvs::srv::Trigger::Response> response);
-
-    /**
-     * @brief Callback for the land service.
-     */
-    void handle_land(
-        const std::shared_ptr<rmw_request_id_t> request_header,
-        const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
-        std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+    // REMOVED: Redundant handle_takeoff
+    // REMOVED: Redundant handle_land
 
     // TODO: Add callbacks for set_position, set_velocity services
 

@@ -39,6 +39,8 @@ bool DroneNode::init()
 
     // --- Create Services (namespaced relative to the node) ---
     // Service names will be like /drone1/takeoff if node name is drone1
+    // REMOVED: Redundant service creation for takeoff and land
+    /*
     std::string takeoff_service_name = "takeoff"; // Relative service name
     std::string land_service_name = "land";       // Relative service name
 
@@ -69,6 +71,7 @@ bool DroneNode::init()
         RCLCPP_ERROR(this->get_logger(), "Failed to create land service: %s", e.what());
         return false;
     }
+    */
 
     // TODO: Create services for set_position, set_velocity
     // TODO: Create publishers/timers for status
@@ -76,45 +79,6 @@ bool DroneNode::init()
     RCLCPP_INFO(this->get_logger(), "DroneNode '%s' initialized successfully.", this->get_name());
     return true;
 }
-
-// Takeoff Service Callback
-void DroneNode::handle_takeoff(
-    const std::shared_ptr<rmw_request_id_t> /*request_header*/, 
-    const std::shared_ptr<std_srvs::srv::Trigger::Request> /*request*/, 
-    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
-{
-    RCLCPP_INFO(this->get_logger(), "Service '%s/takeoff' called.", this->get_name());
-    try {
-        drone_controller_->takeoff();
-        response->success = true;
-        response->message = "Takeoff command initiated for " + drone_name_;
-        RCLCPP_INFO(this->get_logger(), "Takeoff command sent successfully.");
-    } catch (const std::exception& e) {
-        response->success = false;
-        response->message = "Failed to initiate takeoff for " + drone_name_ + ": " + e.what();
-        RCLCPP_ERROR(this->get_logger(), "Takeoff command failed: %s", e.what());
-    }
-}
-
-// Land Service Callback
-void DroneNode::handle_land(
-    const std::shared_ptr<rmw_request_id_t> /*request_header*/, 
-    const std::shared_ptr<std_srvs::srv::Trigger::Request> /*request*/,
-    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
-{
-    RCLCPP_INFO(this->get_logger(), "Service '%s/land' called.", this->get_name());
-    try {
-        drone_controller_->land();
-        response->success = true;
-        response->message = "Land command initiated for " + drone_name_;
-        RCLCPP_INFO(this->get_logger(), "Land command sent successfully.");
-    } catch (const std::exception& e) {
-        response->success = false;
-        response->message = "Failed to initiate land for " + drone_name_ + ": " + e.what();
-        RCLCPP_ERROR(this->get_logger(), "Land command failed: %s", e.what());
-    }
-}
-
 
 // --- Destructor Definition ---
 DroneNode::~DroneNode()
