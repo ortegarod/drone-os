@@ -29,7 +29,7 @@ DroneAgent::DroneAgent(rclcpp::Node* node, const std::string& ns, const std::str
         }
         RCLCPP_INFO(node_->get_logger(), "[%s][Agent] Still waiting for vehicle_command...", name_.c_str());
     }
-    RCLCPP_INFO(node_->get_logger(), "[%s][Agent] vehicle_command service ready", name_.c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s][Agentt] vehicle_command service ready", name_.c_str());
 }
 
 /**
