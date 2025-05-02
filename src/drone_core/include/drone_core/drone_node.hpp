@@ -46,5 +46,5 @@ private:
 
     // Drone Identification Parameters
     std::string drone_name_; 
-    std::string px4_namespace_;
+    std::string px4_namespace_; 
 }; 

@@ -1,23 +1,68 @@
+# === docker-compose.yml (Template for a SINGLE Drone Raspberry Pi) ===
+#
+# Place this file in the root of the ws_droneOS workspace on the target RPi.
+# Customize the placeholders below FOR EACH DRONE before running 'docker-compose up -d'.
+# USE THE VALUES THAT MATCH YOUR SPECIFIC HARDWARE AND CONFIGURATION.
+# copy project files to the target machine: rsync -avz ~/ws_droneOS rodrigo@<tailscale-ip>:/home/rodrigo
+# run the command: docker-compose up -d
+#
+version: '3.8' # Defines the compose file version
+
 services:
-  ros2_drone:
-    build: .
-    container_name: ros2_drone
-    network_mode: "host"
-    privileged: true
+  # --- Drone Core Service ---
+  # Runs the main drone control logic (drone_core node)
+  drone_core: # Service name (can be customized, e.g., drone1_core)
+    build:
+      context: . # Build using the Dockerfile in the current directory (ws_droneOS)
+      dockerfile: drone_core.Dockerfile
+    container_name: drone_core_node # Explicit name for the running container
+    network_mode: "host" # ESSENTIAL: Use the host's network for Tailscale & agent comms
+    restart: unless-stopped # Optional: Restart policy
     volumes:
+      # Mount a host directory into the container for persistent logs
       - ./logs:/root/ws_droneOS/logs
     environment:
+      # Set the ROS 2 DDS implementation (ensure it matches your setup)
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
     depends_on:
+      # Ensure the agent starts before the core logic
       - micro_agent
+    # --- COMMAND OVERRIDE (CRITICAL) ---
+    # Provides the specific arguments for THIS drone.
+    command: > # The '>' allows the multi-line command string below
+      bash -c "source /opt/ros/humble/setup.bash &&
+               source install/setup.bash &&
+               ros2 run drone_os drone_core --ros-args
+                 # --- !!! CUSTOMIZE THESE ARGUMENTS FOR THIS SPECIFIC DRONE !!! ---
+                 # Replace 'drone1' with the correct unique name/ID for this drone.
+                 -r __node:=drone1             # Example: Unique ROS 2 node name (e.g., drone1, drone2)
+                 -p drone_name:=drone1         # Example: Logical drone name parameter
+                 -p px4_namespace:=/fmu/       # Example: PX4 topic namespace. IMPORTANT: For drone 2+, PX4 often uses /px4_1/fmu/, /px4_2/fmu/, etc. Match the PX4 instance.
+                 -p mav_sys_id:=1              # Example: Unique MAVLink System ID (MUST match this drone's PX4 MAV_SYS_ID)
+              "
 
+  # --- Micro XRCE-DDS Agent Service ---
+  # Bridges communication between ROS 2 (DDS) and PX4 (Serial)
   micro_agent:
     build:
-      context: .
+      context: . # Build using the micro_agent.Dockerfile in the current directory
       dockerfile: micro_agent.Dockerfile
-    container_name: micro_agent
-    network_mode: "host"
-    privileged: true
-    # Mount your local agent source in case you want it live (optional)
-    # volumes:
-    #   - ./Micro-XRCE-DDS-Agent:/root/Micro-XRCE-DDS-Agent
+    container_name: micro_agent_service # Explicit name for the running container
+    network_mode: "host" # ESSENTIAL: Use the host's network for core comms & PX4 device access
+    restart: unless-stopped # Optional: Restart policy
+    # --- COMMAND OVERRIDE (CRITICAL FOR SERIAL) ---
+    # Specifies how the agent connects to THIS drone's specific PX4 via its RPi USB port.
+    command: >
+      MicroXRCEAgent serial
+        # --- !!! CUSTOMIZE THESE ARGUMENTS FOR THIS DRONE'S CONNECTION !!! ---
+        # Replace '/dev/ttyUSB0' with the ACTUAL serial device created by the USB connection to PX4 TELEM2 on this RPi.
+        # (You confirmed this is /dev/ttyUSB0 for this Pi. Other common names: /dev/ttyACM0, etc. Use 'ls /dev/tty*' to verify if needed).
+        # Replace '921600' with the ACTUAL baud rate configured in this drone's PX4 'SER_TEL2_BAUD' parameter.
+        --dev /dev/ttyUSB0    # Updated Example for USB-Serial to TELEM2: (VERIFIED FOR THIS PI)
+        -b 921600             # Example: Baud rate (MUST match PX4's SER_TEL2_BAUD)
+    # Note: Ensure the user running Docker on the host (e.g., 'rodrigo') has permission for /dev/ttyUSB0 (belongs to 'dialout' group).
+    # If not, run: sudo usermod -a -G dialout rodrigo (or relevant user) and then REBOOT or log out/in.
+
+volumes:
+  logs: # Declares that the host path './logs' is expected
+    driver: local

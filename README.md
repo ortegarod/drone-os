@@ -77,6 +77,44 @@ Acts as a broker between the ROS 2 DDS network and the PX4 Autopilot (which typi
     ros2 run drone_gcs_cli cli --default-drone drone1
     ```
 
+### Deployment Scenarios (SITL/HITL/Real Drone)
+
+The core DroneOS ROS 2 components (`drone_core`, `drone_gcs_cli`) are designed to work across different deployment scenarios. The primary difference lies in the PX4 configuration and the connection method used by the Micro XRCE-DDS Agent.
+
+-   **SITL (Software-In-The-Loop)**: As demonstrated in the multi-drone example above, SITL runs the PX4 stack and simulation entirely on the host machine. Communication typically uses UDP over the localhost or local network (`MicroXRCEAgent udp4 ...`).
+-   **HITL (Hardware-In-The-Loop)**: The PX4 runs on the actual flight controller hardware, connected to a simulator for sensor data and physics. The Micro XRCE-DDS Agent might connect via Serial/USB (`MicroXRCEAgent serial --dev /dev/ttyACM0 ...`) or UDP if the flight controller has network access.
+-   **Real Drone**: PX4 runs on the drone's flight controller. The Agent connection depends on the available link:
+    -   **Serial/USB**: Direct connection, often for testing/configuration.
+    -   **UDP/TCP over Wi-Fi**: Requires a companion computer or Wi-Fi enabled flight controller on the same network as the agent.
+    -   **UDP/TCP over Telemetry Radio**: Requires a companion computer connected to the radio, bridging to the agent.
+
+The specific agent command and PX4 parameters (e.g., `XRCE_DDS_CFG`, baud rates) need to be adjusted based on the chosen setup.
+
+### Remote Communication (e.g., over 4G/WAN)
+
+#### Local Network Communication Flow
+
+By default, `drone_gcs_cli` and `drone_core` assume they are running on the same local network (e.g., same Wi-Fi). Communication works as follows:
+1.  **ROS 2 Discovery**: When both nodes start, ROS 2 middleware (DDS) uses multicast discovery protocols to find other ROS 2 nodes on the local network.
+2.  **Service Calls**: `drone_gcs_cli` creates ROS 2 *clients* for the services advertised by the target `drone_core` node (e.g., `/drone1/arm`, `/drone1/set_position`). When you issue a command in the CLI:
+    -   The client sends a request message over the network directly to the corresponding *service server* within the `drone_core` node.
+3.  **Drone Core Execution**: The `drone_core` node receives the request, executes the associated logic (e.g., arming checks, setting offboard points), potentially interacts with PX4 via the Micro XRCE-DDS Agent, and sends back a response.
+4.  **GCS Response**: The `drone_gcs_cli` client receives the response and displays the result.
+
+This standard ROS 2 communication relies heavily on the ability of nodes to discover each other and directly route traffic within the local network.
+
+#### Enabling Remote Communication via VPN
+
+Standard ROS 2 discovery and direct communication often fail across the public internet or cellular networks due to NAT, firewalls, and the lack of multicast support.
+
+**The recommended approach is to use a VPN (Virtual Private Network), specifically [Tailscale](https://tailscale.com/).**
+-   **How it Works**: Tailscale creates a secure, encrypted peer-to-peer mesh network over the public internet (like 4G). You install the Tailscale client on the drone's onboard computer (RPi 5) and the GCS machine, authenticate them to your private network ("tailnet"), and they are assigned stable virtual IP addresses.
+-   **Benefit (Application Transparency)**: To ROS 2, the GCS and the drone now appear to be on the same local network via their Tailscale IP addresses. **Crucially, this means no code changes are needed in `drone_core` or `drone_gcs_cli`.** The ROS 2 nodes don't need to know *how* the connection is made; they simply use standard networking (DDS discovery, service calls, topics) over the virtual network interface provided by Tailscale, just as described in the *Local Network Communication Flow* section. Tailscale handles the underlying secure tunneling and NAT traversal automatically.
+-   **Setup**: Install and configure the Tailscale client on both the drone's computer and the GCS machine following Tailscale documentation. No central VPN server setup is typically required.
+-   **Integration with Docker**: When running `drone_core` (or other components) in Docker containers on the drone, Tailscale should be installed and run on the **host OS (e.g., the Raspberry Pi 5)**, *not* within the container. To allow the containerized ROS 2 nodes to use the host's Tailscale connection, launch the container with **host networking** enabled (e.g., `docker run --network=host ...` or equivalent in Docker Compose).
+
+**Note:** This project **does not provide built-in implementations or specific guides** for installing or configuring Tailscale itself. Configuration depends on your specific devices and network environment. Refer to the official Tailscale documentation for setup instructions.
+
 ### Example: Running a Multi-Drone Simulation (2 Drones)
 
 This outlines the steps to run a simulation with two drones (drone1 and drone2) controlled by separate `drone_core` instances.
