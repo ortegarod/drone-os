@@ -52,17 +52,16 @@ services:
     restart: unless-stopped # Optional: Restart policy
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
-    # --- COMMAND OVERRIDE (CRITICAL FOR SERIAL) ---
-    # Specifies how the agent connects to THIS drone's specific PX4 via its RPi USB port.
-    # Uses YAML List format for clarity and reliability.
-    # --- !!! CUSTOMIZE THESE ARGUMENTS FOR THIS DRONE'S CONNECTION !!! ---
-    command: [
-      "MicroXRCEAgent", "serial",
-      # Replace '/dev/ttyUSB0' with the ACTUAL serial device for this Pi's PX4 TELEM2 connection.
-      "--dev", "/dev/ttyUSB0",  # Example: Device (VERIFIED FOR THIS PI)
-      # Replace '921600' with the ACTUAL baud rate matching PX4 'SER_TEL2_BAUD'.
-      "-b", "921600"          # Example: Baud rate
-    ]
+    # --- Restore original command BUT add a delay ---
+    # command: ["sleep", "infinity"] # Remove or comment out the sleep infinity
+    command: > # Use multi-line format for clarity
+      bash -c "sleep 2 && \
+               MicroXRCEAgent serial --dev /dev/ttyUSB0 -b 921600"
+    # command: [ # Original command structure commented out
+    #  "MicroXRCEAgent", "serial",
+    #  "--dev", "/dev/ttyUSB0",
+    #  "-b", "921600"
+    # ]
     # Note: Ensure the user running Docker on the host (e.g., 'rodrigo') has permission for /dev/ttyUSB0 (belongs to 'dialout' group).
     # If not, run: sudo usermod -a -G dialout rodrigo (or relevant user) and then REBOOT or log out/in.
 
