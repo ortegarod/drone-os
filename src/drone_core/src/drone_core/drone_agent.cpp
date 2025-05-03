@@ -105,7 +105,7 @@ void DroneAgent::log_result(uint8_t result)
             RCLCPP_WARN(node_->get_logger(), "[%s][Agent] Command unsupported", name_.c_str());
             break;
         case 4:  // VEHICLE_CMD_RESULT_FAILED
-            RCLCPP_WARN(node_->get_logger(), "[%s][Agentt] Command failed", name_.c_str());
+            RCLCPP_WARN(node_->get_logger(), "[%s][Agent] Command failed", name_.c_str());
             break;
         default:
             RCLCPP_WARN(node_->get_logger(), "[%s][Agent] Unknown command result: %d", name_.c_str(), result);
