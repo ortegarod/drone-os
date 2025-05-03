@@ -49,8 +49,9 @@ services:
       dockerfile: micro_agent.Dockerfile
     container_name: micro_agent_service # Explicit name for the running container
     network_mode: "host" # ESSENTIAL: Use the host's network for core comms & PX4 device access
-    privileged: true
     restart: unless-stopped # Optional: Restart policy
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
     # --- COMMAND OVERRIDE (CRITICAL FOR SERIAL) ---
     # Specifies how the agent connects to THIS drone's specific PX4 via its RPi USB port.
     # Uses YAML List format for clarity and reliability.

@@ -1,0 +1,11 @@
+.git
+build/
+install/
+log/
+logs/
+.vscode/
+.cursor/
+*.pyc
+__pycache__/
+*~
+*.log
