@@ -20,16 +20,7 @@ DroneAgent::DroneAgent(rclcpp::Node* node, const std::string& ns, const std::str
     : node_(node), name_(name), mav_sys_id_(mav_sys_id)
 {
     client_ = node_->create_client<px4_msgs::srv::VehicleCommand>(ns + "vehicle_command");
-
-    RCLCPP_INFO(node_->get_logger(), "[%s][Agent] Waiting for vehicle_command service...", name_.c_str());
-    while (!client_->wait_for_service(std::chrono::seconds(1))) {
-        if (!rclcpp::ok()) {
-            RCLCPP_ERROR(node_->get_logger(), "[%s][Agent] Interrupted waiting for service", name_.c_str());
-            return;
-        }
-        RCLCPP_INFO(node_->get_logger(), "[%s][Agent] Still waiting for vehicle_command...", name_.c_str());
-    }
-    RCLCPP_INFO(node_->get_logger(), "[%s][Agent] vehicle_command service ready", name_.c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s][Agent] Vehicle command client created.", name_.c_str());
 }
 
 /**
@@ -111,4 +102,13 @@ void DroneAgent::log_result(uint8_t result)
             RCLCPP_WARN(node_->get_logger(), "[%s][Agent] Unknown command result: %d", name_.c_str(), result);
             break;
     }
+}
+
+// ADDED: Non-blocking check for service readiness
+bool DroneAgent::is_service_ready() const {
+    if (!client_) { 
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Agent] Client pointer is null in is_service_ready!", name_.c_str());
+        return false; 
+    }
+    return client_->service_is_ready();
 } 

@@ -27,23 +27,38 @@ services:
     environment:
       # Set the ROS 2 DDS implementation (ensure it matches your setup)
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      # Increase ROS log verbosity
+      - ROS_LOG_SEVERITY_THRESHOLD=debug
+      # Whitelist specific interface for Fast-RTPS
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
     depends_on:
       # Ensure the agent starts before the core logic
       - micro_agent
     # --- COMMAND OVERRIDE (CRITICAL) ---
     # Provides the specific arguments for THIS drone.
-    command: > # The '>' allows the multi-line command string below
-      bash -c "source /opt/ros/humble/setup.bash &&
-               source install/setup.bash &&
-               ros2 run drone_os drone_core --ros-args
+    # The ENTRYPOINT script will source setup files first
+    command: [
+      "ros2", "run", "drone_os", "drone_core",
+      "--ros-args",
                  # --- !!! CUSTOMIZE THESE ARGUMENTS FOR THIS SPECIFIC DRONE !!! ---
-                 # Replace 'drone3' with the correct unique name/ID for this drone.
-                 -r __node:=drone3             # Example: Unique ROS 2 node name (e.g., drone1, drone2)
-                 -p drone_name:=drone3         # Example: Logical drone name parameter
-                 -p px4_namespace:=/px4_2/fmu/ # Example: PX4 topic namespace. IMPORTANT: For drone 2+, PX4 often uses /px4_1/fmu/, /px4_2/fmu/, etc. Match the PX4 instance.
-                 -p mav_sys_id:=3              # Example: Unique MAVLink System ID (MUST match this drone's PX4 MAV_SYS_ID)
-                 # NOTE: Ensure the MAV_SYS_ID parameter in PX4 firmware on the flight controller is set to 3.
-              "
+      # --- Configuration for Drone 1 (Active) ---
+      "-r", "__node:=drone1",             # Unique ROS 2 node name
+      "-p", "drone_name:=drone1",         # Logical drone name parameter
+      "-p", "px4_namespace:=/fmu/", # PX4 topic namespace (e.g., /px4_0/fmu/ for ID 1)
+      "-p", "mav_sys_id:=1"               # Unique MAVLink System ID
+
+      # --- Example Configuration for Drone 2 (Commented Out) ---
+      # "-r", "__node:=drone2",             # Unique ROS 2 node name
+      # "-p", "drone_name:=drone2",         # Logical drone name parameter
+      # "-p", "px4_namespace:=/px4_1/fmu/", # PX4 topic namespace (e.g., /px4_1/fmu/ for ID 2)
+      # "-p", "mav_sys_id:=2"               # Unique MAVLink System ID
+
+      # --- Example Configuration for Drone 3 (Commented Out - Original) ---
+      # "-r", "__node:=drone3",             # Unique ROS 2 node name
+      # "-p", "drone_name:=drone3",         # Logical drone name parameter
+      # "-p", "px4_namespace:=/px4_2/fmu/", # PX4 topic namespace (e.g., /px4_2/fmu/ for ID 3)
+      # "-p", "mav_sys_id:=3"               # Unique MAVLink System ID
+    ]
 
   # --- Micro XRCE-DDS Agent Service ---
   # Bridges communication between ROS 2 (DDS) and PX4 (Serial)
@@ -55,9 +70,18 @@ services:
     network_mode: "host" # ESSENTIAL: Use the host's network for core comms & PX4 device access
     restart: unless-stopped # Optional: Restart policy
     devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB0"
+      # Map the stable host symlink (created by udev rule in /etc/udev/rules.d/99-pixhawk.rules)
+      # to the path the agent expects inside the container (/dev/ttyUSB0).
+      # The agent command MUST use the container path (/dev/ttyUSB0).
+      - "/dev/pixhawk-telem2:/dev/ttyUSB0" # STABLE_HOST_SYMLINK:CONTAINER_PATH
+    # Add RMW_IMPLEMENTATION environment variable
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      # Increase ROS log verbosity
+      - ROS_LOG_SEVERITY_THRESHOLD=debug
+      # Whitelist specific interface for Fast-RTPS
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
     # --- Restore original command BUT add a delay ---
-    # command: ["sleep", "infinity"] # Remove or comment out the sleep infinity
     command: > # Use multi-line format for clarity
       bash -c "sleep 2 && \
                MicroXRCEAgent serial --dev /dev/ttyUSB0 -b 921600"

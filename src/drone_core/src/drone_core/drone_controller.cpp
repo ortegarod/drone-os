@@ -29,11 +29,15 @@ using std::placeholders::_3;
 DroneController::DroneController(rclcpp::Node* node, const std::string& name, const std::string& px4_namespace, int mav_sys_id)
     : node_(node), name_(name), ns_(px4_namespace)
 {
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Constructing...", name_.c_str());
     drone_agent_ = std::make_unique<DroneAgent>(node_, ns_, name_, mav_sys_id);
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] DroneAgent created.", name_.c_str());
     offboard_control_ = std::make_unique<OffboardControl>(node_, ns_);
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] OffboardControl created.", name_.c_str());
     drone_state_ = std::make_unique<DroneState>(node_, ns_, name_); // Re-enabled DroneState
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] DroneState created.", name_.c_str());
     
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Drone components initialized.", name_.c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Drone components initialized. Creating services...", name_.c_str());
 
     // --- Create Services (Added) ---
     arm_service_ = node_->create_service<std_srvs::srv::Trigger>(
@@ -72,6 +76,8 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
         "/" + name_ + "/set_position",
         std::bind(&DroneController::set_position_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_position_service_->get_service_name());
+
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] All services created.", name_.c_str());
 }
 
 DroneController::~DroneController()
@@ -87,6 +93,10 @@ DroneController::~DroneController()
  * The result is handled asynchronously through a callback.
  */
 void DroneController::arm() {
+    if (!drone_agent_->is_service_ready()) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Arm command failed: Agent service not ready.", name_.c_str());
+        return;
+    }
     drone_agent_->sendVehicleCommand(VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0f, 0.0f,
         [this](uint8_t result) {
             if (result == 0) {
@@ -105,6 +115,10 @@ void DroneController::arm() {
  * The result is handled asynchronously through a callback.
  */
 void DroneController::disarm() {
+    if (!drone_agent_->is_service_ready()) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Disarm command failed: Agent service not ready.", name_.c_str());
+        return;
+    }
     drone_agent_->sendVehicleCommand(VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 0.0f, 0.0f,
         [this](uint8_t result) {
             if (result == 0) {
@@ -150,6 +164,10 @@ void DroneController::set_velocity(float vx, float vy, float vz, float yaw_rate)
  */
 void DroneController::land() {
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Initiating landing sequence...", name_.c_str());
+    if (!drone_agent_->is_service_ready()) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Land command failed: Agent service not ready.", name_.c_str());
+        return;
+    }
 
     // If currently in offboard mode, stop the offboard controller first
     if (get_nav_state() == NavState::OFFBOARD) {
@@ -246,6 +264,11 @@ void DroneController::set_mode(Px4CustomMode mode) {
         return;
     }
 
+    if (!drone_agent_->is_service_ready()) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Set Mode command failed: Agent service not ready.", name_.c_str());
+        return;
+    }
+
     // If currently in offboard and requesting a DIFFERENT mode, stop OffboardControl first.
     // Assumes Px4CustomMode::OFFBOARD exists and corresponds to NavState::OFFBOARD logic.
     if (get_nav_state() == NavState::OFFBOARD && mode != Px4CustomMode::OFFBOARD) {
@@ -292,6 +315,11 @@ bool DroneController::set_altitude_mode_sync(std::chrono::milliseconds timeout_m
 bool DroneController::set_mode_sync(Px4CustomMode mode, std::chrono::milliseconds timeout_ms) {
     if (mode == Px4CustomMode::UNKNOWN) {
         RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Attempted to set UNKNOWN mode synchronously.", name_.c_str());
+        return false;
+    }
+
+    if (!drone_agent_->is_service_ready()) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Set Mode command failed: Agent service not ready.", name_.c_str());
         return false;
     }
 

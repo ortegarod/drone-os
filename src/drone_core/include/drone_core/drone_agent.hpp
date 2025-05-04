@@ -8,6 +8,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <px4_msgs/srv/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_command.hpp>
+#include <functional>
 
 /**
  * @class DroneAgent
@@ -38,6 +39,8 @@ public:
      */
     ~DroneAgent();
 
+    bool is_service_ready() const;
+
     /**
      * @brief Sends a command to the PX4 autopilot
      * 
@@ -49,8 +52,8 @@ public:
      * @param param2 Second parameter for the command
      * @param callback Function to be called with the command result
      */
-    void sendVehicleCommand(uint16_t command, float param1, float param2,
-              std::function<void(uint8_t)> callback);
+    void sendVehicleCommand(uint16_t command, float param1 = 0.0f, float param2 = 0.0f,
+              std::function<void(uint8_t)> callback = [](uint8_t){});
 
 private:
     /**

@@ -34,7 +34,7 @@ Contains the standard ROS 2 message and service definitions required to communic
 
 ### `Micro-XRCE-DDS-Agent` (Application - Open Source)
 
-Acts as a broker between the ROS 2 DDS network and the PX4 Autopilot (which typically runs an XRCE-DDS *Client*). This agent translates messages between the two domains.
+Acts as a broker between the ROS 2 DDS network and the PX4 Autopilot (which typically runs an XRCE-DDS *Client*). The PX4 client connects to the agent (e.g., over Serial or UDP) and tells the agent which uORB topics it wants to publish and subscribe to. The agent then creates the corresponding ROS 2 publishers and subscribers on the DDS network, relaying data back and forth. It also handles ROS 2 service calls, forwarding requests to PX4 and returning acknowledgements.
 - **Location**: `Micro-XRCE-DDS-Agent/` (Workspace Root)
 - **Source**: Pulled from [eProsima/Micro-XRCE-DDS-Agent](https://github.com/eProsima/Micro-XRCE-DDS-Agent)
 - **See**: `Micro-XRCE-DDS-Agent/README.md`
