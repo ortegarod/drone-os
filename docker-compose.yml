@@ -1,9 +1,12 @@
 # === docker-compose.yml (Template for a SINGLE Drone Raspberry Pi) ===
 #
+# CONTEXT: This file is configured for Drone 3 (drone3), intended to run on its
+# dedicated hardware (e.g., Raspberry Pi). It assumes drone1 and drone2 are
+# potentially running in a separate SITL environment.
+#
 # Place this file in the root of the ws_droneOS workspace on the target RPi.
 # Customize the placeholders below FOR EACH DRONE before running 'docker-compose up -d'.
 # USE THE VALUES THAT MATCH YOUR SPECIFIC HARDWARE AND CONFIGURATION.
-# copy project files to the target machine: rsync -avz ~/ws_droneOS rodrigo@<tailscale-ip>:/home/rodrigo
 # run the command: docker-compose up -d
 #
 version: '3.8' # Defines the compose file version
@@ -34,11 +37,12 @@ services:
                source install/setup.bash &&
                ros2 run drone_os drone_core --ros-args
                  # --- !!! CUSTOMIZE THESE ARGUMENTS FOR THIS SPECIFIC DRONE !!! ---
-                 # Replace 'drone1' with the correct unique name/ID for this drone.
-                 -r __node:=drone1             # Example: Unique ROS 2 node name (e.g., drone1, drone2)
-                 -p drone_name:=drone1         # Example: Logical drone name parameter
-                 -p px4_namespace:=/fmu/       # Example: PX4 topic namespace. IMPORTANT: For drone 2+, PX4 often uses /px4_1/fmu/, /px4_2/fmu/, etc. Match the PX4 instance.
-                 -p mav_sys_id:=1              # Example: Unique MAVLink System ID (MUST match this drone's PX4 MAV_SYS_ID)
+                 # Replace 'drone3' with the correct unique name/ID for this drone.
+                 -r __node:=drone3             # Example: Unique ROS 2 node name (e.g., drone1, drone2)
+                 -p drone_name:=drone3         # Example: Logical drone name parameter
+                 -p px4_namespace:=/px4_2/fmu/ # Example: PX4 topic namespace. IMPORTANT: For drone 2+, PX4 often uses /px4_1/fmu/, /px4_2/fmu/, etc. Match the PX4 instance.
+                 -p mav_sys_id:=3              # Example: Unique MAVLink System ID (MUST match this drone's PX4 MAV_SYS_ID)
+                 # NOTE: Ensure the MAV_SYS_ID parameter in PX4 firmware on the flight controller is set to 3.
               "
 
   # --- Micro XRCE-DDS Agent Service ---
