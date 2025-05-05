@@ -69,12 +69,10 @@ Acts as a broker between the ROS 2 DDS network and the PX4 Autopilot (which typi
     ```
 2.  **Launch Drone Core Node**: Start the `drone_core` node for each drone, providing parameters.
     ```bash
-    # Example - Launch file TBD
-    ros2 launch drone_core drone_os_launch.py drone_name:=drone1 px4_namespace:=px4_1 
     ```
 3.  **Use GCS CLI (Optional)**:
     ```bash
-    ros2 run drone_gcs_cli cli --default-drone drone1
+    ros2 run drone_gcs_cli gcs
     ```
 
 ### Deployment Scenarios (SITL/HITL/Real Drone)
