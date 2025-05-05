@@ -68,7 +68,7 @@ Acts as a broker between the ROS 2 DDS network and the PX4 Autopilot (which typi
     MicroXRCEAgent udp4 -p 8888 
     ```
 2.  **Launch Drone Core Node**: Start the `drone_core` node for each drone, providing parameters.
-    ```bash
+    ```
     ```
 3.  **Use GCS CLI (Optional)**:
     ```bash
