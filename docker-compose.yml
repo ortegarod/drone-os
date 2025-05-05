@@ -9,7 +9,6 @@
 # USE THE VALUES THAT MATCH YOUR SPECIFIC HARDWARE AND CONFIGURATION.
 # run the command: docker-compose up -d
 #
-version: '3.8' # Defines the compose file version
 
 services:
   # --- Drone Core Service ---
