@@ -6,16 +6,18 @@
 # By default, it's configured for a single drone (drone1) with:
 # - ROS 2 node name: drone1
 # - Drone name: drone1
-# - PX4 namespace: /fmu/
+# - PX4 namespace: /fmu/ (for MAV_SYS_ID=1)
 # - MAVLink System ID: 1
 #
 # MULTI-DRONE SETUP:
 # To run multiple drones in SITL:
 # 1. Copy this file for each additional drone (e.g., docker-compose.dev.drone2.yml)
-# 2. Update the command section for each drone with its specific configuration:
+# 2. Change the service name to be unique (e.g., drone_core2)
+# 3. Update the container_name to be unique (e.g., drone_core_node2)
+# 4. Update the command section for each drone with its specific configuration:
 #    - __node: Unique ROS 2 node name (e.g., drone2)
 #    - drone_name: Logical drone name (e.g., drone2)
-#    - px4_namespace: PX4 topic namespace (e.g., /px4_1/fmu/ for ID 2)
+#    - px4_namespace: PX4 topic namespace (e.g., /px4_1/fmu/ for MAV_SYS_ID=2)
 #    - mav_sys_id: Unique MAVLink System ID (e.g., 2)
 #
 # Run with: docker compose -f docker-compose.dev.yml up -d
@@ -24,7 +26,7 @@
 services:
   # --- Drone Core Service ---
   # Runs the main drone control logic (drone_core node)
-  drone_core: # Service name (can be customized, e.g., drone1_core)
+  drone_core: # Service name (must be unique across all compose files)
     build:
       context: . # Build using the Dockerfile in the current directory (ws_droneOS)
       dockerfile: drone_core.Dockerfile
@@ -50,28 +52,16 @@ services:
     command: [
       "ros2", "run", "drone_core", "drone_core",
       "--ros-args",
-                 # --- !!! CUSTOMIZE THESE ARGUMENTS FOR THIS SPECIFIC DRONE !!! ---
       # --- Configuration for Drone 1 (Active) ---
       "-r", "__node:=drone1",             # Unique ROS 2 node name
       "-p", "drone_name:=drone1",         # Logical drone name parameter
-      "-p", "px4_namespace:=/fmu/", # PX4 topic namespace (e.g., /px4_0/fmu/ for ID 1)
+      "-p", "px4_namespace:=/fmu/",       # PX4 topic namespace (e.g., /px4_0/fmu/ for ID 1)
       "-p", "mav_sys_id:=1"               # Unique MAVLink System ID
-
-      # --- Example Configuration for Drone 2 (Commented Out) ---
-      # "-r", "__node:=drone2",             # Unique ROS 2 node name
-      # "-p", "drone_name:=drone2",         # Logical drone name parameter
-      # "-p", "px4_namespace:=/px4_1/fmu/", # PX4 topic namespace (e.g., /px4_1/fmu/ for ID 2)
-      # "-p", "mav_sys_id:=2"               # Unique MAVLink System ID
-
-      # --- Example Configuration for Drone 3 (Commented Out - Original) ---
-      # "-r", "__node:=drone3",             # Unique ROS 2 node name
-      # "-p", "drone_name:=drone3",         # Logical drone name parameter
-      # "-p", "px4_namespace:=/px4_2/fmu/", # PX4 topic namespace (e.g., /px4_2/fmu/ for ID 3)
-      # "-p", "mav_sys_id:=3"               # Unique MAVLink System ID
     ]
 
   # --- Micro XRCE-DDS Agent Service ---
-  # Bridges communication between ROS 2 (DDS) and PX4 (Serial)
+  # Bridges communication between ROS 2 (DDS) and PX4 SITL instances
+  # This agent is shared between all drones in the development environment
   micro_agent:
     build:
       context: . # Build using the micro_agent.Dockerfile in the current directory
