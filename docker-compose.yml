@@ -1,13 +1,28 @@
 # === docker-compose.yml (Template for a SINGLE Drone Raspberry Pi) ===
 #
-# CONTEXT: This file is configured for Drone 3 (drone3), intended to run on its
-# dedicated hardware (e.g., Raspberry Pi). It assumes drone1 and drone2 are
-# potentially running in a separate SITL environment.
+# CONTEXT: This file is configured for a single real drone, intended to run on its
+# dedicated hardware (e.g., Raspberry Pi). By default, it uses the following configuration:
+# - ROS 2 node name: drone1
+# - Drone name: drone1
+# - PX4 namespace: /fmu/
+# - MAVLink System ID: 1
+#
+# MULTI-DRONE SETUP:
+# To run multiple real drones, you need to:
+# 1. Copy this file for each additional drone (e.g., docker-compose.drone2.yml)
+# 2. Update the command section for each drone with its specific configuration:
+#    - __node: Unique ROS 2 node name (e.g., drone2)
+#    - drone_name: Logical drone name (e.g., drone2)
+#    - px4_namespace: PX4 topic namespace (e.g., /px4_1/fmu/ for ID 2)
+#    - mav_sys_id: Unique MAVLink System ID (e.g., 2)
+#
+# Future improvements could make this more dynamic through environment variables
+# or configuration files.
 #
 # Place this file in the root of the ws_droneOS workspace on the target RPi.
-# Customize the placeholders below FOR EACH DRONE before running 'docker-compose up -d'.
-# USE THE VALUES THAT MATCH YOUR SPECIFIC HARDWARE AND CONFIGURATION.
-# run the command: docker-compose up -d
+# The default configuration should work for a single drone setup.
+# For multiple drones, customize the configuration as described above.
+# Run with: docker compose up -d
 #
 
 services:

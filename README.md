@@ -48,43 +48,34 @@ Acts as a broker between the ROS 2 DDS network and the PX4 Autopilot (which typi
 - **Build Tools**: `colcon`, `cmake` (>=3.5), C++14 compiler, Python 3.
 - **Dependencies**: `libyaml-cpp-dev` (for `drone_core`).
 
-### Building the Workspace
 
-1.  **Clone**: Clone this repository.
-2.  **Agent Setup**: Ensure the `Micro-XRCE-DDS-Agent` is built or available.
-3.  **ROS Dependencies**: `sudo apt update && sudo apt install ros-${ROS_DISTRO}-px4-msgs libyaml-cpp-dev`
-4.  **Source ROS 2**: `source /opt/ros/${ROS_DISTRO}/setup.bash`
-5.  **Build Packages**: From the workspace root (`ws_droneOS/`):
-    ```bash
-    colcon build --symlink-install
-    ```
-6.  **Source Workspace**: `source install/setup.bash`
+### Deployment Scenarios (SITL/Real Drone)
 
-### Running
+The primary difference between deployment scenarios lies in how the Micro XRCE-DDS Agent connects to PX4 (and where PX4 is deployed):
 
-1.  **Start Micro XRCE-DDS Agent**: Run the agent, configuring the correct transport (e.g., UDP, serial) to connect to your PX4 instance.
-    ```bash
-    # Example using UDP
-    MicroXRCEAgent udp4 -p 8888 
-    ```
-2.  **Launch Drone Core Node**: Start the `drone_core` node for each drone, providing parameters.
-    ```
-    ```
-3.  **Use GCS CLI (Optional)**:
-    ```bash
-    ros2 run drone_gcs_cli gcs
-    ```
+-   **SITL (Software-In-The-Loop)**:
+    - PX4 runs entirely in simulation on your computer
+    - Communication: UDP over localhost/network
+    - Components:
+        - PX4 SITL instance(s) running using latest build instructions on PX4-Autopilot GitHub
+        - Micro XRCE-DDS Agent using UDP for communication with PX4; serves as an "agent" to broadcast PX4 uORB as ROS2 topics 
+        - QGroundControl (optional) connecting over UDP
+    - Best for: Development, testing, and simulations
 
-### Deployment Scenarios (SITL/HITL/Real Drone)
+-   **Real Drone**:
+    - PX4 runs on the actual flight controller (e.g., Pixhawk 6C)
+    - Communication between PX4 and Micro XRCE-DDS Agent:
+        - **Direct Serial/USB**:
+            - Companion computer (RPi 5, Jetson) directly connected to Pixhawk via TELEM2 port on Pixhawk and USB on Pi
+    - Communication between PX4 and QGroundControl:
+        - **Telemetry Radio**:
+            - 915MHz Telemetry Radio on ground computer
+            - 915MHz Telemetry Radio on Pixhawk
+            - QGroundControl can connect directly to monitor status
+            - Optional: Additional radio on companion computer (limited bandwidth) for sending commands instead of through Tailscale VPN and ROS2
+    - Best for: Real-world deployment and testing
 
-The core DroneOS ROS 2 components (`drone_core`, `drone_gcs_cli`) are designed to work across different deployment scenarios. The primary difference lies in the PX4 configuration and the connection method used by the Micro XRCE-DDS Agent.
-
--   **SITL (Software-In-The-Loop)**: As demonstrated in the multi-drone example above, SITL runs the PX4 stack and simulation entirely on the host machine. Communication typically uses UDP over the localhost or local network (`MicroXRCEAgent udp4 ...`).
--   **HITL (Hardware-In-The-Loop)**: The PX4 runs on the actual flight controller hardware, connected to a simulator for sensor data and physics. The Micro XRCE-DDS Agent might connect via Serial/USB (`MicroXRCEAgent serial --dev /dev/ttyACM0 ...`) or UDP if the flight controller has network access.
--   **Real Drone**: PX4 runs on the drone's flight controller. The Agent connection depends on the available link:
-    -   **Serial/USB**: Direct connection, often for testing/configuration.
-    -   **UDP/TCP over Wi-Fi**: Requires a companion computer or Wi-Fi enabled flight controller on the same network as the agent.
-    -   **UDP/TCP over Telemetry Radio**: Requires a companion computer connected to the radio, bridging to the agent.
+> **Note on HITL (Hardware-In-The-Loop)**: This setup involves running PX4 on real hardware while using simulated sensors. While theoretically possible using Serial/USB or UDP connections, this configuration is still under development and not fully documented.
 
 The specific agent command and PX4 parameters (e.g., `XRCE_DDS_CFG`, baud rates) need to be adjusted based on the chosen setup.
 
@@ -111,22 +102,15 @@ Standard ROS 2 discovery and direct communication often fail across the public i
 -   **Setup**: Install and configure the Tailscale client on both the drone's computer and the GCS machine following Tailscale documentation. No central VPN server setup is typically required.
 -   **Integration with Docker**: When running `drone_core` (or other components) in Docker containers on the drone, Tailscale should be installed and run on the **host OS (e.g., the Raspberry Pi 5)**, *not* within the container. To allow the containerized ROS 2 nodes to use the host's Tailscale connection, launch the container with **host networking** enabled (e.g., `docker run --network=host ...` or equivalent in Docker Compose).
 
-**Note:** This project **does not provide built-in implementations or specific guides** for installing or configuring Tailscale itself. Configuration depends on your specific devices and network environment. Refer to the official Tailscale documentation for setup instructions.
 
 ### Example: Running a Multi-Drone Simulation (2 Drones)
 
-This outlines the steps to run a simulation with two drones (drone1 and drone2) controlled by separate `drone_core` instances.
+This outlines the steps to run a simulation with two drones (drone1 and drone2) controlled by separate `drone_core` instances using Docker containers.
 
-1.  **Build & Source**: Ensure the workspace is built and sourced:
-    ```bash
-    cd ws_droneOS
-    colcon build --symlink-install
-    source install/setup.bash
-    ```
+1.  **Start PX4 SITL Instances**: Open two separate terminals. Navigate to your PX4-Autopilot directory in each.
 
-TODO: add note - requirement is to have PX4-Autopilot installed following PX4 official instructions (link) - dont forget the toolkit srcipt specific to Ubuntu to get all the gazebo tools
+    > **Prerequisite**: Before running SITL, ensure you have PX4-Autopilot installed following the [official PX4 installation guide](https://docs.px4.io/main/en/dev_setup/dev_env_linux_ubuntu.html). For Ubuntu users, make sure to run the `ubuntu.sh` script from the PX4-Autopilot repository to install all required Gazebo simulation tools and dependencies.
 
-2.  **Start PX4 SITL Instances**: Open two separate terminals. Navigate to your PX4-Autopilot directory in each.
     *   **Terminal 1 (Drone 1):** Start PX4 instance 0 (`MAV_SYS_ID=1`). It will use the default namespace `/fmu/`.
         ```bash
         cd PX4-Autopilot
@@ -143,60 +127,97 @@ TODO: add note - requirement is to have PX4-Autopilot installed following PX4 of
     > *   The `make px4_sitl gz_x500` command (used for Drone 1) implicitly launches **instance 0** (`-i 0` is the default) and typically uses the default **`MAV_SYS_ID=1`**. Consequently, it uses the default UXRCE-DDS namespace `/fmu/`.
     > *   The direct execution command `./build/.../px4 -i 1` (used for Drone 2) explicitly sets the **instance ID** via `-i 1`. We also explicitly set the **`MAV_SYS_ID=2`** using an environment variable. Based on these, this SITL instance uses the UXRCE-DDS namespace `/px4_1/fmu/` when connecting to the agent. This differentiation is crucial for multi-drone control.
 
-TODO: update documentation to add preferred way using Docker to run drone_core and micro agent
+    > **Note**: MAV_SYS_ID can be updated via PX4 parameters using QGroundControl.
 
+2.  **Launch Drone Core and Micro Agent Services**: In the DroneOS workspace, use Docker Compose to start the services. See `docker-compose.dev.yml` for detailed configuration options and notes about multi-drone setup.
 
-3.  **Start Micro XRCE-DDS Agent**: Open a new terminal and run the agent (using UDP in this example).
+    For the first drone (drone1), use the default development compose file:
     ```bash
-    MicroXRCEAgent udp4 -p 8888
+    cd ws_droneOS
+    docker compose -f docker-compose.dev.yml up -d
     ```
-    *The agent should detect connections from both PX4 instances.* 
 
-TODO: update documentation to add preferred way using Docker to run drone_core and micro agent
-
-
-4.  **Launch Drone Core Nodes**: Open two more terminals. Source the workspace in each.
-    *   **Terminal 4 (Drone 1 Controller):** Launch `drone_core` targeting `MAV_SYS_ID=1` and using the default namespace.
-        ```bash
-        cd ws_droneOS
-        source install/setup.bash
-        ros2 run drone_os drone_core --ros-args \
-            -r __node:=drone1 \
-            -p drone_name:=drone1 \
-            -p px4_namespace:=/fmu/ \
-            -p mav_sys_id:=1
-        ```
-    *   **Terminal 5 (Drone 2 Controller):** Launch `drone_core` targeting `MAV_SYS_ID=2` and using the `/px4_1/fmu/` namespace.
-        ```bash
-        cd ws_droneOS
-        source /opt/ros/humble/setup.bash
-        source install/setup.bash
-        ros2 run drone_os drone_core --ros-args \
-            -r __node:=drone2 \
-            -p drone_name:=drone2 \
-            -p px4_namespace:=/px4_1/fmu/ \
-            -p mav_sys_id:=2 
-        ```
-TODO: update documentation to add preferred way using Docker to run drone_core and micro agent
-
-
-
-
-5.  **Use GCS CLI**: Open a final terminal. Source the workspace. - clarify this command is for unning the GCS cli inside of an already running drone_core_node container
+    For the second drone (drone2), create a copy of the development compose file and update its configuration:
     ```bash
-check readme in drone_gcs_cli
+    # Copy the development compose file
+    cp docker-compose.dev.yml docker-compose.dev.drone2.yml
+
+    # Edit docker-compose.dev.drone2.yml to update the command section:
+    # - Change __node to drone2
+    # - Change drone_name to drone2
+    # - Change px4_namespace to /px4_1/fmu/
+    # - Change mav_sys_id to 2
+
+    # Launch the second drone
+    docker compose -f docker-compose.dev.drone2.yml up -d
     ```
-    *   Use `target drone1` or `target drone2` to switch focus.
+
+    > **Note**: Each drone needs its own PX4 SITL instance running with a unique MAVLink System ID. Make sure to start the PX4 SITL instances with different IDs (e.g., `make px4_sitl gz_x500 MAV_SYS_ID=2` for drone2).
+
+3.  **Use GCS CLI**: Open a terminal and run the GCS CLI through Docker:
+    ```bash
+    docker compose -f docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1
+    ```
+    *   The CLI defaults to targeting 'drone1'. Use the `target drone2` command to switch to the second drone.
     *   Send commands (e.g., `set_offboard`, `arm`, `pos 0 0 -5 0`, `land`). Only the targeted drone should react.
+    *   To exit the GCS CLI and stop the container, press `CTRL+C`.
 
-TODO: separate out drone_cli as its own container eg. drone_core, drone_cli and micro_agent - drone_cli doesnt need to be shipped out with drone_core
+    > **Note**: The GCS CLI container is configured to use host networking mode to ensure proper ROS 2 DDS communication with the drone nodes. It also mounts a `logs` directory for persistent logging.
 
+4.  **Cleanup**: When done, stop all services:
+    ```bash
+    docker compose -f docker-compose.dev.yml down
+    docker compose -f docker-compose.dev.drone2.yml down
+    ```
+    Then stop the PX4 SITL instances in their respective terminals with `CTRL+C`.
+
+### Example: Running on a Real Drone (Raspberry Pi)
+
+This outlines the steps to run DroneOS on a real drone with a Raspberry Pi companion computer.
+
+1.  **Prerequisites**:
+    - Raspberry Pi (5 recommended) with Ubuntu Server installed
+    - PX4 flight controller (e.g., Pixhawk 6C) connected to the RPi via Serial/USB
+    - Tailscale installed on the RPi for remote access
+    - udev rule for stable device naming (create `/etc/udev/rules.d/99-pixhawk.rules`):
+      ```
+      SUBSYSTEM=="tty", ATTRS{idVendor}=="26ac", ATTRS{idProduct}=="0011", SYMLINK+="pixhawk-telem2"
+      ```
+    - Ensure the RPi user has permission to access the serial device: `sudo usermod -a -G dialout $USER` and reboot
+
+2.  **Setup DroneOS on RPi**:
+    ```bash
+    # Clone the repository
+    git clone <repository-url> ws_droneOS
+    cd ws_droneOS
+
+    # Create logs directory
+    mkdir logs
+    ```
+
+3.  **Launch Services**:
+    ```bash
+    # The docker-compose.yml file is already configured for a single real drone
+    docker compose up -d
+    ```
+
+4.  **Use GCS CLI**: From your ground control station computer with Tailscale installed:
+    ```bash
+    docker compose -f docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1
+    ```
+
+> **Important Notes**:
+> - The `docker-compose.yml` file is already configured for a single real drone with:
+>   - Serial communication to PX4
+>   - Host networking for Tailscale/ROS2 communication
+>   - Default configuration for drone1
+> - For additional real drones, copy `docker-compose.yml` to a new file (e.g., `docker-compose.drone2.yml`) and update the drone configuration in the command section
 
 ## 🛠️ Workspace Structure
 
 ```
 .
-├── Micro-XRCE-DDS-Agent/  # DDS Agent (Open Source)
+├── Micro-XRCE-DDS-Agent/   # DDS Agent (Open Source)
 ├── src/                    # ROS 2 Source Packages
 │   ├── drone_core/         # Core SDK & Node (Proprietary)
 │   ├── drone_gcs_cli/      # GCS Command Line Interface (Proprietary)
@@ -204,10 +225,13 @@ TODO: separate out drone_cli as its own container eg. drone_core, drone_cli and 
 ├── build/                  # Build artifacts
 ├── install/                # Installation space
 ├── log/                    # Runtime logs (from colcon)
-├── docs/                   # Project documentation (if any)
-├── Dockerfile              # Main Docker build definition
-├── micro_agent.Dockerfile  # Dockerfile for agent (if used)
-├── docker-compose.yml      # Docker compose setup (if used)
+├── logs/                   # Application logs directory
+├── drone_core.Dockerfile   # Dockerfile for drone_core service
+├── micro_agent.Dockerfile  # Dockerfile for Micro XRCE-DDS Agent
+├── drone_gcs_cli.Dockerfile # Dockerfile for GCS CLI
+├── docker-compose.yml      # Docker compose for real drone deployment
+├── docker-compose.dev.yml  # Docker compose for SITL development
+├── docker-compose.gcs.yml  # Docker compose for GCS CLI
 └── README.md               # This file
 ```
 
@@ -230,4 +254,4 @@ All rights reserved for proprietary components.
 
 ## 👥 Maintainer
 
-- Rodrigo Ortega (ortegarod000@gmail.com) 
+- Rodrigo Ortega (ortegarod000@gmail.com)

@@ -1,7 +1,14 @@
-# === docker-compose.gcs.yml (Template for Ground Control Station) ===
+# === docker-compose.gcs.yml (Ground Control Station CLI) ===
 #
-# This file is configured for running the GCS CLI on a ground control station.
-# It assumes the drone(s) are running on separate hardware with their own docker-compose setup.
+# This file configures the GCS CLI container for controlling drones remotely.
+# It uses host networking to communicate with drone nodes over ROS 2 DDS.
+# The container is designed to be run interactively with the CLI command.
+#
+# Usage:
+# docker compose -f docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1
+#
+# The CLI defaults to targeting 'drone1'. Use the 'target' command to switch drones:
+# GCS (drone1)> target drone2
 #
 
 services:

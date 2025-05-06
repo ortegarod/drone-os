@@ -43,16 +43,14 @@
 
     **Native Installation**:
     ```bash
-    # Example: Target drone1 by default
-    ros2 run drone_gcs_cli gcs 
-
-    # Example: Specify a different default drone
-    ros2 run drone_gcs_cli gcs --default-drone drone2
+    # The CLI defaults to targeting 'drone1' but you can switch to any drone at any time (e.g., target drone1, target drone2, etc.)
+    ros2 run drone_gcs_cli drone_gcs_cli
     ```
 
     **Docker**:
     ```bash
-    # Run GCS CLI for a specific drone
+    # Run GCS CLI through Docker
+    cd ws_droneOS
     docker compose -f docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1
     ```
 

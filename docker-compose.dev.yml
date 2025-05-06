@@ -1,7 +1,24 @@
-# === docker-compose.dev.yml (Template for a SINGLE PX4 SITL Drone) ===
+# === docker-compose.dev.yml (SITL Development Setup) ===
 #
+# This file configures the development environment for PX4 SITL simulation.
+# It uses UDP communication for the Micro XRCE-DDS Agent to connect to PX4 SITL.
 #
-# Customize the placeholders below FOR EACH DRONE before running 'docker-compose up -d'.
+# By default, it's configured for a single drone (drone1) with:
+# - ROS 2 node name: drone1
+# - Drone name: drone1
+# - PX4 namespace: /fmu/
+# - MAVLink System ID: 1
+#
+# MULTI-DRONE SETUP:
+# To run multiple drones in SITL:
+# 1. Copy this file for each additional drone (e.g., docker-compose.dev.drone2.yml)
+# 2. Update the command section for each drone with its specific configuration:
+#    - __node: Unique ROS 2 node name (e.g., drone2)
+#    - drone_name: Logical drone name (e.g., drone2)
+#    - px4_namespace: PX4 topic namespace (e.g., /px4_1/fmu/ for ID 2)
+#    - mav_sys_id: Unique MAVLink System ID (e.g., 2)
+#
+# Run with: docker compose -f docker-compose.dev.yml up -d
 #
 
 services:

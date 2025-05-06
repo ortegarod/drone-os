@@ -2,21 +2,24 @@
 
 **`drone_core`** is the main C++ ROS 2 package within the **DroneOS** workspace. It provides a modular SDK for commanding and monitoring PX4-compatible autonomous drones.
 
-This package contains both the core library (`drone_core_lib`) and a ROS 2 node executable (`drone_core`) that utilizes this library to control a single drone.
+This package contains both the core library (`drone_core_lib`) and a ROS 2 node executable (`drone_core`) that utilizes this library to control a single drone within a potentially multi-drone environment.
 
 ## ✈️ Features
 
 - **Layered Control Architecture**: Separates state tracking (`DroneState`), low-level PX4 communication (`DroneAgent`, `OffboardControl`), and high-level control logic (`DroneController`).
-- **Multi-Vehicle Targeting**: Reliably controls specific drones in a multi-drone simulation. It uses two key mechanisms:
-    - **ROS 2 Namespaces:** The `px4_namespace` parameter ensures commands sent from this node are routed only to the intended drone's communication interface (e.g., `/px4_1/fmu/vehicle_command`).
-    - **MAVLink System ID:** The `mav_sys_id` parameter ensures commands contain the correct internal ID that PX4 checks, confirming the command is specifically for *that* drone, preventing accidental control of the wrong vehicle.
+- **Multi-Vehicle Targeting**: Reliably controls specific drones in a multi-drone setup using:
+    - **ROS 2 Namespaces:** The `px4_namespace` parameter ensures commands are routed to the intended drone's communication interface (e.g., `/px4_1/fmu/vehicle_command`).
+    - **MAVLink System ID:** The `mav_sys_id` parameter ensures commands contain the correct internal ID that PX4 checks, preventing accidental control of the wrong vehicle.
 - **State Management**: `DroneState` subscribes to PX4 topics (`VehicleStatus`, `VehicleLandDetected`, `VehicleGlobalPosition`, `VehicleLocalPosition`) to track navigation state, arming state, landing state, position fix, and latest telemetry (position, velocity).
 - **Offboard Mode Handling**: `OffboardControl` manages the sequence for entering PX4 offboard mode and continuously publishes necessary setpoints (position or velocity), initializing safely to the drone's current pose.
 - **Command Interface**: `DroneAgent` provides a simplified interface for sending specific `VehicleCommand`s to the correctly targeted PX4.
 - **High-Level Control**: `DroneController` orchestrates the components, manages an internal command queue, executes actions like arming, takeoff, landing, position/velocity control, and exposes these via ROS 2 services.
 - **ROS 2 Node**: `DroneNode` (`drone_core` executable) wraps `DroneController`, handles parameter loading (`drone_name`, `px4_namespace`, `mav_sys_id`), and spins the node.
-- **Service-Based Control**: Exposes functionalities like `arm`, `disarm`, `takeoff`, `land`, `set_offboard`, `set_position_mode`, and `set_position` (custom `drone_interfaces/SetPosition`) via ROS 2 services namespaced by `drone_name`.
-- **Asynchronous Operations**: Uses callbacks and potentially separate threads (e.g., `DroneController::run`) for non-blocking operations.
+- **Service-Based Control**: Exposes functionalities via ROS 2 services namespaced by `drone_name`:
+    - Basic commands: `arm`, `disarm`, `takeoff`, `land`
+    - Mode changes: `set_offboard`, `set_position_mode`
+    - Position control: `set_position` (custom `drone_interfaces/SetPosition`)
+- **Asynchronous Operations**: Uses callbacks and separate threads for non-blocking operations.
 - **PX4 Integration**: Leverages `px4_msgs` for communication and `std_srvs`/`drone_interfaces` for service definitions.
 
 ## 🏗️ Architecture
@@ -66,8 +69,11 @@ source install/setup.bash
 The package can be run using Docker for consistent development and deployment environments:
 
 ```bash
-# Start services in detached mode
+# Development (SITL)
 docker compose -f docker-compose.dev.yml up -d
+
+# Raspberry Pi 5 Companion Computer (Real Drone)
+docker compose up -d
 
 # View logs
 docker logs -f drone_core_node
@@ -108,7 +114,6 @@ docker compose -f docker-compose.dev.yml up -d --build
     ros2 service call /drone1/land std_srvs/srv/Trigger {}
     ros2 service call /drone1/set_offboard std_srvs/srv/Trigger {}
     ros2 service call /drone1/set_position drone_interfaces/srv/SetPosition "{x: 0.0, y: 0.0, z: -5.0, yaw: 0.0}"
-    # ... other services like disarm, set_position_mode ...
     ```
 
 3.  **Monitor Topics**: Observe PX4 topics directly (e.g., `/px4_X/fmu/out/vehicle_status`) or potentially custom status topics published by `DroneNode` (TBD) to monitor the drone's state.
@@ -116,7 +121,6 @@ docker compose -f docker-compose.dev.yml up -d --build
 ## 📚 Documentation
 
 - **API Documentation**: See header files in `include/drone_core/` for detailed class and function descriptions.
-- **Examples**: The `src/main.cpp` file might serve as a basic usage example.
 - **Overall Project**: Refer to the main `README.md` in the workspace root for the broader context.
 
 ## 🤝 Contributing
