@@ -73,22 +73,16 @@ services:
       # to the path the agent expects inside the container (/dev/ttyUSB0).
       # The agent command MUST use the container path (/dev/ttyUSB0).
       - "/dev/pixhawk-telem2:/dev/ttyUSB0" # STABLE_HOST_SYMLINK:CONTAINER_PATH
-    # Add RMW_IMPLEMENTATION environment variable
     environment:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       # Increase ROS log verbosity
       - ROS_LOG_SEVERITY_THRESHOLD=debug
       # Whitelist specific interface for Fast-RTPS
       - FASTRTPS_WHITELIST_INTERFACES=tailscale0
-    # --- Restore original command BUT add a delay ---
+    # --- Command for serial communication ---
     command: > # Use multi-line format for clarity
       bash -c "sleep 2 && \
                MicroXRCEAgent serial --dev /dev/ttyUSB0 -b 921600"
-    # command: [ # Original command structure commented out
-    #  "MicroXRCEAgent", "serial",
-    #  "--dev", "/dev/ttyUSB0",
-    #  "-b", "921600"
-    # ]
     # Note: Ensure the user running Docker on the host (e.g., 'rodrigo') has permission for /dev/ttyUSB0 (belongs to 'dialout' group).
     # If not, run: sudo usermod -a -G dialout rodrigo (or relevant user) and then REBOOT or log out/in.
 

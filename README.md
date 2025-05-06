@@ -124,6 +124,8 @@ This outlines the steps to run a simulation with two drones (drone1 and drone2) 
     source install/setup.bash
     ```
 
+TODO: add note - requirement is to have PX4-Autopilot installed following PX4 official instructions (link) - dont forget the toolkit srcipt specific to Ubuntu to get all the gazebo tools
+
 2.  **Start PX4 SITL Instances**: Open two separate terminals. Navigate to your PX4-Autopilot directory in each.
     *   **Terminal 1 (Drone 1):** Start PX4 instance 0 (`MAV_SYS_ID=1`). It will use the default namespace `/fmu/`.
         ```bash
@@ -141,11 +143,17 @@ This outlines the steps to run a simulation with two drones (drone1 and drone2) 
     > *   The `make px4_sitl gz_x500` command (used for Drone 1) implicitly launches **instance 0** (`-i 0` is the default) and typically uses the default **`MAV_SYS_ID=1`**. Consequently, it uses the default UXRCE-DDS namespace `/fmu/`.
     > *   The direct execution command `./build/.../px4 -i 1` (used for Drone 2) explicitly sets the **instance ID** via `-i 1`. We also explicitly set the **`MAV_SYS_ID=2`** using an environment variable. Based on these, this SITL instance uses the UXRCE-DDS namespace `/px4_1/fmu/` when connecting to the agent. This differentiation is crucial for multi-drone control.
 
+TODO: update documentation to add preferred way using Docker to run drone_core and micro agent
+
+
 3.  **Start Micro XRCE-DDS Agent**: Open a new terminal and run the agent (using UDP in this example).
     ```bash
     MicroXRCEAgent udp4 -p 8888
     ```
     *The agent should detect connections from both PX4 instances.* 
+
+TODO: update documentation to add preferred way using Docker to run drone_core and micro agent
+
 
 4.  **Launch Drone Core Nodes**: Open two more terminals. Source the workspace in each.
     *   **Terminal 4 (Drone 1 Controller):** Launch `drone_core` targeting `MAV_SYS_ID=1` and using the default namespace.
@@ -168,15 +176,20 @@ This outlines the steps to run a simulation with two drones (drone1 and drone2) 
             -p px4_namespace:=/px4_1/fmu/ \
             -p mav_sys_id:=2 
         ```
+TODO: update documentation to add preferred way using Docker to run drone_core and micro agent
 
-5.  **Use GCS CLI**: Open a final terminal. Source the workspace.
+
+
+
+5.  **Use GCS CLI**: Open a final terminal. Source the workspace. - clarify this command is for unning the GCS cli inside of an already running drone_core_node container
     ```bash
-    cd ws_droneOS
-    source install/setup.bash
-    ros2 run drone_gcs_cli gcs
+    docker exec -it drone_core_node bash -c "source /opt/ros/humble/setup.bash && source /root/ws_droneOS/install/setup.bash && ros2 run drone_gcs_cli gcs"
     ```
     *   Use `target drone1` or `target drone2` to switch focus.
     *   Send commands (e.g., `set_offboard`, `arm`, `pos 0 0 -5 0`, `land`). Only the targeted drone should react.
+
+TODO: separate out drone_cli as its own container eg. drone_core, drone_cli and micro_agent - drone_cli doesnt need to be shipped out with drone_core
+
 
 ## 🛠️ Workspace Structure
 
