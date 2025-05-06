@@ -1,0 +1,28 @@
+# === docker-compose.gcs.yml (Template for Ground Control Station) ===
+#
+# This file is configured for running the GCS CLI on a ground control station.
+# It assumes the drone(s) are running on separate hardware with their own docker-compose setup.
+#
+
+services:
+  # --- GCS CLI Service ---
+  gcs_cli:
+    build:
+      context: . # Build using the Dockerfile in the current directory (ws_droneOS)
+      dockerfile: drone_gcs_cli.Dockerfile
+    container_name: gcs_cli_node # Explicit name for the running container
+    network_mode: "host" # ESSENTIAL: Use the host's network for ROS 2 DDS communication
+    volumes:
+      # Mount a host directory into the container for persistent logs
+      - ./logs:/root/ws_droneOS/logs
+    environment:
+      # Set the ROS 2 DDS implementation (ensure it matches your setup)
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      # Increase ROS log verbosity
+      - ROS_LOG_SEVERITY_THRESHOLD=debug
+      # Whitelist specific interface for Fast-RTPS (customize as needed)
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
+
+volumes:
+  logs: # Declares that the host path './logs' is expected
+    driver: local 

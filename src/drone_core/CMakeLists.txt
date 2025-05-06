@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(drone_os)
+project(drone_core)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -42,8 +42,6 @@ ament_target_dependencies(drone_core
 target_link_libraries(drone_core
     drone_core_lib # Links against DroneController implementation
 )
-
-
 
 # Install targets
 install(TARGETS

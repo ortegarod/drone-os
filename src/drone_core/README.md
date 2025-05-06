@@ -61,6 +61,26 @@ colcon build --packages-select drone_core
 source install/setup.bash
 ```
 
+### Docker
+
+The package can be run using Docker for consistent development and deployment environments:
+
+```bash
+# Start services in detached mode
+docker compose -f docker-compose.dev.yml up -d
+
+# View logs
+docker logs -f drone_core_node
+
+# Stop services
+docker compose -f docker-compose.dev.yml down
+```
+
+**Note**: When making code changes, use the `--build` flag to ensure the latest code is included:
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
 ### Usage
 
 1.  **Launch**: Launch the `drone_core` node using `ros2 run`, providing necessary parameters. Use the `--ros-args -r __node:=<node_name>` argument to set a unique node name matching your `drone_name`.

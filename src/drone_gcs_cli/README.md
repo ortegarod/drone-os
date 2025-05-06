@@ -40,6 +40,8 @@
     source install/setup.bash
     ```
 3.  **Run**: Launch the `drone_core` node(s) for the target drone(s) first. Then run the CLI:
+
+    **Native Installation**:
     ```bash
     # Example: Target drone1 by default
     ros2 run drone_gcs_cli gcs 
@@ -47,6 +49,13 @@
     # Example: Specify a different default drone
     ros2 run drone_gcs_cli gcs --default-drone drone2
     ```
+
+    **Docker**:
+    ```bash
+    # Run GCS CLI for a specific drone
+    docker compose -f docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1
+    ```
+
 4.  **Interact**: Use the commands listed above (e.g., `target drone1`, `arm`, `takeoff`).
 
 ## 📚 Documentation

@@ -48,13 +48,12 @@ WORKDIR /root/ws_droneOS
 # Copy application source code (excluding px4_msgs)
 COPY src/drone_core /root/ws_droneOS/src/drone_core
 COPY src/drone_interfaces /root/ws_droneOS/src/drone_interfaces
-COPY src/drone_gcs_cli /root/ws_droneOS/src/drone_gcs_cli
 
 # Build application packages, sourcing the pre-built px4_msgs
 RUN . /opt/ros/humble/setup.bash && \
     . /opt/px4_install/setup.bash && \
     rm -rf build install log && \
-    colcon build --packages-ignore px4_msgs microxrcedds_agent
+    colcon build --packages-select drone_core drone_interfaces
 
 # Copy and set the entrypoint
 COPY ros_entrypoint.sh /ros_entrypoint.sh

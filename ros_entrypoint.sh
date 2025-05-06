@@ -1,18 +1,11 @@
 #!/bin/bash
 set -e
 
-# Source ROS 2 environment
+# Source ROS 2
 source /opt/ros/humble/setup.bash
 
-# Source pre-built px4_msgs environment if it exists
-if [ -f /opt/px4_install/setup.bash ]; then
-  source /opt/px4_install/setup.bash
-fi
+# Source our workspace
+source /root/ws_droneOS/install/setup.bash
 
-# Source local workspace environment if it exists
-if [ -f /root/ws_droneOS/install/setup.bash ]; then
-  source /root/ws_droneOS/install/setup.bash
-fi
-
-# Execute the command passed into the container
+# Execute the command passed to docker run
 exec "$@" 

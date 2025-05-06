@@ -169,6 +169,7 @@ TODO: update documentation to add preferred way using Docker to run drone_core a
     *   **Terminal 5 (Drone 2 Controller):** Launch `drone_core` targeting `MAV_SYS_ID=2` and using the `/px4_1/fmu/` namespace.
         ```bash
         cd ws_droneOS
+        source /opt/ros/humble/setup.bash
         source install/setup.bash
         ros2 run drone_os drone_core --ros-args \
             -r __node:=drone2 \
@@ -183,7 +184,7 @@ TODO: update documentation to add preferred way using Docker to run drone_core a
 
 5.  **Use GCS CLI**: Open a final terminal. Source the workspace. - clarify this command is for unning the GCS cli inside of an already running drone_core_node container
     ```bash
-    docker exec -it drone_core_node bash -c "source /opt/ros/humble/setup.bash && source /root/ws_droneOS/install/setup.bash && ros2 run drone_gcs_cli gcs"
+check readme in drone_gcs_cli
     ```
     *   Use `target drone1` or `target drone2` to switch focus.
     *   Send commands (e.g., `set_offboard`, `arm`, `pos 0 0 -5 0`, `land`). Only the targeted drone should react.

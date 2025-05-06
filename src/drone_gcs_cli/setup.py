@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'gcs = drone_gcs_cli.cli:main',
+            'drone_gcs_cli = drone_gcs_cli.cli:main',
         ],
     },
 )

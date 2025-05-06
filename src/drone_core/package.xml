@@ -1,5 +1,5 @@
 <package format="2">
-  <name>drone_os</name>
+  <name>drone_core</name>
   <version>0.0.1</version>
   <description>Multi-drone PX4 control SDK with mission management</description>
 

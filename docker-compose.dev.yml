@@ -31,7 +31,7 @@ services:
     # Provides the specific arguments for THIS drone.
     # The ENTRYPOINT script will source setup files first
     command: [
-      "ros2", "run", "drone_os", "drone_core",
+      "ros2", "run", "drone_core", "drone_core",
       "--ros-args",
                  # --- !!! CUSTOMIZE THESE ARGUMENTS FOR THIS SPECIFIC DRONE !!! ---
       # --- Configuration for Drone 1 (Active) ---
