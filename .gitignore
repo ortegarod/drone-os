@@ -1,3 +1,4 @@
+log
 logs/*
 build/*
 install/*
@@ -5,4 +6,9 @@ docker/dev/build/*
 docker/dev/install
 docker/dev/src/*
 docker/dev/logs/*
+docker/prod/build/*
+docker/prod/install
+docker/prod/src/*
+docker/prod/logs/*
 Micro-XRCE-DDS-Agent/build/*
+.cursor

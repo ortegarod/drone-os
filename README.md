@@ -223,6 +223,9 @@ Use `docker/prod/docker-compose.yml` for real drone deployment
    cd ws_droneOS
    docker compose -f docker/prod/docker-compose.yml up -d --build
    ```
+This builds the docker containers and runs drone_core and micro_agent automatically. and with restart:unless-stopped it will restart on boot. This means Docker will automatically restart your containers on boot, as long as they were running before the reboot. Now you should be able to send commands to your real drone hardware from the GCS CLI. 
+
+
   >`drone_core`:
    >  - Pre-built ROS 2 Humble image with all dependencies
     > - Contains compiled `drone_core` node and SDK
