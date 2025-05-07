@@ -13,8 +13,9 @@
 ### Services (`srv/`)
 
 - **`SetPosition.srv`**: Service for setting target position and yaw in offboard mode
-  - Request: `float64 x, float64 y, float64 z, float64 yaw`
+  - Request: `float32 x, float32 y, float32 z, float32 yaw`
   - Response: `bool success, string message`
+  - Usage: Used by `drone_core` for position control and `drone_gcs_cli` for command interface
 
 ## 🔗 Dependencies
 
@@ -33,6 +34,19 @@ This package is primarily used as a dependency by other packages in the workspac
 - `drone_core`: Implements the service servers
 - `drone_gcs_cli`: Implements the service clients
 
+Example service call from `drone_gcs_cli`:
+```python
+# Create request
+request = SetPosition.Request()
+request.x = 0.0
+request.y = 0.0
+request.z = -5.0  # 5 meters up
+request.yaw = 0.0
+
+# Send request
+response = client.call(request)
+```
+
 ## 📚 Documentation
 
 - See the service definitions in `srv/` for detailed interface specifications
@@ -40,4 +54,4 @@ This package is primarily used as a dependency by other packages in the workspac
 
 ## 📄 License
 
-Proprietary - All rights reserved. 
+Proprietary - All rights reserved 

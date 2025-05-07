@@ -1,66 +1,174 @@
 # Package: `drone_gcs_cli`
 
-**`drone_gcs_cli`** is a Python-based ROS 2 package within the **DroneOS** workspace providing an interactive command-line interface (CLI) for interacting with drones managed by `drone_core`.
+**`drone_gcs_cli`** is a Python-based ROS 2 package within the **DroneOS** workspace providing an interactive command-line interface (CLI) for controlling and monitoring drones managed by `drone_core`.
+
+## 📦 Package Structure
+
+```
+drone_gcs_cli/
+├── drone_gcs_cli/
+│   ├── __init__.py
+│   ├── cli.py          # Main CLI interface and command parsing
+│   └── gcs_node.py     # ROS 2 node implementation and service clients
+├── test/               # Test files
+├── resource/           # Resource files
+├── setup.py           # Package setup configuration
+├── setup.cfg          # Python package configuration
+└── package.xml        # ROS 2 package manifest
+```
 
 ## 🎯 Purpose
 
-- **Interactive Control**: Offer a terminal-based tool to send basic commands to a specific drone.
-- **Monitoring**: Display drone status information (currently placeholder).
-- **Target Selection**: Allow switching focus between multiple drones if present.
-- **Development/Debugging**: Facilitate direct interaction for testing and debugging `drone_core` functionalities.
+The Ground Control Station (GCS) CLI provides:
+
+- **Interactive Control**: Terminal-based interface for drone control
+- **Multi-Drone Support**: Switch between multiple drones seamlessly
+- **Real-time Monitoring**: Display drone status and telemetry
+- **Development Tools**: Facilitate testing and debugging of `drone_core`
+- **Remote Operation**: Support for controlling drones over network/VPN
 
 ## 🏗️ Architecture
 
-- **`cli.py`**: The main executable script (`ros2 run drone_gcs_cli gcs`). It handles command parsing from user input and interacts with `GCSNode`.
-- **`gcs_node.py`**: Defines the `GCSNode` class:
-    - Initializes as a ROS 2 node (`gcs_cli_node`).
-    - Creates ROS 2 **service clients** dynamically based on a `target_drone` name (e.g., `/drone1/arm`, `/drone2/takeoff`).
-    - Uses `std_srvs.srv.Trigger` for most commands and `drone_interfaces.srv.SetPosition` for position control.
-    - Manages asynchronous service calls.
-- **Dependencies**: `rclpy`, `std_srvs`, `drone_interfaces`.
+### Core Components
+
+1. **`cli.py`**
+   - Main executable script (`ros2 run drone_gcs_cli gcs`)
+   - Handles command-line parsing and user interaction
+   - Implements command loop and input processing
+   - Manages ROS 2 node lifecycle
+   - Features:
+     - Interactive command prompt
+     - Command history
+     - Error handling
+     - Graceful shutdown
+
+2. **`gcs_node.py`**
+   - Implements `GCSNode` class
+   - Manages ROS 2 communication
+   - Features:
+     - Dynamic service client creation
+     - Asynchronous service calls
+     - Target drone switching
+     - Status monitoring
+     - Error handling and retries
+
+### Communication Flow
+
+1. **ROS 2 Discovery**
+   - Uses DDS middleware for node discovery
+   - Supports local network and VPN connections
+   - Automatic service client creation
+
+2. **Command Processing**
+   ```
+   User Input → CLI Parser → GCSNode → ROS 2 Service Call → drone_core → PX4
+   ```
+
+3. **Response Handling**
+   - Asynchronous service call management
+   - Timeout handling
+   - Error reporting
+   - Status updates
 
 ## ✨ Features & Commands
 
-- **Targeting**: `target <drone_name>` - Switch the CLI's focus to a different drone.
-- **Mode Control**: `set_offboard`, `set_posctl` - Request PX4 mode changes via Trigger services.
-- **Basic Flight**: `arm`, `disarm`, `takeoff`, `land` - Send fundamental flight commands via Trigger services.
-- **Position Control**: `pos <x> <y> <z> <yaw>` - Set target position/yaw in Offboard mode via `drone_interfaces/SetPosition` service.
-- **Status**: `status` - Display current drone status (Implementation TBD).
-- **Help**: `help` - Display available commands.
-- **Exit**: `exit` - Quit the CLI.
+### Basic Commands
+- `help` - Display available commands
+- `exit` - Exit the CLI
+- `target <drone_name>` - Switch target drone
+
+### Flight Control
+- `arm` - Arm the drone
+- `disarm` - Disarm the drone
+- `takeoff` - Command takeoff
+- `land` - Command landing
+
+### Mode Control
+- `set_offboard` - Enter offboard mode
+- `set_posctl` - Enter position control mode
+
+### Position Control
+- `pos <x> <y> <z> <yaw>` - Set target position/yaw
+  - Coordinates in NED frame
+  - Yaw in radians
+  - Example: `pos 0.0 0.0 -5.0 0.0`
 
 ## 🚀 Getting Started
 
-1.  **Build**: Ensure `drone_core` (providing the services) is built. Then build this package:
-    ```bash
-    colcon build --packages-select drone_gcs_cli
-    ```
-2.  **Source**: Source the workspace:
-    ```bash
-    source install/setup.bash
-    ```
-3.  **Run**: Launch the `drone_core` node(s) for the target drone(s) first. Then run the CLI:
+### Prerequisites
+- ROS 2 installed
+- `drone_core` package built
+- Network connectivity to target drone
 
-    **Native Installation**:
-    ```bash
-    # The CLI defaults to targeting 'drone1' but you can switch to any drone at any time (e.g., target drone1, target drone2, etc.)
-    ros2 run drone_gcs_cli drone_gcs_cli
-    ```
+### Building
+```bash
+# From workspace root
+colcon build --packages-select drone_gcs_cli
+```
 
-    **Docker**:
-    ```bash
-    # Run GCS CLI through Docker
-    cd ws_droneOS
-    docker compose -f docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1
-    ```
+### Running
 
-4.  **Interact**: Use the commands listed above (e.g., `target drone1`, `arm`, `takeoff`).
+#### Native Installation
+```bash
+# Source the workspace
+source install/setup.bash
+
+# Run with default target (drone1)
+ros2 run drone_gcs_cli drone_gcs_cli
+
+# Run with specific target
+ros2 run drone_gcs_cli drone_gcs_cli -d drone2
+```
+
+#### Docker
+```bash
+# Run in Docker container
+docker compose -f docker-compose.gcs.yml run --rm -it gcs_cli \
+    ros2 run drone_gcs_cli drone_gcs_cli -d drone1
+```
+
+### Usage Examples
+
+1. **Basic Flight Sequence**
+```bash
+GCS (drone1)> arm
+GCS (drone1)> set_offboard
+GCS (drone1)> takeoff
+GCS (drone1)> pos 0.0 0.0 -5.0 0.0
+GCS (drone1)> land
+GCS (drone1)> disarm
+```
+
+2. **Multi-Drone Control**
+```bash
+GCS (drone1)> target drone2
+GCS (drone2)> arm
+GCS (drone2)> set_offboard
+```
+
+## 🔧 Dependencies
+
+- **ROS 2**: Core communication
+- **rclpy**: Python ROS 2 client library
+- **std_srvs**: Standard service definitions
+- **drone_interfaces**: Custom service definitions
 
 ## 📚 Documentation
 
-- Refer to the source code (`cli.py`, `gcs_node.py`) for implementation details.
-- See the main workspace `README.md` for overall project context.
+- **Source Code**: See `cli.py` and `gcs_node.py` for implementation details
+- **API Reference**: Header files in `drone_core` package
+- **Project Context**: Main workspace `README.md`
+
+## 🔒 Security Notes
+
+- **Network Security**: Use VPN (e.g., Tailscale) for remote operation
+- **Authentication**: Implemented at ROS 2 DDS level
+- **Command Validation**: All commands validated before execution
+
+## 🤝 Contributing
+
+This is a proprietary project. For contribution inquiries, please contact the maintainer.
 
 ## 📄 License
 
-Proprietary - All rights reserved. 
+Proprietary - All rights reserved
