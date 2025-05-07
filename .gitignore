@@ -1,1 +1,8 @@
 logs/*
+build/*
+install/*
+docker/dev/build/*
+docker/dev/install
+docker/dev/src/*
+docker/dev/logs/*
+Micro-XRCE-DDS-Agent/build/*

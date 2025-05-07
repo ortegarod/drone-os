@@ -28,14 +28,16 @@ services:
   # Runs the main drone control logic (drone_core node)
   drone_core: # Service name (must be unique across all compose files)
     build:
-      context: . # Build using the Dockerfile in the current directory (ws_droneOS)
-      dockerfile: drone_core.Dockerfile
+      context: .
+      dockerfile: drone_core.dev.Dockerfile
     container_name: drone_core_node # Explicit name for the running container
     network_mode: "host" # ESSENTIAL: Use the host's network for Tailscale & agent comms
     restart: unless-stopped # Optional: Restart policy
     volumes:
-      # Mount a host directory into the container for persistent logs
-      - ./logs:/root/ws_droneOS/logs
+      - /home/rodrigo/ws_droneOS/src:/root/ws_droneOS/src
+      - /home/rodrigo/ws_droneOS/build:/root/ws_droneOS/build
+      - /home/rodrigo/ws_droneOS/install:/root/ws_droneOS/install
+      - /home/rodrigo/ws_droneOS/logs:/root/ws_droneOS/logs
     environment:
       # Set the ROS 2 DDS implementation (ensure it matches your setup)
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
@@ -49,36 +51,38 @@ services:
     # --- COMMAND OVERRIDE (CRITICAL) ---
     # Provides the specific arguments for THIS drone.
     # The ENTRYPOINT script will source setup files first
-    command: [
-      "ros2", "run", "drone_core", "drone_core",
-      "--ros-args",
-      # --- Configuration for Drone 1 (Active) ---
-      "-r", "__node:=drone1",             # Unique ROS 2 node name
-      "-p", "drone_name:=drone1",         # Logical drone name parameter
-      "-p", "px4_namespace:=/fmu/",       # PX4 topic namespace (e.g., /px4_0/fmu/ for ID 1)
-      "-p", "mav_sys_id:=1"               # Unique MAVLink System ID
-    ]
+    command: ["bash", "-c", "while true; do sleep 1000; done"]
 
   # --- Micro XRCE-DDS Agent Service ---
   # Bridges communication between ROS 2 (DDS) and PX4 SITL instances
   # This agent is shared between all drones in the development environment
   micro_agent:
+    # The Micro-XRCE-DDS-Agent source and build directories are mounted from the host.
+    # You only need to rebuild the agent if you change the source code or delete the build artifacts.
+    # The compiled binary and build directory persist across container restarts due to the volume mount.
+    #
+    # To build and run the agent inside the container:
+    # 1. docker compose -f docker/dev/docker-compose.dev.drone1.yml exec micro_agent bash
+    # 2. cd /root/ws_droneOS/Micro-XRCE-DDS-Agent
+    # 3. mkdir build && cd build
+    # 4. cmake ..
+    # 5. make
+    # 6. make install
+    # 7. ldconfig /usr/local/lib/
+    # 8. ./MicroXRCEAgent udp4 -p 8888
     build:
-      context: . # Build using the micro_agent.Dockerfile in the current directory
-      dockerfile: micro_agent.Dockerfile
-    container_name: micro_agent_service # Explicit name for the running container
-    network_mode: "host" # ESSENTIAL: Use the host's network for core comms & PX4 device access
-    restart: unless-stopped # Optional: Restart policy
+      context: .
+      dockerfile: micro_agent.dev.Dockerfile
+    container_name: micro_agent_service
+    network_mode: "host"
+    restart: unless-stopped
     environment:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-      # Increase ROS log verbosity
       - ROS_LOG_SEVERITY_THRESHOLD=debug
-      # Whitelist specific interface for Fast-RTPS
       - FASTRTPS_WHITELIST_INTERFACES=tailscale0
-    # --- Command for serial communication ---
-    command: > 
-      bash -c "sleep 2 && \
-               MicroXRCEAgent udp4 -p 8888"
+    command: ["bash", "-c", "while true; do sleep 1000; done"]
+    volumes:
+      - /home/rodrigo/ws_droneOS/Micro-XRCE-DDS-Agent:/root/ws_droneOS/Micro-XRCE-DDS-Agent
     # Note: Ensure the user running Docker on the host (e.g., 'rodrigo') has permission for /dev/ttyUSB0 (belongs to 'dialout' group).
     # If not, run: sudo usermod -a -G dialout rodrigo (or relevant user) and then REBOOT or log out/in.
 

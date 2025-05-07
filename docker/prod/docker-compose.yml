@@ -9,20 +9,9 @@
 #
 # MULTI-DRONE SETUP:
 # To run multiple real drones, you need to:
-# 1. Copy this file for each additional drone (e.g., docker-compose.drone2.yml)
-# 2. Update the command section for each drone with its specific configuration:
-#    - __node: Unique ROS 2 node name (e.g., drone2)
-#    - drone_name: Logical drone name (e.g., drone2)
-#    - px4_namespace: PX4 topic namespace (e.g., /px4_1/fmu/ for ID 2)
-#    - mav_sys_id: Unique MAVLink System ID (e.g., 2)
-#
+# idk yet, we need to load environment variables from the companion computer that runs this container
 # Future improvements could make this more dynamic through environment variables
 # or configuration files.
-#
-# Place this file in the root of the ws_droneOS workspace on the target RPi.
-# The default configuration should work for a single drone setup.
-# For multiple drones, customize the configuration as described above.
-# Run with: docker compose up -d
 #
 
 services:
@@ -55,6 +44,8 @@ services:
       "ros2", "run", "drone_core", "drone_core",
       "--ros-args",
                  # --- !!! CUSTOMIZE THESE ARGUMENTS FOR THIS SPECIFIC DRONE !!! ---
+                 # NOTE: For scalable multi-drone setups, we can't hardcode these arguments.
+                 #       We need to circle back and make this dynamic (e.g., via environment variables or config files).
       # --- Configuration for Drone 1 (Active) ---
       "-r", "__node:=drone1",             # Unique ROS 2 node name
       "-p", "drone_name:=drone1",         # Logical drone name parameter

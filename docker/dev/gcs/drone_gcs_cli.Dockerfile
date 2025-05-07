@@ -30,7 +30,7 @@ RUN . /opt/ros/humble/setup.bash && \
     ls -l install/drone_gcs_cli/lib/drone_gcs_cli/
 
 # Copy and set the entrypoint
-COPY ros_entrypoint.sh /ros_entrypoint.sh
+COPY docker/prod/ros_entrypoint.sh /ros_entrypoint.sh
 RUN chmod +x /ros_entrypoint.sh
 
 ENTRYPOINT ["/ros_entrypoint.sh"]

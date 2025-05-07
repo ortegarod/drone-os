@@ -15,13 +15,13 @@ services:
   # --- GCS CLI Service ---
   gcs_cli:
     build:
-      context: . # Build using the Dockerfile in the current directory (ws_droneOS)
-      dockerfile: drone_gcs_cli.Dockerfile
+      context: ../../.. # Build using the root directory as context
+      dockerfile: docker/dev/gcs/drone_gcs_cli.Dockerfile
     container_name: gcs_cli_node # Explicit name for the running container
     network_mode: "host" # ESSENTIAL: Use the host's network for ROS 2 DDS communication
     volumes:
       # Mount a host directory into the container for persistent logs
-      - ./logs:/root/ws_droneOS/logs
+      - ../../../logs:/root/ws_droneOS/logs
     environment:
       # Set the ROS 2 DDS implementation (ensure it matches your setup)
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
