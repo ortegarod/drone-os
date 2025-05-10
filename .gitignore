@@ -12,3 +12,4 @@ docker/prod/src/*
 docker/prod/logs/*
 Micro-XRCE-DDS-Agent/build/*
 .cursor
+.vscode
