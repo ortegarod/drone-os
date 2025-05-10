@@ -86,6 +86,36 @@ services:
     # Note: Ensure the user running Docker on the host (e.g., 'rodrigo') has permission for /dev/ttyUSB0 (belongs to 'dialout' group).
     # If not, run: sudo usermod -a -G dialout rodrigo (or relevant user) and then REBOOT or log out/in.
 
+# --- Camera Service ---
+  # Builds libcamera and rpicam-apps from source for camera support
+  camera_service:
+    build:
+      context: .
+      dockerfile: camera.dev.Dockerfile
+    container_name: camera_service_node
+    network_mode: "host"
+    restart: unless-stopped
+    privileged: true
+    group_add:
+      - video
+    devices:
+      - /dev/vchiq
+      - /dev/video0
+      - /dev/v4l-subdev0
+      - /dev/media0
+      - /dev/media1
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_LOG_SEVERITY_THRESHOLD=debug
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
+    command:
+      - bash
+      - -c
+      - |
+          /lib/systemd/systemd-udevd --daemon
+          udevadm trigger
+          while true; do sleep 1000; done
+
 volumes:
   logs: # Declares that the host path './logs' is expected
     driver: local
