@@ -108,13 +108,20 @@ services:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - ROS_LOG_SEVERITY_THRESHOLD=debug
       - FASTRTPS_WHITELIST_INTERFACES=tailscale0
+      - DRONE_NAME=drone1 # Set a default drone name
     command:
       - bash
       - -c
       - |
           /lib/systemd/systemd-udevd --daemon
           udevadm trigger
-          while true; do sleep 1000; done
+          . /opt/ros/humble/setup.bash
+          . /root/ros2_ws/install/setup.bash
+          # Create a dummy calibration file to suppress warnings initially
+          mkdir -p /root/.ros/camera_info/
+          touch "/root/.ros/camera_info/drone1_camera.yaml"
+          # Example: ros2 run camera_ros camera_node --ros-args -p camera:=0 -p width:=640 -p height:=480 -p format:=RGB888
+          ros2 run camera_ros camera_node --ros-args -p camera:=0 -p width:=1280 -p height:=720 -p format:=XRGB8888 -p frame_id:="drone1_camera_link" -p camera_info_url:="file:///root/.ros/camera_info/drone1_camera.yaml"
 
 volumes:
   logs: # Declares that the host path './logs' is expected
