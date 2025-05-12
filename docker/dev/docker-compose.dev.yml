@@ -38,13 +38,19 @@ services:
       - /home/rodrigo/ws_droneOS/build:/root/ws_droneOS/build
       - /home/rodrigo/ws_droneOS/install:/root/ws_droneOS/install
       - /home/rodrigo/ws_droneOS/logs:/root/ws_droneOS/logs
+      # Mount the FastDDS config file
+      - /home/rodrigo/ws_droneOS/fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
     environment:
       # Set the ROS 2 DDS implementation (ensure it matches your setup)
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       # Increase ROS log verbosity
       - ROS_LOG_SEVERITY_THRESHOLD=debug
-      # Whitelist specific interface for Fast-RTPS
-      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
+      # DDS Domain ID (must match across all containers)
+      - ROS_DOMAIN_ID=0
+      # DDS Discovery settings
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      # Whitelist all interfaces for Fast-RTPS (temporary for testing)
+      - FASTRTPS_WHITELIST_INTERFACES=all
     depends_on:
       # Ensure the agent starts before the core logic
       - micro_agent
@@ -79,10 +85,17 @@ services:
     environment:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - ROS_LOG_SEVERITY_THRESHOLD=debug
-      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
+      # DDS Domain ID (must match across all containers)
+      - ROS_DOMAIN_ID=0
+      # DDS Discovery settings
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      # Whitelist all interfaces for Fast-RTPS (temporary for testing)
+      - FASTRTPS_WHITELIST_INTERFACES=all
     command: ["bash", "-c", "while true; do sleep 1000; done"]
     volumes:
       - /home/rodrigo/ws_droneOS/Micro-XRCE-DDS-Agent:/root/ws_droneOS/Micro-XRCE-DDS-Agent
+      # Mount the FastDDS config file
+      - /home/rodrigo/ws_droneOS/fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
     # Note: Ensure the user running Docker on the host (e.g., 'rodrigo') has permission for /dev/ttyUSB0 (belongs to 'dialout' group).
     # If not, run: sudo usermod -a -G dialout rodrigo (or relevant user) and then REBOOT or log out/in.
 

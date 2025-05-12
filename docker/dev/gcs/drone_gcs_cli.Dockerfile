@@ -10,6 +10,7 @@ SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get install -y \
     python3-colcon-common-extensions \
     ros-humble-rmw-fastrtps-cpp \
+    iproute2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up workspace
@@ -28,6 +29,10 @@ RUN . /opt/ros/humble/setup.bash && \
     ros2 pkg list | grep drone_gcs_cli && \
     # Verify the executable exists
     ls -l install/drone_gcs_cli/lib/drone_gcs_cli/
+
+# Add ROS2 and workspace setup to .bashrc for all shell sessions
+RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
+    echo "source /root/ws_droneOS/install/setup.bash" >> /root/.bashrc
 
 # Copy and set the entrypoint
 COPY docker/prod/ros_entrypoint.sh /ros_entrypoint.sh

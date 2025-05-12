@@ -123,7 +123,8 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
    >   # Enter the micro_agent container
    >   docker compose -f docker/dev/docker-compose.dev.yml exec micro_agent bash
    >   
-   >   # Build the agent
+   >   # Only build if you haven't built before or if you've changed the source code
+   >   # If you've already built, you can skip to the 'Start the agent' step
    >   cd /root/ws_droneOS/Micro-XRCE-DDS-Agent
    >   mkdir build && cd build
    >   cmake ..
@@ -132,8 +133,12 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
    >   ldconfig /usr/local/lib/
    >   
    >   # Start the agent (in the same shell)
+   >   # Make sure you're in the build directory when running the agent
+   >   cd /root/ws_droneOS/Micro-XRCE-DDS-Agent/build
    >   ./MicroXRCEAgent udp4 -p 8888
    >   ```
+   >
+   >   > **Note**: When you start the agent, watch for the initialization output. You should see a series of messages indicating the creation of topics, subscribers, and datareaders. This output confirms that PX4 has successfully connected to the agent and is setting up the necessary DDS communication channels. If you don't see these messages, it might indicate that PX4 hasn't connected properly.
    >
    >
 4. **Start Drone SDK**:
@@ -190,7 +195,8 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
 
 5. **Use GCS CLI**: For testing, open a terminal and run the GCS CLI through its own Docker image:
    ```bash
-   docker compose -f docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1
+   cd ws_droneOS
+   docker compose -f docker/dev/gcs/docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1
    ```
    - The CLI defaults to targeting 'drone1'. Use the `target drone2` command to switch to the second drone.
    - Send commands (e.g., `set_offboard`, `arm`, `pos 0 0 -5 0`, `land`). Only the targeted drone should react.

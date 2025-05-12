@@ -22,13 +22,19 @@ services:
     volumes:
       # Mount a host directory into the container for persistent logs
       - ../../../logs:/root/ws_droneOS/logs
+      # Mount the FastDDS config file
+      - ../../../fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
     environment:
       # Set the ROS 2 DDS implementation (ensure it matches your setup)
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       # Increase ROS log verbosity
       - ROS_LOG_SEVERITY_THRESHOLD=debug
-      # Whitelist specific interface for Fast-RTPS (customize as needed)
-      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
+      # DDS Domain ID (must match across all containers)
+      - ROS_DOMAIN_ID=0
+      # DDS Discovery settings
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      # Whitelist all interfaces for Fast-RTPS (temporary for testing)
+      - FASTRTPS_WHITELIST_INTERFACES=all
 
 volumes:
   logs: # Declares that the host path './logs' is expected
