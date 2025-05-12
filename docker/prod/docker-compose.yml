@@ -19,8 +19,8 @@ services:
   # Runs the main drone control logic (drone_core node)
   drone_core: # Service name (can be customized, e.g., drone1_core)
     build:
-      context: . # Build using the Dockerfile in the current directory (ws_droneOS)
-      dockerfile: drone_core.Dockerfile
+      context: ../..
+      dockerfile: docker/prod/drone_core.Dockerfile
     container_name: drone_core_node # Explicit name for the running container
     network_mode: "host" # ESSENTIAL: Use the host's network for Tailscale & agent comms
     restart: unless-stopped # Optional: Restart policy
@@ -69,8 +69,8 @@ services:
   # Bridges communication between ROS 2 (DDS) and PX4 (Serial)
   micro_agent:
     build:
-      context: . # Build using the micro_agent.Dockerfile in the current directory
-      dockerfile: micro_agent.Dockerfile
+      context: ../..
+      dockerfile: docker/prod/micro_agent.Dockerfile
     container_name: micro_agent_service # Explicit name for the running container
     network_mode: "host" # ESSENTIAL: Use the host's network for core comms & PX4 device access
     restart: unless-stopped # Optional: Restart policy

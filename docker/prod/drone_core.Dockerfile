@@ -76,7 +76,7 @@ RUN . /opt/ros/humble/setup.bash && \
     colcon build --packages-select drone_core drone_interfaces
 
 # Copy and set the entrypoint
-COPY ros_entrypoint.sh /ros_entrypoint.sh
+COPY docker/prod/ros_entrypoint.sh /ros_entrypoint.sh
 RUN chmod +x /ros_entrypoint.sh
 ENTRYPOINT ["/ros_entrypoint.sh"]
 
