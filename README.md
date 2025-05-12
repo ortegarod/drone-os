@@ -108,6 +108,10 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
    cd ws_droneOS
    docker compose -f docker/dev/docker-compose.dev.yml up -d --build
    ```
+   > **Note**: To start only the `drone_core` and `micro_agent` services (e.g., if you don't need the camera service), you can run:
+   > ```bash
+   > docker compose -f docker/dev/docker-compose.dev.yml up -d --build drone_core micro_agent
+   > ```
    This command builds the development environment and starts two containers:
    - `drone_core`: Contains the ROS 2 environment and Drone SDK
    - `micro_agent`: Runs the Micro-XRCE-DDS-Agent for PX4 communication
@@ -292,6 +296,4 @@ Standard ROS 2 discovery and direct communication often fail across the public i
 **The recommended approach is to use a VPN (Virtual Private Network), specifically [Tailscale](https://tailscale.com/).**
 
 - **How it Works**: Tailscale creates a secure, encrypted peer-to-peer mesh network over the public internet (like 4G). You install the Tailscale client on the drone's onboard computer (RPi 5) and the GCS machine, authenticate them to your private network ("tailnet"), and they are assigned stable virtual IP addresses.
-- **Benefit (Application Transparency)**: To ROS 2, the GCS and the drone now appear to be on the same local network via their Tailscale IP addresses. **Crucially, this means no code changes are needed in `drone_core` or the CLI.** The ROS 2 nodes don't need to know *how* the connection is made; they simply use standard networking (DDS discovery, service calls, topics) over the virtual network interface provided by Tailscale, just as described in the *Local Network Communication Flow* section. Tailscale handles the underlying secure tunneling and NAT traversal automatically.
-- **Setup**: Install and configure the Tailscale client on both the drone's computer and the GCS machine following Tailscale documentation. No central VPN server setup is typically required.
-- **Integration with Docker**: When running `drone_core` (or other components) in Docker containers on the drone, Tailscale should be installed and run on the **host OS (e.g., the Raspberry Pi 5)**, *not* within the container. To allow the containerized ROS 2 nodes to use the host's Tailscale connection, launch the container with **host networking** enabled (e.g., `docker run --network=host ...` or equivalent in Docker Compose).
+- **Benefit (Application Transparency)**: To ROS 2, the GCS and the drone now appear to be on the same local network via their Tailscale IP addresses. **Crucially, this means no code changes are needed in `
