@@ -28,6 +28,17 @@ A command-line interface for controlling drones managed by `drone_core`. It supp
 
 For detailed usage, commands, and architecture, see `src/drone_gcs_cli/README.md`.
 
+### `camera_ros` (C++ with libcamera integration)
+
+Provides access to camera streams from a physical camera (e.g., Raspberry Pi camera module) connected to the drone's companion computer. It publishes these streams as ROS 2 topics. This component integrates `libcamera` for camera hardware interaction and `rpicam-apps` for lower-level camera control, packaged within a ROS 2 node.
+
+- **Purpose**: Streams live video from a camera physically connected to the drone's companion computer (e.g., Raspberry Pi).
+- **Deployment**: Typically runs as a dedicated Docker service (`camera_service`) on the companion computer, not usually on a local development machine for SITL unless a camera is directly attached and configured for that machine.
+- **Integration**: Runs as a dedicated Docker service (`camera_service`).
+- **Source**: Based on [christianrauch/camera_ros](https://github.com/christianrauch/camera_ros), built from source within its Docker image along with `libcamera` and `rpicam-apps`.
+- **Configuration**: Configured in `docker/dev/docker-compose.dev.yml` (for general service definition) and `docker/dev/camera.dev.Dockerfile` (for image build). The `docker-compose.prod.yml` would be used for on-drone deployment.
+- **Usage**: Publishes image topics that can be consumed by other ROS 2 nodes for computer vision tasks, telemetry, or recording. Requires a functioning camera and correctly configured drivers on the host system where the service is run.
+
 ## 🔗 Third-Party Integrations
 
 ### `px4_msgs` (ROS 2 Package - Open Source)
@@ -108,7 +119,8 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
    cd ws_droneOS
    docker compose -f docker/dev/docker-compose.dev.yml up -d --build
    ```
-   > **Note**: To start only the `drone_core` and `micro_agent` services (e.g., if you don't need the camera service), you can run:
+   > **Note**: For local SITL development where a physical camera is not connected to your development machine, it is recommended to start only the `drone_core` and `micro_agent` services. The `camera_service` is intended to be run on the drone's companion computer with a connected camera.
+   > To start only the essential services for SITL (without the camera), run:
    > ```bash
    > docker compose -f docker/dev/docker-compose.dev.yml up -d --build drone_core micro_agent
    > ```
@@ -116,7 +128,7 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
    - `drone_core`: Contains the ROS 2 environment and Drone SDK
    - `micro_agent`: Runs the Micro-XRCE-DDS-Agent for PX4 communication
 
-
+   > If you run `docker compose ... up -d --build` without specifying services, it will also attempt to start `camera_service`. This service requires a physical camera and appropriate drivers, and may not function correctly or could produce errors if run on a system without a connected and configured camera.
    >
    
    > ### `micro_agent` Container
