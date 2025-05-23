@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>object_detector_coral</name>
+  <version>0.0.0</version>
+  <description>ROS 2 package for object detection using Google Coral.</description>
+  <maintainer email="user@example.com">Your Name</maintainer>
+  <license>Apache-2.0</license> <!-- Or your preferred license -->
+
+  <buildtool_depend>ament_cmake</buildtool_depend> <!-- Or ament_python if it's a Python package -->
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>vision_msgs</depend>
+  <depend>cv_bridge</depend>
+  <!-- <depend>python3-pycoral</depend> --> <!-- This is a system dependency, not a ROS one -->
+  <!-- <depend>libedgetpu1-std</depend> --> <!-- System dependency -->
+
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type> <!-- Assuming Python, change if C++ -->
+  </export>
+</package>

@@ -28,6 +28,21 @@ A command-line interface for controlling drones managed by `drone_core`. It supp
 
 For detailed usage, commands, and architecture, see `src/drone_gcs_cli/README.md`.
 
+### `object_detector_coral` (Python with Google Coral Integration)
+
+Provides real-time object detection capabilities using a Google Coral USB accelerator. This node subscribes to image streams (e.g., from `camera_ros`) and publishes detection results.
+
+- **Purpose**: Performs object detection on incoming video streams using a hardware-accelerated TensorFlow Lite model on the Google Coral USB.
+- **Deployment**: Runs as a dedicated Docker service (`object_detector_service`) on the companion computer (e.g., Raspberry Pi 5) where the Coral USB is connected.
+- **Hardware Dependency**: Requires a Google Coral USB accelerator.
+- **Software Dependencies**: `libedgetpu1-std`, `python3-pycoral`, and a compatible `.tflite` model and label file.
+- **Configuration**:
+    - Dockerfile (`docker/dev/object_detector.dev.Dockerfile`) installs Coral libraries and builds the ROS 2 node.
+    - Docker Compose (`docker/dev/docker-compose.dev.yml`) defines the `object_detector_service` and must grant it access to the `/dev/bus/usb` devices (or a more specific Coral device path if udev rules are configured on the host).
+    - The node itself is configured via ROS 2 parameters for model path, confidence threshold, input image topic, and output detection topic.
+- **Source**: `src/object_detector_coral/`
+- **Usage**: Consumes `sensor_msgs/Image` messages (typically from `camera_service`) and publishes `vision_msgs/Detection2DArray` messages. It needs to be launched via its Docker service.
+
 ### `camera_ros` (C++ with libcamera integration)
 
 Provides access to camera streams from a physical camera (e.g., Raspberry Pi camera module) connected to the drone's companion computer. It publishes these streams as ROS 2 topics. This component integrates `libcamera` for camera hardware interaction and `rpicam-apps` for lower-level camera control, packaged within a ROS 2 node.

@@ -117,6 +117,7 @@ services:
       - /dev/v4l-subdev0
       - /dev/media0
       - /dev/media1
+      - "/dev/bus/usb:/dev/bus/usb" # Added for Coral USB access
     environment:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - ROS_LOG_SEVERITY_THRESHOLD=debug
@@ -142,6 +143,44 @@ services:
           touch "/root/.ros/camera_info/drone1_camera.yaml"
           # Example: ros2 run camera_ros camera_node --ros-args -p camera:=0 -p width:=640 -p height:=480 -p format:=RGB888
           ros2 run camera_ros camera_node --ros-args -p camera:=0 -p width:=1280 -p height:=720 -p format:=XRGB8888 -p frame_id:="drone1_camera_link" -p camera_info_url:="file:///root/.ros/camera_info/drone1_camera.yaml"
+
+  object_detector_service:
+    build:
+      context: . # Assumes docker-compose.dev.yml is in docker/dev
+      dockerfile: object_detector.dev.Dockerfile
+    container_name: object_detector_node
+    network_mode: "host"
+    restart: unless-stopped
+    privileged: true # For Coral USB access. Consider udev rules on host for better security.
+    devices:
+      - "/dev/bus/usb:/dev/bus/usb" # General USB access
+      # If you have a udev rule for the Coral device, map it specifically:
+      # e.g., - "/dev/coral_accelerator:/dev/coral_accelerator"
+    group_add: # Ensure the user inside the container can access the USB device
+      - video # Common group for video/USB devices, or 'plugdev'
+    volumes:
+      # Mount the object detector source code
+      - /home/rodrigo/ws_droneOS/src/object_detector_coral:/root/ros2_ws/src/object_detector_coral
+      # Mount build and install directories if you build inside the container and want to persist/inspect
+      - /home/rodrigo/ws_droneOS/build/object_detector_coral:/root/ros2_ws/build/object_detector_coral
+      - /home/rodrigo/ws_droneOS/install/object_detector_coral:/root/ros2_ws/install/object_detector_coral
+      # Mount logs
+      - /home/rodrigo/ws_droneOS/logs:/root/ws_droneOS/logs
+      # Mount the FastDDS config file
+      - /home/rodrigo/ws_droneOS/fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
+      # Example: Mount a model file from host to container
+      # - /home/rodrigo/path/to/your/model.tflite:/root/models/model.tflite
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_LOG_SEVERITY_THRESHOLD=debug
+      - ROS_DOMAIN_ID=0 # Must match other ROS services
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      - FASTRTPS_WHITELIST_INTERFACES=all
+    depends_on:
+      - camera_service # Depends on the camera feed being available
+    # Placeholder command, replace with actual command to run your node
+    # e.g., ros2 launch object_detector_coral detector.launch.py model_path:=/root/models/model.tflite
+    command: ["bash", "-c", "while true; do sleep 1000; done"]
 
 volumes:
   logs: # Declares that the host path './logs' is expected
