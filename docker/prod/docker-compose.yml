@@ -32,6 +32,10 @@ services:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       # Increase ROS log verbosity
       - ROS_LOG_SEVERITY_THRESHOLD=debug
+      # DDS Domain ID (must match across all containers)
+      - ROS_DOMAIN_ID=0
+      # DDS Discovery settings
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
       # Whitelist specific interface for Fast-RTPS
       - FASTRTPS_WHITELIST_INTERFACES=tailscale0
     depends_on:
@@ -83,6 +87,10 @@ services:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       # Increase ROS log verbosity
       - ROS_LOG_SEVERITY_THRESHOLD=debug
+      # DDS Domain ID (must match across all containers)
+      - ROS_DOMAIN_ID=0
+      # DDS Discovery settings
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
       # Whitelist specific interface for Fast-RTPS
       - FASTRTPS_WHITELIST_INTERFACES=tailscale0
     # --- Command for serial communication ---
