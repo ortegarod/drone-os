@@ -1,7 +1,0 @@
-<map id="src/drone_core/include/drone_core/drone_controller.hpp" name="src/drone_core/include/drone_core/drone_controller.hpp">
-<area shape="rect" id="node1" title="Defines the DroneController class for managing drone operations and state." alt="" coords="235,5,470,47"/>
-<area shape="rect" id="node2" href="$drone__manager_8hpp.html" title="Header file for the DroneManager class that manages multiple drones." alt="" coords="109,95,340,136"/>
-<area shape="rect" id="node5" href="$drone__controller_8cpp.html" title="Implementation of the DroneController class." alt="" coords="365,95,599,136"/>
-<area shape="rect" id="node3" href="$drone__manager_8cpp.html" title="Implementation of the DroneManager class for managing multiple drones." alt="" coords="5,184,236,225"/>
-<area shape="rect" id="node4" href="$main_8cpp.html" title=" " alt="" coords="260,184,400,225"/>
-</map>

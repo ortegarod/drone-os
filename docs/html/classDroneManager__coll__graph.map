@@ -1,9 +1,0 @@
-<map id="DroneManager" name="DroneManager">
-<area shape="rect" id="node1" title="Manages multiple drones through DroneController instances." alt="" coords="933,86,1052,113"/>
-<area shape="rect" id="node2" title=" " alt="" coords="591,5,765,47"/>
-<area shape="rect" id="node3" title=" " alt="" coords="559,71,797,127"/>
-<area shape="rect" id="node4" title=" " alt="" coords="193,62,445,89"/>
-<area shape="rect" id="node5" title=" " alt="" coords="276,113,363,139"/>
-<area shape="rect" id="node6" title=" " alt="" coords="5,105,144,147"/>
-<area shape="rect" id="node7" title=" " alt="" coords="632,151,724,178"/>
-</map>

@@ -1,7 +1,0 @@
-<map id="DroneController" name="DroneController">
-<area shape="rect" id="node1" title="Manages the state and control of a single drone." alt="" coords="271,215,397,241"/>
-<area shape="rect" id="node2" title=" " alt="" coords="5,96,196,137"/>
-<area shape="rect" id="node3" title=" " alt="" coords="221,103,447,130"/>
-<area shape="rect" id="node4" title=" " alt="" coords="472,103,559,130"/>
-<area shape="rect" id="node5" title=" " alt="" coords="446,5,585,47"/>
-</map>
