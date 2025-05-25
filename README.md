@@ -159,6 +159,126 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
    >   > **Note**: When you start the agent, watch for the initialization output. You should see a series of messages indicating the creation of topics, subscribers, and datareaders. This output confirms that PX4 has successfully connected to the agent and is setting up the necessary DDS communication channels. If you don't see these messages, it might indicate that PX4 hasn't connected properly.
    >
    >
+
+### Configuring ROS 2 Communication Across a Local Area Network (LAN)
+
+By default, the ROS 2 FastDDS discovery mechanism might be configured primarily for localhost communication, which can prevent nodes on different machines within the same LAN from discovering each other. To enable robust communication between ROS 2 nodes (e.g., your Dockerized services on one machine and ROS 2 nodes on another machine on the LAN), you need to configure FastDDS explicitly.
+
+This is primarily done by modifying the `fastdds_config.xml` file, which is used by the Docker services as specified by the `FASTRTPS_DEFAULT_PROFILES_FILE` environment variable in `docker/dev/docker-compose.dev.yml`.
+
+**Steps to Configure `fastdds_config.xml` for LAN Communication:**
+
+1.  **Identify IP Addresses**: Determine the LAN IP addresses of all machines that will run ROS 2 nodes and need to communicate with each other. For example, `192.168.1.10` (Machine A) and `192.168.1.11` (Machine B).
+
+2.  **Edit `fastdds_config.xml`**:
+    Open the `fastdds_config.xml` file located at the root of your `ws_droneOS` project.
+    You need to update two main sections within the `<rtps><builtin>` part of the default participant profile:
+    *   `<initialPeersList>`: Add each machine's IP address here. This tells FastDDS which peers to attempt to contact for discovery.
+    *   `<metatrafficUnicastLocatorList>`: Add each machine's IP address here. This tells FastDDS to listen for discovery traffic on these specific IP addresses.
+
+    **Example Modification**:
+    Assuming your machines have IPs `192.168.1.10` and `192.168.1.11`, and your Docker host (if different or also participating directly) is `192.168.1.12`.
+
+    ```xml
+    <!-- ... other parts of the XML file ... -->
+    <builtin>
+        <discovery_config>
+            <discoveryProtocol>SIMPLE</discoveryProtocol>
+            <leaseDuration>
+                <sec>20</sec>
+            </leaseDuration>
+            <initialAnnouncements>
+                <count>5</count>
+            </initialAnnouncements>
+            
+            <!-- List of peers to initially contact for discovery -->
+            <initialPeersList>
+                <locator>
+                    <udpv4>
+                        <address>127.0.0.1</address> <!-- Keep localhost for local processes -->
+                        <port>7400</port>
+                    </udpv4>
+                </locator>
+                <locator>
+                    <udpv4>
+                        <address>192.168.1.10</address> <!-- Machine A IP -->
+                        <port>7400</port>
+                    </udpv4>
+                </locator>
+                <locator>
+                    <udpv4>
+                        <address>192.168.1.11</address> <!-- Machine B IP -->
+                        <port>7400</port>
+                    </udpv4>
+                </locator>
+                <locator>
+                    <udpv4>
+                        <address>192.168.1.12</address> <!-- Docker Host IP (if applicable) -->
+                        <port>7400</port>
+                    </udpv4>
+                </locator>
+            </initialPeersList>
+        </discovery_config>
+        
+        <metatrafficMulticastLocatorList>
+            <locator>
+                <udpv4>
+                    <address>239.255.0.1</address>
+                    <port>7400</port>
+                </udpv4>
+            </locator>
+        </metatrafficMulticastLocatorList>
+
+        <metatrafficUnicastLocatorList>
+            <locator>
+                <udpv4>
+                    <address>127.0.0.1</address> <!-- Keep localhost -->
+                    <port>7400</port>
+                </udpv4>
+            </locator>
+            <locator>
+                <udpv4>
+                    <address>192.168.1.10</address> <!-- Machine A IP -->
+                    <port>7400</port>
+                </udpv4>
+            </locator>
+            <locator>
+                <udpv4>
+                    <address>192.168.1.11</address> <!-- Machine B IP -->
+                    <port>7400</port>
+                </udpv4>
+            </locator>
+            <locator>
+                <udpv4>
+                    <address>192.168.1.12</address> <!-- Docker Host IP (if applicable) -->
+                    <port>7400</port>
+                </udpv4>
+            </locator>
+        </metatrafficUnicastLocatorList>
+    </builtin>
+    <!-- ... other parts of the XML file ... -->
+    ```
+
+3.  **Ensure Consistency**: If other machines on the LAN are also using FastDDS with an XML configuration, ensure their `fastdds_config.xml` files are similarly updated to include all relevant peer IPs.
+
+4.  **Restart Services**:
+    *   **Docker Containers**: After modifying `fastdds_config.xml` on your Docker host machine, restart the relevant Docker services:
+        ```bash
+        # Restart all services defined in the compose file
+        docker compose -f docker/dev/docker-compose.dev.yml down
+        docker compose -f docker/dev/docker-compose.dev.yml up -d --build
+
+        # Or restart specific services
+        docker compose -f docker/dev/docker-compose.dev.yml restart micro_agent drone_core agent_system
+        ```
+    *   **Other ROS 2 Nodes**: Restart any ROS 2 applications on the other machines.
+
+5.  **Network Configuration for Docker**:
+    Ensure your Docker services in `docker-compose.dev.yml` are using `network_mode: "host"`. This is crucial for the Docker containers to use the host's network stack directly, making LAN communication simpler. The provided `docker-compose.dev.yml` already does this.
+    The environment variable `FASTRTPS_WHITELIST_INTERFACES=all` set in the `docker-compose.dev.yml` can also be helpful as it allows FastDDS to attempt communication over all available network interfaces on the host.
+
+By correctly configuring the `initialPeersList` and `metatrafficUnicastLocatorList` with the actual IP addresses of your LAN machines, ROS 2 nodes should be able to discover and communicate with each other effectively. For more advanced scenarios or troubleshooting, refer to the [FastDDS documentation on Discovery](https://fast-dds.docs.eprosima.com/en/latest/fastdds/discovery/discovery.html).
+
 4. **Start Drone SDK**:
 
 > ### `drone_core` Container
@@ -255,6 +375,7 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
    >        Inside the `agent_system` container's shell:
    >        ```bash
    >        # The OPENAI_API_KEY should be inherited from the container's environment
+   >        source /opt/ros/humble/setup.bash
    >        python3 src/drone_agent_system/run_basic_agent.py
    >        ```
    >        Now you can type commands directly to the "Drone Agent>" prompt.
