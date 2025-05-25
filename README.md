@@ -112,6 +112,8 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
 
 
    > Now that your PX4 SITL instances are running, we'll set up the communication bridge between PX4 and ROS 2 using Micro-XRCE-DDS-Agent. This agent converts PX4's internal DDS messages into ROS 2 topics and services.
+   > 
+   > **Important Note for Multi-Machine SITL Development**: The instructions below assume that the Docker environment (running `micro_agent`, `drone_core`, etc.) is on the **same machine** as your PX4 SITL instances. If PX4 SITL is running on a separate computer on your local network, the Micro XRCE-DDS Agent (running `MicroXRCEAgent udp4 -p 8888`) needs to be configured to connect to the IP address of the machine running PX4 SITL, and PX4 SITL needs to be configured to accept connections from the agent's machine. For simplicity in the initial dev setup, running both on the same machine is recommended. Advanced configurations for distributed SITL setups are possible but require careful network configuration.
 
    > Let's start by building and running our development containers:
 
@@ -203,13 +205,81 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
    >
    >   
    > **Notes on Docker**:
-   > - Our development containers are intentionally minimal on startup - they don't automatically build or run ROS 2 nodes or the agent. This design gives you full control over what runs and when, making it easier to test different configurations and debug issues.
-   > - All your development work (source code, builds, installations, and logs) is mounted from your host machine into the container. This means you can edit code in your preferred IDE and see changes immediately without rebuilding the container. Although, you still need to build your packages same as always (e.g., colcon build).
+   > - Our development containers (`drone_core`, `micro_agent`) are intentionally minimal on startup in `docker-compose.dev.yml` - they don't automatically run their main applications. This design gives you full control over what runs and when via `docker exec`, making it easier to test different configurations and debug issues. The `agent_system` container, however, defaults to running its main script.
+   > - All your development work (source code, builds, installations, and logs) is mounted from your host machine into the container. This means you can edit code in your preferred IDE and see changes immediately without rebuilding the container (though C++/Python builds like `colcon build` or Python script restarts are still needed).
+   > - **Viewing Container Logs**: To view the logs for a specific running container, you can use the `docker logs` command. For example, to see the logs for the `drone_core_node` container:
+   >   ```bash
+   >   docker logs drone_core_node
+   >   ```
+   >   To follow the logs in real-time (similar to `tail -f`):
+   >   ```bash
+   >   docker logs -f drone_core_node
+   >   ```
+   >   Replace `drone_core_node` with the name of the container you want to inspect (e.g., `micro_agent_service`, `agent_system_node`). You can find the names of your running containers using `docker ps`.
 
+5. **Start and Use AI Agent System**:
 
+> ### `agent_system` Container
+   >
+   > - This container runs the AI agent (`run_basic_agent.py`), which uses tools to interact with services provided by `drone_core`.
+   > - It requires the `OPENAI_API_KEY` environment variable to be set. Ensure this is exported in your host shell before running `docker compose up`, or manage it via an `.env` file recognized by Docker Compose.
+   >
+   > **Running the Agent:**
+   > The `agent_system` service in `docker-compose.dev.yml` is configured to run `python3 src/drone_agent_system/run_basic_agent.py` by default when the container starts.
+   >
+   > 1. **Ensure Prerequisite Services are Running**:
+   >    - PX4 SITL (on the same machine, as per earlier notes).
+   >    - `micro_agent` container with the `MicroXRCEAgent` binary running inside it.
+   >    - `drone_core` container with the `drone_core` ROS 2 node running inside it (providing services like `/drone1/arm`).
+   > 2. **Start the `agent_system` service** (if not already started with other services):
+   >    ```bash
+   >    # In ws_droneOS directory on host
+   >    # Ensure OPENAI_API_KEY is exported in this shell
+   >    export OPENAI_API_KEY="your_openai_api_key"
+   >    docker compose -f docker/dev/docker-compose.dev.yml up -d --build agent_system 
+   >    ```
+   >    (If you started all services together, including `agent_system`, it should already be running).
+   > 3. **Interacting with the Agent:**
+   >    Since `run_basic_agent.py` uses `input()` for commands, direct interaction with a detached container can be tricky.
+   >    *   **Option A (View Logs Only)**:
+   >        ```bash
+   >        docker logs -f agent_system_node
+   >        ```
+   >        This will show you the startup messages and any output from the agent, but you won't be able to type commands.
+   >    *   **Option B (Interactive Session - Recommended for Dev/Testing)**:
+   >        It's often easier to get an interactive shell in the container and run the script manually. To do this, you might first want to change the default `command` for the `agent_system` in `docker-compose.dev.yml` to something like `["sleep", "infinity"]` so it doesn't immediately run the script. Then:
+   >        ```bash
+   >        # After 'docker compose up -d ... agent_system' (with modified command or if it exited)
+   >        docker compose -f docker/dev/docker-compose.dev.yml exec agent_system bash
+   >        ```
+   >        Inside the `agent_system` container's shell:
+   >        ```bash
+   >        # The OPENAI_API_KEY should be inherited from the container's environment
+   >        python3 src/drone_agent_system/run_basic_agent.py
+   >        ```
+   >        Now you can type commands directly to the "Drone Agent>" prompt.
+   >    *   **Option C (Attach - if tty and stdin_open are configured)**:
+   >        If you modify `docker-compose.dev.yml` for the `agent_system` service to include:
+   >        ```yaml
+   >        stdin_open: true # Equivalent to -i in docker run
+   >        tty: true      # Equivalent to -t in docker run
+   >        ```
+   >        And run `docker compose -f docker/dev/docker-compose.dev.yml up --build agent_system` (without `-d`), you might be able to interact directly.
+   >    *   **Option D (Interactive Session using `docker compose run` - Recommended)**:
+   >        For a reliable interactive session, especially if Option C doesn't provide input capability, use the `docker compose run` command. This command is designed for running one-off tasks with a service and correctly handles TTY allocation.
+   >        ```bash
+   >        # In ws_droneOS directory on host, in an external terminal (e.g., macOS Terminal app)
+   >        # Ensure OPENAI_API_KEY is exported in this shell or set in your .env file
+   >        # export OPENAI_API_KEY="your_openai_api_key" 
+   >        docker compose -f docker/dev/docker-compose.dev.yml run --rm --service-ports agent_system
+   >        ```
+   >        This will start the `agent_system` container, and you should see the `Drone Agent>` prompt, allowing you to type commands directly. The `--rm` flag ensures the container is removed when you exit (e.g., by typing `exit` at the prompt or pressing `Ctrl+C`).
+   >
+   > **Troubleshooting**:
+   > - If the agent script reports errors about not finding services, ensure `drone_core` is running correctly and that DDS discovery is working (all services on `ROS_DOMAIN_ID=0` and `network_mode: "host"` or properly configured networking).
+   > - Check `docker logs agent_system_node` for any Python errors or messages from the OpenAI SDK.
 
-
-5. **Use GCS CLI**: For testing, open a terminal and run the GCS CLI through its own Docker image:
+6. **Use GCS CLI**: For testing, open a terminal and run the GCS CLI through its own Docker image:
    ```bash
    cd ws_droneOS
    docker compose -f docker/dev/gcs/docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1

@@ -34,12 +34,12 @@ services:
     network_mode: "host" # ESSENTIAL: Use the host's network for Tailscale & agent comms
     restart: unless-stopped # Optional: Restart policy
     volumes:
-      - /home/rodrigo/ws_droneOS/src:/root/ws_droneOS/src
-      - /home/rodrigo/ws_droneOS/build:/root/ws_droneOS/build
-      - /home/rodrigo/ws_droneOS/install:/root/ws_droneOS/install
-      - /home/rodrigo/ws_droneOS/logs:/root/ws_droneOS/logs
+      - ../../src:/root/ws_droneOS/src
+      - ../../build:/root/ws_droneOS/build
+      - ../../install:/root/ws_droneOS/install
+      - ../../logs:/root/ws_droneOS/logs
       # Mount the FastDDS config file
-      - /home/rodrigo/ws_droneOS/fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
     environment:
       # Set the ROS 2 DDS implementation (ensure it matches your setup)
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
@@ -93,9 +93,9 @@ services:
       - FASTRTPS_WHITELIST_INTERFACES=all
     command: ["bash", "-c", "while true; do sleep 1000; done"]
     volumes:
-      - /home/rodrigo/ws_droneOS/Micro-XRCE-DDS-Agent:/root/ws_droneOS/Micro-XRCE-DDS-Agent
+      - ../../Micro-XRCE-DDS-Agent:/root/ws_droneOS/Micro-XRCE-DDS-Agent
       # Mount the FastDDS config file
-      - /home/rodrigo/ws_droneOS/fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
     # Note: Ensure the user running Docker on the host (e.g., 'rodrigo') has permission for /dev/ttyUSB0 (belongs to 'dialout' group).
     # If not, run: sudo usermod -a -G dialout rodrigo (or relevant user) and then REBOOT or log out/in.
 
@@ -128,7 +128,7 @@ services:
       - DRONE_NAME=drone1 # Set a default drone name
     volumes:
       # Mount the FastDDS config file
-      - /home/rodrigo/ws_droneOS/fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
     command:
       - bash
       - -c
@@ -142,6 +142,37 @@ services:
           touch "/root/.ros/camera_info/drone1_camera.yaml"
           # Example: ros2 run camera_ros camera_node --ros-args -p camera:=0 -p width:=640 -p height:=480 -p format:=RGB888
           ros2 run camera_ros camera_node --ros-args -p camera:=0 -p width:=1280 -p height:=720 -p format:=XRGB8888 -p frame_id:="drone1_camera_link" -p camera_info_url:="file:///root/.ros/camera_info/drone1_camera.yaml"
+
+  # --- AI Agent System Service ---
+  agent_system:
+    env_file:
+      - ../../.env # Load environment variables from .env file at the project root
+    build:
+      context: ../../
+      dockerfile: docker/dev/agent_system.dev.Dockerfile
+    container_name: agent_system_node
+    stdin_open: true # Keep STDIN open for interactive mode
+    tty: true        # Allocate a TTY for interactive mode
+    network_mode: "host" # Essential for ROS 2 DDS communication and service discovery
+    restart: unless-stopped
+    volumes:
+      # Mount the agent system source code for live development
+      - ../../src/drone_agent_system:/root/ws_droneOS/src/drone_agent_system
+      # Mount the FastDDS config file
+      - ../../fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
+      # If you have a .env file for secrets like OPENAI_API_KEY at the root of ws_droneOS
+      # - ../../.env:/root/ws_droneOS/.env 
+    environment:
+      # IMPORTANT: Set your OPENAI_API_KEY. 
+      # It's best to use Docker secrets or pass it from the host environment.
+      # Example: OPENAI_API_KEY=${OPENAI_API_KEY} (if OPENAI_API_KEY is set on host)
+      # Or load from a .env file if you mount one (see volumes)
+      # - OPENAI_API_KEY # This will pick it up if set in the host environment running docker compose or from env_file
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0 # Must match other services
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      - PYTHONUNBUFFERED=1 # For immediate Python print output
+      # Add any other environment variables your agent might need
 
 volumes:
   logs: # Declares that the host path './logs' is expected

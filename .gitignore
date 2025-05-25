@@ -13,3 +13,4 @@ docker/prod/logs/*
 Micro-XRCE-DDS-Agent/build/*
 .cursor
 .vscode
+.env
