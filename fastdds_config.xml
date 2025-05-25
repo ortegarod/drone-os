@@ -10,13 +10,16 @@
         </transport_descriptors>
 
         <participant profile_name="default_profile" is_default_profile="true">
-            <domainId>0</domainId>
+            <domainId>0</domainId> <!-- Ensure this matches on host and container -->
             <rtps>
-                <name>default_participant</name>
+                <name>default_participant</name> <!-- This name is just for logging/identification -->
+
+                <!-- Where this participant listens for UNICAST RTPS data -->
                 <defaultUnicastLocatorList>
                     <locator>
                         <udpv4>
-                            <port>7412</port>
+                            <!-- Port 0 means OS picks an available port. Can be specific e.g. 7412 if needed. -->
+                            <port>0</port> 
                         </udpv4>
                     </locator>
                 </defaultUnicastLocatorList>
@@ -25,21 +28,84 @@
                     <discovery_config>
                         <discoveryProtocol>SIMPLE</discoveryProtocol>
                         <leaseDuration>
-                            <sec>20</sec>
+                            <sec>20</sec> <!-- Default is 20s -->
                         </leaseDuration>
                         <initialAnnouncements>
-                            <count>5</count>
+                            <count>5</count> <!-- Default is 3, 5 is fine -->
                         </initialAnnouncements>
+                        
+                        <!-- List of peers to initially contact for discovery -->
+                        <initialPeersList>
+                            <locator>
+                                <udpv4>
+                                    <address>127.0.0.1</address>
+                                    <port>7400</port>
+                                </udpv4>
+                            </locator>
+                            <locator>
+                                <udpv4>
+                                    <address><tailscale-ip></address> <!-- Your Mac's IP -->
+                                    <port>7400</port>
+                                </udpv4>
+                            </locator>
+                            <locator>
+                                <udpv4>
+                                    <address><tailscale-ip></address> <!-- Ubuntu-dev IP -->
+                                    <port>7400</port>
+                                </udpv4>
+                            </locator>
+                            <!-- If ubuntu-drone (<tailscale-ip>) also needs to participate directly, add it here too -->
+                            <!--
+                            <locator>
+                                <udpv4>
+                                    <address><tailscale-ip></address>
+                                    <port>7400</port>
+                                </udpv4>
+                            </locator>
+                            -->
+                        </initialPeersList>
                     </discovery_config>
                     
+                    <!-- Where this participant listens for MULTICAST discovery traffic -->
                     <metatrafficMulticastLocatorList>
                         <locator>
                             <udpv4>
-                                <address>239.255.0.1</address>
-                                <port>7400</port>
+                                <address>239.255.0.1</address> <!-- Standard multicast address for domain 0 -->
+                                <port>7400</port> <!-- Standard discovery port for domain 0 -->
                             </udpv4>
                         </locator>
                     </metatrafficMulticastLocatorList>
+
+                    <!-- Where this participant listens for UNICAST discovery traffic -->
+                    <metatrafficUnicastLocatorList>
+                        <locator>
+                            <udpv4>
+                                <address>127.0.0.1</address>
+                                <port>7400</port>
+                            </udpv4>
+                        </locator>
+                        <locator>
+                            <udpv4>
+                                <address><tailscale-ip></address> <!-- Your Mac's IP -->
+                                <port>7400</port>
+                            </udpv4>
+                        </locator>
+                        <locator>
+                            <udpv4>
+                                <address><tailscale-ip></address> <!-- Ubuntu-dev IP -->
+                                <port>7400</port>
+                            </udpv4>
+                        </locator>
+                        <!-- If ubuntu-drone (<tailscale-ip>) also needs to participate directly, add it here too -->
+                        <!--
+                        <locator>
+                            <udpv4>
+                                <address><tailscale-ip></address>
+                                <port>7400</port>
+                            </udpv4>
+                        </locator>
+                        -->
+                    </metatrafficUnicastLocatorList>
                 </builtin>
             </rtps>
         </participant>
