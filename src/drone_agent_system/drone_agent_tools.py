@@ -208,22 +208,6 @@ def _get_commander():
     return drone_commander_instance
 
 @function_tool
-def set_active_drone(drone_name: str) -> str:
-    """
-    Sets the target drone for subsequent commands.
-    Args:
-        drone_name (str): The name of the drone to target (e.g., 'drone1').
-    Returns:
-        str: A message indicating the outcome of the operation.
-    """
-    try:
-        commander = _get_commander()
-        success, message = commander.change_target_drone(drone_name)
-        return message
-    except Exception as e:
-        return f"Error in set_active_drone: {e}"
-
-@function_tool
 def drone_set_offboard_mode() -> str:
     """Commands the currently targeted drone to enter Offboard mode."""
     try:
@@ -234,16 +218,6 @@ def drone_set_offboard_mode() -> str:
         return f"Error in drone_set_offboard_mode: {e}"
 
 @function_tool
-def drone_set_position_control_mode() -> str:
-    """Commands the currently targeted drone to enter Position Control mode."""
-    try:
-        commander = _get_commander()
-        success, message = commander._call_trigger_service('set_position_mode')
-        return message
-    except Exception as e:
-        return f"Error in drone_set_position_control_mode: {e}"
-
-@function_tool
 def drone_arm() -> str:
     """Arms the currently targeted drone."""
     try:
@@ -252,16 +226,6 @@ def drone_arm() -> str:
         return message
     except Exception as e:
         return f"Error in drone_arm: {e}"
-
-@function_tool
-def drone_takeoff() -> str:
-    """Commands the currently targeted drone to takeoff. Requires Offboard mode and armed status."""
-    try:
-        commander = _get_commander()
-        success, message = commander._call_trigger_service('takeoff')
-        return message
-    except Exception as e:
-        return f"Error in drone_takeoff: {e}"
 
 @function_tool
 def drone_land() -> str:
