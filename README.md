@@ -81,7 +81,7 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
 2. **Start PX4 SITL Instances**:
    Open two separate terminals. Navigate to your PX4-Autopilot directory in each.
 
-   > **Prerequisite**: Before running SITL, ensure you have PX4-Autopilot installed following the [official PX4 installation guide](https://docs.px4.io/main/en/dev_setup/dev_env_linux_ubuntu.html). For Ubuntu users, make sure to run the `ubuntu.sh` script from the PX4-Autopilot repository to install all required Gazebo simulation tools and dependencies.
+   **Prerequisite**: Before running SITL, ensure you have PX4-Autopilot installed following the [official PX4 installation guide](https://docs.px4.io/main/en/dev_setup/dev_env_linux_ubuntu.html). For Ubuntu users, make sure to run the `ubuntu.sh` script from the PX4-Autopilot repository to install all required Gazebo simulation tools and dependencies.
 
 
 
@@ -91,7 +91,7 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
      cd PX4-Autopilot
      HEADLESS=1 make px4_sitl gz_x500    
      ```
-        > **Note**: While this guide shows a multi-drone setup as an example, you can start with just one drone and skip instructions for Drone 2.
+        **Note**: While this guide shows a multi-drone setup as an example, you can start with just one drone and skip instructions for Drone 2.
 
    * **Terminal 2 (Drone 2)**: Start PX4 instance 1 (`MAV_SYS_ID=2`). It will use namespace `/px4_1/fmu/`. Add `PX4_GZ_MODEL_POSE` to spawn it at a different location.
      ```bash
@@ -99,10 +99,10 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
      HEADLESS=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" PX4_SIM_MODEL=gz_x500 MAV_SYS_ID=2 ./build/px4_sitl_default/bin/px4 -i 1
      ```
 
-   > **Note on PX4 SITL Instance Identity**:
-   > * The `make px4_sitl gz_x500` command (used for Drone 1) implicitly launches **instance 0** (`-i 0` is the default) and typically uses the default **`MAV_SYS_ID=1`**. Consequently, it uses the default UXRCE-DDS namespace `/fmu/`.
-   > * The direct execution command `./build/.../px4 -i 1` (used for Drone 2) explicitly sets the **instance ID** via `-i 1`. We also explicitly set the **`MAV_SYS_ID=2`** using an environment variable. Based on these, this SITL instance uses the UXRCE-DDS namespace `/px4_1/fmu/` when connecting to the agent.
-   > * **Note**: MAV_SYS_ID can be updated via PX4 parameters using QGroundControl.
+   **Note on PX4 SITL Instance Identity**:
+   * The `make px4_sitl gz_x500` command (used for Drone 1) implicitly launches **instance 0** (`-i 0` is the default) and typically uses the default **`MAV_SYS_ID=1`**. Consequently, it uses the default UXRCE-DDS namespace `/fmu/`.
+   * The direct execution command `./build/.../px4 -i 1` (used for Drone 2) explicitly sets the **instance ID** via `-i 1`. We also explicitly set the **`MAV_SYS_ID=2`** using an environment variable. Based on these, this SITL instance uses the UXRCE-DDS namespace `/px4_1/fmu/` when connecting to the agent.
+   * **Note**: MAV_SYS_ID can be updated via PX4 parameters using QGroundControl.
 
 
 
@@ -111,153 +111,73 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
 3. **Start Micro-XRCE-DDS-Agent**:
 
 
-   > Now that your PX4 SITL instances are running, we'll set up the communication bridge between PX4 and ROS 2 using Micro-XRCE-DDS-Agent. This agent converts PX4's internal DDS messages into ROS 2 topics and services.
-   > 
-   > **Important Note for Multi-Machine SITL Development**: The instructions below assume that the Docker environment (running `micro_agent`, `drone_core`, etc.) is on the **same machine** as your PX4 SITL instances. If PX4 SITL is running on a separate computer on your local network, the Micro XRCE-DDS Agent (running `MicroXRCEAgent udp4 -p 8888`) needs to be configured to connect to the IP address of the machine running PX4 SITL, and PX4 SITL needs to be configured to accept connections from the agent's machine. For simplicity in the initial dev setup, running both on the same machine is recommended. Advanced configurations for distributed SITL setups are possible but require careful network configuration.
+   Now that your PX4 SITL instances are running, we'll set up the communication bridge between PX4 and ROS 2 using Micro-XRCE-DDS-Agent. This agent converts PX4's internal DDS messages into ROS 2 topics and services.
+   
+   **Important Note for Multi-Machine SITL Development**: The instructions below assume that the Docker environment (running `micro_agent`, `drone_core`, etc.) is on the **same machine** as your PX4 SITL instances. If PX4 SITL is running on a separate computer on your local network, the Micro XRCE-DDS Agent (running `MicroXRCEAgent udp4 -p 8888`) needs to be configured to connect to the IP address of the machine running PX4 SITL, and PX4 SITL needs to be configured to accept connections from the agent's machine. For simplicity in the initial dev setup, running both on the same machine is recommended. Advanced configurations for distributed SITL setups are possible but require careful network configuration.
 
-   > Let's start by building and running our development containers:
+   Let's start by building and running our development containers:
 
    ```bash
    cd ws_droneOS
    docker compose -f docker/dev/docker-compose.dev.yml up -d --build
    ```
-   > **Note**: For local SITL development where a physical camera is not connected to your development machine, it is recommended to start only the `drone_core` and `micro_agent` services. The `camera_service` is intended to be run on the drone's companion computer with a connected camera.
-   > To start only the essential services for SITL (without the camera), run:
-   > ```bash
-   > docker compose -f docker/dev/docker-compose.dev.yml up -d --build drone_core micro_agent
-   > ```
+   **Note**: For local SITL development where a physical camera is not connected to your development machine, it is recommended to start only the `drone_core` and `micro_agent` services. The `camera_service` is intended to be run on the drone's companion computer with a connected camera.
+   To start only the essential services for SITL (without the camera), run:
+   ```bash
+   docker compose -f docker/dev/docker-compose.dev.yml up -d --build drone_core micro_agent
+   ```
    This command builds the development environment and starts two containers:
    - `drone_core`: Contains the ROS 2 environment and Drone SDK
    - `micro_agent`: Runs the Micro-XRCE-DDS-Agent for PX4 communication
 
-   > If you run `docker compose ... up -d --build` without specifying services, it will also attempt to start `camera_service`. This service requires a physical camera and appropriate drivers, and may not function correctly or could produce errors if run on a system without a connected and configured camera.
-   >
+   If you run `docker compose ... up -d --build` without specifying services, it will also attempt to start `camera_service`. This service requires a physical camera and appropriate drivers, and may not function correctly or could produce errors if run on a system without a connected and configured camera.
    
-   > ### `micro_agent` Container
-   >
-   > - This container is used to build and run the DDS agent that bridges ROS 2 and PX4. The agent source and build directories are mounted from the host. You only need to rebuild the agent if you change the source code or delete the build artifacts. The compiled binary and build directory persist across container restarts due to the volume mount.
-   > - TODO: Revisit using the official eProsima Micro XRCE-DDS Agent Docker image. We currently build from source because the official repo did not compile correctly in some environments without a small change.
-   >   ```bash
-   >   # Enter the micro_agent container
-   >   docker compose -f docker/dev/docker-compose.dev.yml exec micro_agent bash
-   >   
-   >   # Only build if you haven't built before or if you've changed the source code
-   >   # If you've already built, you can skip to the 'Start the agent' step
-   >   cd /root/ws_droneOS/Micro-XRCE-DDS-Agent
-   >   mkdir build && cd build
-   >   cmake ..
-   >   make
-   >   make install
-   >   ldconfig /usr/local/lib/
-   >   
-   >   # Start the agent (in the same shell)
-   >   # Make sure you're in the build directory when running the agent
-   >   cd /root/ws_droneOS/Micro-XRCE-DDS-Agent/build
-   >   ./MicroXRCEAgent udp4 -p 8888
-   >   ```
-   >
-   >   > **Note**: When you start the agent, watch for the initialization output. You should see a series of messages indicating the creation of topics, subscribers, and datareaders. This output confirms that PX4 has successfully connected to the agent and is setting up the necessary DDS communication channels. If you don't see these messages, it might indicate that PX4 hasn't connected properly.
-   >
-   >
+   
+   ### `micro_agent` Container
+   
+   - This container is used to build and run the DDS agent that bridges ROS 2 and PX4. The agent source and build directories are mounted from the host. You only need to rebuild the agent if you change the source code or delete the build artifacts. The compiled binary and build directory persist across container restarts due to the volume mount.
+   - TODO: Revisit using the official eProsima Micro XRCE-DDS Agent Docker image. We currently build from source because the official repo did not compile correctly in some environments without a small change.
+     ```bash
+     # Enter the micro_agent container
+     docker compose -f docker/dev/docker-compose.dev.yml exec micro_agent bash
+     
+     # Only build if you haven't built before or if you've changed the source code
+     # If you've already built, you can skip to the 'Start the agent' step
+     cd /root/ws_droneOS/Micro-XRCE-DDS-Agent
+     mkdir build && cd build
+     cmake ..
+     make
+     make install
+     ldconfig /usr/local/lib/
+     
+     # Start the agent (in the same shell)
+     # Make sure you're in the build directory when running the agent
+     cd /root/ws_droneOS/Micro-XRCE-DDS-Agent/build
+     ./MicroXRCEAgent udp4 -p 8888
+     ```
+   
+     **Note**: When you start the agent, watch for the initialization output. You should see a series of messages indicating the creation of topics, subscribers, and datareaders. This output confirms that PX4 has successfully connected to the agent and is setting up the necessary DDS communication channels. If you don't see these messages, it might indicate that PX4 hasn't connected properly.
+   
+   
 
-### Configuring ROS 2 Communication Across a Local Area Network (LAN)
+### Configuring ROS 2 Communication
 
-By default, the ROS 2 FastDDS discovery mechanism might be configured primarily for localhost communication, which can prevent nodes on different machines within the same LAN from discovering each other. To enable robust communication between ROS 2 nodes (e.g., your Dockerized services on one machine and ROS 2 nodes on another machine on the LAN), you need to configure FastDDS explicitly.
+#### Current Default Configuration (`fastdds_config.xml` at Project Root)
 
-This is primarily done by modifying the `fastdds_config.xml` file, which is used by the Docker services as specified by the `FASTRTPS_DEFAULT_PROFILES_FILE` environment variable in `docker/dev/docker-compose.dev.yml`.
+The `fastdds_config.xml` file located at the root of the `ws_droneOS` project is currently configured for a simplified development setup where **all components (PX4 SITL, Micro XRCE-DDS Agent, Drone Core, GCS/AI Agent CLI, etc.) are expected to run on the same host machine (e.g., your development laptop)**.
 
-**Steps to Configure `fastdds_config.xml` for LAN Communication:**
+This configuration uses the `SIMPLE` discovery protocol, relying on multicast for nodes to find each other. This is the most straightforward way to get a development environment working quickly when all parts of the system are on one computer.
 
-1.  **Identify IP Addresses**: Determine the LAN IP addresses of all machines that will run ROS 2 nodes and need to communicate with each other. For example, `192.168.1.10` (Machine A) and `192.168.1.11` (Machine B).
+**Key characteristics of this default setup:**
+-   **Discovery Type**: `SIMPLE` (peer-to-peer via multicast).
+-   **Target Environment**: Single host development (e.g., running PX4 SITL and all Docker services on your local machine).
+-   **Simplicity**: Reduces the need for complex network configuration for initial development and testing.
+-   **File Used**: The `fastdds_config.xml` at the project root is referenced by `FASTRTPS_DEFAULT_PROFILES_FILE` in `docker/dev/docker-compose.dev.yml` for the `drone_core`, `micro_agent`, and `agent_system` services.
 
-2.  **Edit `fastdds_config.xml`**:
-    Open the `fastdds_config.xml` file located at the root of your `ws_droneOS` project.
-    You need to update two main sections within the `<rtps><builtin>` part of the default participant profile:
-    *   `<initialPeersList>`: Add each machine's IP address here. This tells FastDDS which peers to attempt to contact for discovery.
-    *   `<metatrafficUnicastLocatorList>`: Add each machine's IP address here. This tells FastDDS to listen for discovery traffic on these specific IP addresses.
+**Limitations and Future Considerations:**
+-   **LAN Communication (Multi-Machine)**: While the `SIMPLE` discovery with multicast *can* work across a LAN if multicast is properly configured on the network, it's often less reliable than static peer lists or a Discovery Server for multi-machine setups. The notes below on "Configuring for LAN Communication (Static Peers)" provide guidance if you need to connect nodes across different machines on the same LAN.
+-   **Real Drone Hardware / 4G / VPN**: This default configuration is **not suitable** for scenarios involving actual drone hardware communicating over a more complex network (like 4G, or a VPN like Tailscale). These situations typically break multicast and require a **Discovery Server** for robust node discovery. We plan to explore and document the Discovery Server setup in the future. For now, this setup is primarily for local development.
 
-    **Example Modification**:
-    Assuming your machines have IPs `192.168.1.10` and `192.168.1.11`, and your Docker host (if different or also participating directly) is `192.168.1.12`.
-
-    ```xml
-    <!-- ... other parts of the XML file ... -->
-    <builtin>
-        <discovery_config>
-            <discoveryProtocol>SIMPLE</discoveryProtocol>
-            <leaseDuration>
-                <sec>20</sec>
-            </leaseDuration>
-            <initialAnnouncements>
-                <count>5</count>
-            </initialAnnouncements>
-            
-            <!-- List of peers to initially contact for discovery -->
-            <initialPeersList>
-                <locator>
-                    <udpv4>
-                        <address>127.0.0.1</address> <!-- Keep localhost for local processes -->
-                        <port>7400</port>
-                    </udpv4>
-                </locator>
-                <locator>
-                    <udpv4>
-                        <address>192.168.1.10</address> <!-- Machine A IP -->
-                        <port>7400</port>
-                    </udpv4>
-                </locator>
-                <locator>
-                    <udpv4>
-                        <address>192.168.1.11</address> <!-- Machine B IP -->
-                        <port>7400</port>
-                    </udpv4>
-                </locator>
-                <locator>
-                    <udpv4>
-                        <address>192.168.1.12</address> <!-- Docker Host IP (if applicable) -->
-                        <port>7400</port>
-                    </udpv4>
-                </locator>
-            </initialPeersList>
-        </discovery_config>
-        
-        <metatrafficMulticastLocatorList>
-            <locator>
-                <udpv4>
-                    <address>239.255.0.1</address>
-                    <port>7400</port>
-                </udpv4>
-            </locator>
-        </metatrafficMulticastLocatorList>
-
-        <metatrafficUnicastLocatorList>
-            <locator>
-                <udpv4>
-                    <address>127.0.0.1</address> <!-- Keep localhost -->
-                    <port>7400</port>
-                </udpv4>
-            </locator>
-            <locator>
-                <udpv4>
-                    <address>192.168.1.10</address> <!-- Machine A IP -->
-                    <port>7400</port>
-                </udpv4>
-            </locator>
-            <locator>
-                <udpv4>
-                    <address>192.168.1.11</address> <!-- Machine B IP -->
-                    <port>7400</port>
-                </udpv4>
-            </locator>
-            <locator>
-                <udpv4>
-                    <address>192.168.1.12</address> <!-- Docker Host IP (if applicable) -->
-                    <port>7400</port>
-                </udpv4>
-            </locator>
-        </metatrafficUnicastLocatorList>
-    </builtin>
-    <!-- ... other parts of the XML file ... -->
-    ```
 
 3.  **Ensure Consistency**: If other machines on the LAN are also using FastDDS with an XML configuration, ensure their `fastdds_config.xml` files are similarly updated to include all relevant peer IPs.
 
@@ -281,146 +201,148 @@ By correctly configuring the `initialPeersList` and `metatrafficUnicastLocatorLi
 
 4. **Start Drone SDK**:
 
-> ### `drone_core` Container
-   >
+### `drone_core` Container
+   
 
-   > - Now that we have the containers built, we have our development environment all setup and ready to run our Drone SDK. To do this we need to "enter" the container. Note: look into VSCode extensions for coding in Docker container shell.
-   >
-   >   ```bash
-   >   # Enter the drone_core container - this gives us a clean, optimized ROS 2 environment where we can run our Drone SDK code. 
-   >
-   >   docker compose -f docker/dev/docker-compose.dev.yml exec drone_core bash
-   >   
-   >   # Build packages
-   >   cd /root/ws_droneOS
-   >   colcon build
-   >   source install/setup.bash
-   >   
-   >   # Run the drone_core executable for each drone - required parameters must match your PX4 SITL instance configuration!
-   >
-   >   # For drone 1
-   >   ros2 run drone_core drone_core --ros-args \
-   >       -r __node:=drone1 \
-   >       -p drone_name:=drone1 \
-   >       -p px4_namespace:=/fmu/ \
-   >       -p mav_sys_id:=1
-   >
-   >   # For drone 2 
-   >   ros2 run drone_core drone_core --ros-args \
-   >       -r __node:=drone2 \
-   >       -p drone_name:=drone2 \
-   >       -p px4_namespace:=/px4_2/fmu/ \
-   >       -p mav_sys_id:=2
-   >
-   >   # For additional drones, follow the same pattern:
-   >   # - Increment __node and drone_name (drone3, drone4, etc.)
-   >   # - Use /px4_N/fmu/ namespace where N is the drone number
-   >   ```
-   >
-   > - For local development, a single `drone_core` Docker container can run multiple `drone_core` SDK instances, each controlling a different drone. This is possible because everything runs locally with low latency and high bandwidth and `micro_agent` can handle multiple connections on same port. 
+   - Now that we have the containers built, we have our development environment all setup and ready to run our Drone SDK. To do this we need to "enter" the container. Note: look into VSCode extensions for coding in Docker container shell.
    
-   > - For production deployments, each drone requires its own companion computer (e.g., Raspberry Pi) with dedicated Docker containers for `drone_core` and `micro_agent`. This ensures optimal performance and reliability by maintaining direct, low-latency communication between the control software and the PX4 flight controller.
+     ```bash
+     # Enter the drone_core container - this gives us a clean, optimized ROS 2 environment where we can run our Drone SDK code. 
    
-   > - `drone_gcs_cli` continues to operate the same in either setup; using ROS 2 topics and services on the network. 
-   >
-   >   
-   > **Notes on Docker**:
-   > - Our development containers (`drone_core`, `micro_agent`) are intentionally minimal on startup in `docker-compose.dev.yml` - they don't automatically run their main applications. This design gives you full control over what runs and when via `docker exec`, making it easier to test different configurations and debug issues. The `agent_system` container, however, defaults to running its main script.
-   > - All your development work (source code, builds, installations, and logs) is mounted from your host machine into the container. This means you can edit code in your preferred IDE and see changes immediately without rebuilding the container (though C++/Python builds like `colcon build` or Python script restarts are still needed).
-   > - **Viewing Container Logs**: To view the logs for a specific running container, you can use the `docker logs` command. For example, to see the logs for the `drone_core_node` container:
-   >   ```bash
-   >   docker logs drone_core_node
-   >   ```
-   >   To follow the logs in real-time (similar to `tail -f`):
-   >   ```bash
-   >   docker logs -f drone_core_node
-   >   ```
-   >   Replace `drone_core_node` with the name of the container you want to inspect (e.g., `micro_agent_service`, `agent_system_node`). You can find the names of your running containers using `docker ps`.
+     docker compose -f docker/dev/docker-compose.dev.yml exec drone_core bash
+     
+     # Build packages
+     cd /root/ws_droneOS
+     colcon build
+     source install/setup.bash
+     
+     # Run the drone_core executable for each drone - required parameters must match your PX4 SITL instance configuration!
+   
+     # For drone 1
+     ros2 run drone_core drone_core --ros-args \
+         -r __node:=drone1 \
+         -p drone_name:=drone1 \
+         -p px4_namespace:=/fmu/ \
+         -p mav_sys_id:=1
+   
+     # For drone 2 
+     ros2 run drone_core drone_core --ros-args \
+         -r __node:=drone2 \
+         -p drone_name:=drone2 \
+         -p px4_namespace:=/px4_1/fmu/ \
+         -p mav_sys_id:=2
+   
+     # For additional drones, follow the same pattern:
+     # - Increment __node and drone_name (drone3, drone4, etc.)
+     # - Use /px4_N/fmu/ namespace where N is the drone number
+     ```
+   
+   - For local development, a single `drone_core` Docker container can run multiple `drone_core` SDK instances, each controlling a different drone. This is possible because everything runs locally with low latency and high bandwidth and `micro_agent` can handle multiple connections on same port. 
+   
+   - For production deployments, each drone requires its own companion computer (e.g., Raspberry Pi) with dedicated Docker containers for `drone_core` and `micro_agent`. This ensures optimal performance and reliability by maintaining direct, low-latency communication between the control software and the PX4 flight controller.
+   
+   - `drone_gcs_cli` continues to operate the same in either setup; using ROS 2 topics and services on the network. 
+   
+     
+   **Notes on Docker**:
+   - Our development containers (`drone_core`, `micro_agent`) are intentionally minimal on startup in `docker-compose.dev.yml` - they don't automatically run their main applications. This design gives you full control over what runs and when via `docker exec`, making it easier to test different configurations and debug issues. The `agent_system` container, however, defaults to running its main script.
+   - All your development work (source code, builds, installations, and logs) is mounted from your host machine into the container. This means you can edit code in your preferred IDE and see changes immediately without rebuilding the container (though C++/Python builds like `colcon build` or Python script restarts are still needed).
+   - **Viewing Container Logs**: To view the logs for a specific running container, you can use the `docker logs` command. For example, to see the logs for the `drone_core_node` container:
+     ```bash
+     docker logs drone_core_node
+     ```
+     To follow the logs in real-time (similar to `tail -f`):
+     ```bash
+     docker logs -f drone_core_node
+     ```
+     Replace `drone_core_node` with the name of the container you want to inspect (e.g., `micro_agent_service`, `agent_system_node`). You can find the names of your running containers using `docker ps`.
 
 5. **Start and Use AI Agent System**:
 
-> ### `agent_system` Container
-   >
-   > - This container runs the AI agent (`run_basic_agent.py`), which uses tools to interact with services provided by `drone_core`.
-   > - It requires the `OPENAI_API_KEY` environment variable to be set. Ensure this is exported in your host shell before running `docker compose up`, or manage it via an `.env` file recognized by Docker Compose.
-   >
-   > **Running the Agent:**
-   > The `agent_system` service in `docker-compose.dev.yml` is configured to run `python3 src/drone_agent_system/run_basic_agent.py` by default when the container starts.
-   >
-   > 1. **Ensure Prerequisite Services are Running**:
-   >    - PX4 SITL (on the same machine, as per earlier notes).
-   >    - `micro_agent` container with the `MicroXRCEAgent` binary running inside it.
-   >    - `drone_core` container with the `drone_core` ROS 2 node running inside it (providing services like `/drone1/arm`).
-   > 2. **Start the `agent_system` service** (if not already started with other services):
-   >    ```bash
-   >    # In ws_droneOS directory on host
-   >    # Ensure OPENAI_API_KEY is exported in this shell
-   >    export OPENAI_API_KEY="your_openai_api_key"
-   >    docker compose -f docker/dev/docker-compose.dev.yml up -d --build agent_system 
-   >    ```
-   >    (If you started all services together, including `agent_system`, it should already be running).
-   > 3. **Interacting with the Agent:**
-   >    Since `run_basic_agent.py` uses `input()` for commands, direct interaction with a detached container can be tricky.
-   >    *   **Option A (View Logs Only)**:
-   >        ```bash
-   >        docker logs -f agent_system_node
-   >        ```
-   >        This will show you the startup messages and any output from the agent, but you won't be able to type commands.
-   >    *   **Option B (Interactive Session - Recommended for Dev/Testing)**:
-   >        It's often easier to get an interactive shell in the container and run the script manually. To do this, you might first want to change the default `command` for the `agent_system` in `docker-compose.dev.yml` to something like `["sleep", "infinity"]` so it doesn't immediately run the script. Then:
-   >        ```bash
-   >        # After 'docker compose up -d ... agent_system' (with modified command or if it exited)
-   >        docker compose -f docker/dev/docker-compose.dev.yml exec agent_system bash
-   >        ```
-   >        Inside the `agent_system` container's shell:
-   >        ```bash
-   >        # The OPENAI_API_KEY should be inherited from the container's environment
-   >        source /opt/ros/humble/setup.bash
-   >        python3 src/drone_agent_system/run_basic_agent.py
-   >        ```
-   >        Now you can type commands directly to the "Drone Agent>" prompt.
-   >    *   **Option C (Attach - if tty and stdin_open are configured)**:
-   >        If you modify `docker-compose.dev.yml` for the `agent_system` service to include:
-   >        ```yaml
-   >        stdin_open: true # Equivalent to -i in docker run
-   >        tty: true      # Equivalent to -t in docker run
-   >        ```
-   >        And run `docker compose -f docker/dev/docker-compose.dev.yml up --build agent_system` (without `-d`), you might be able to interact directly.
-   >    *   **Option D (Interactive Session using `docker compose run` - Recommended)**:
-   >        For a reliable interactive session, especially if Option C doesn't provide input capability, use the `docker compose run` command. This command is designed for running one-off tasks with a service and correctly handles TTY allocation.
-   >        ```bash
-   >        # In ws_droneOS directory on host, in an external terminal (e.g., macOS Terminal app)
-   >        # Ensure OPENAI_API_KEY is exported in this shell or set in your .env file
-   >        # export OPENAI_API_KEY="your_openai_api_key" 
-   >        docker compose -f docker/dev/docker-compose.dev.yml run --rm --service-ports agent_system
-   >        ```
-   >        This will start the `agent_system` container, and you should see the `Drone Agent>` prompt, allowing you to type commands directly. The `--rm` flag ensures the container is removed when you exit (e.g., by typing `exit` at the prompt or pressing `Ctrl+C`).
-   >
-   > **Troubleshooting**:
-   > - If the agent script reports errors about not finding services, ensure `drone_core` is running correctly and that DDS discovery is working (all services on `ROS_DOMAIN_ID=0` and `network_mode: "host"` or properly configured networking).
-   > - Check `docker logs agent_system_node` for any Python errors or messages from the OpenAI SDK.
-
-6. **Use GCS CLI**: For testing, open a terminal and run the GCS CLI through its own Docker image:
-   ```bash
-   cd ws_droneOS
-   docker compose -f docker/dev/gcs/docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1
-   ```
-   - The CLI defaults to targeting 'drone1'. Use the `target drone2` command to switch to the second drone.
-   - Send commands (e.g., `set_offboard`, `arm`, `pos 0 0 -5 0`, `land`). Only the targeted drone should react.
-   - To exit the GCS CLI and stop the container, press `CTRL+C`.
-
-   > **Note**: The GCS CLI runs in its own container for several benefits:
-   > - Ensures proper ROS 2 DDS communication with the drone nodes via host networking
-   > - Provides a consistent  environment with all required dependencies
-   > - Allows running the CLI from any machine that has Docker and Tailscale VPN installed
-   > - Isolates the CLI from the development environment, making it suitable for both development and production use
-   > - Simplifies deployment as the container can be run on any machine that needs to control the drones (requires Tailscale VPN for remote access)
+### `agent_system` Container
+   
+   - This container runs the AI agent (`run_basic_agent.py`), which uses tools to interact with services provided by `drone_core`.
+   - It requires the `OPENAI_API_KEY` environment variable to be set. Ensure this is exported in your host shell before running `docker compose up`, or manage it via an `.env` file recognized by Docker Compose.
+   
+   **Running the Agent:**
+   The `agent_system` service in `docker-compose.dev.yml` is configured to run `python3 src/drone_agent_system/run_basic_agent.py` by default when the container starts.
+   
+   1. **Ensure Prerequisite Services are Running**:
+      - PX4 SITL (on the same machine, as per earlier notes).
+      - `micro_agent` container with the `MicroXRCEAgent` binary running inside it.
+      - `drone_core` container with the `drone_core` ROS 2 node running inside it (providing services like `/drone1/arm`).
+   2. **Start the `agent_system` service** (if not already started with other services):
+      ```bash
+      # In ws_droneOS directory on host
+      # Ensure OPENAI_API_KEY is exported in this shell
+      export OPENAI_API_KEY="your_openai_api_key"
+      docker compose -f docker/dev/docker-compose.dev.yml up -d --build agent_system 
+      ```
+      (If you started all services together, including `agent_system`, it should already be running).
+   3. **Interacting with the Agent:**
+      Since `run_basic_agent.py` uses `input()` for commands, direct interaction with a detached container can be tricky.
+      *   **Option A (View Logs Only)**:
+          ```bash
+          docker logs -f agent_system_node
+          ```
+          This will show you the startup messages and any output from the agent, but you won't be able to type commands.
+      *   **Option B (Interactive Session - Recommended for Dev/Testing)**:
+          It's often easier to get an interactive shell in the container and run the script manually. To do this, you might first want to change the default `command` for the `agent_system` in `docker-compose.dev.yml` to something like `["sleep", "infinity"]` so it doesn't immediately run the script. Then:
+          ```bash
+          # After 'docker compose up -d ... agent_system' (with modified command or if it exited)
+          docker compose -f docker/dev/docker-compose.dev.yml exec agent_system bash
+          ```
+          Inside the `agent_system` container's shell:
+          ```bash
+          # The OPENAI_API_KEY should be inherited from the container's environment
+          source /opt/ros/humble/setup.bash
+          python3 src/drone_agent_system/run_basic_agent.py
+          ```
+          Now you can type commands directly to the "Drone Agent>" prompt.
+      *   **Option C (Attach - if tty and stdin_open are configured)**:
+          If you modify `docker-compose.dev.yml` for the `agent_system` service to include:
+          ```yaml
+          stdin_open: true # Equivalent to -i in docker run
+          tty: true      # Equivalent to -t in docker run
+          ```
+          And run `docker compose -f docker/dev/docker-compose.dev.yml up --build agent_system` (without `-d`), you might be able to interact directly.
+      *   **Option D (Interactive Session using `docker compose run` - Recommended)**:
+          For a reliable interactive session, especially if Option C doesn't provide input capability, use the `docker compose run` command. This command is designed for running one-off tasks with a service and correctly handles TTY allocation.
+          ```bash
+          # In ws_droneOS directory on host, in an external terminal (e.g., macOS Terminal app)
+          # Ensure OPENAI_API_KEY is exported in this shell or set in your .env file
+          # export OPENAI_API_KEY="your_openai_api_key" 
+          docker compose -f docker/dev/docker-compose.dev.yml run --rm --service-ports agent_system
+          ```
+          This will start the `agent_system` container, and you should see the `Drone Agent>` prompt, allowing you to type commands directly. The `--rm` flag ensures the container is removed when you exit (e.g., by typing `exit` at the prompt or pressing `Ctrl+C`).
+   
+   **Troubleshooting**:
+   - If the agent script reports errors about not finding services, ensure `drone_core` is running correctly and that DDS discovery is working (all services on `ROS_DOMAIN_ID=0` and `network_mode: "host"` or properly configured networking).
+   - Check `docker logs agent_system_node` for any Python errors or messages from the OpenAI SDK.
 
 6. **Cleanup**: When done, stop all services:
    ```bash
    docker compose -f docker-compose.dev.yml down
    ```
    Then stop the PX4 SITL instances in their respective terminals with `CTRL+C`.
+
+## Using the GCS CLI
+
+For testing, open a terminal and run the GCS CLI through its own Docker image:
+```bash
+cd ws_droneOS
+docker compose -f docker/dev/gcs/docker-compose.gcs.yml run --rm -it gcs_cli ros2 run drone_gcs_cli drone_gcs_cli -d drone1
+```
+- The CLI defaults to targeting 'drone1'. Use the `target drone2` command to switch to the second drone.
+- Send commands (e.g., `set_offboard`, `arm`, `pos 0 0 -5 0`, `land`). Only the targeted drone should react.
+- To exit the GCS CLI and stop the container, press `CTRL+C`.
+
+**Note**: The GCS CLI runs in its own container for several benefits:
+- Ensures proper ROS 2 DDS communication with the drone nodes via host networking
+- Provides a consistent  environment with all required dependencies
+- Allows running the CLI from any machine that has Docker and Tailscale VPN installed
+- Isolates the CLI from the development environment, making it suitable for both development and production use
+- Simplifies deployment as the container can be run on any machine that needs to control the drones (requires Tailscale VPN for remote access)
 
 ### Example: Running on a Real Drone (Raspberry Pi)
 
@@ -439,16 +361,16 @@ Use `docker/prod/docker-compose.yml` for real drone deployment
 This builds the docker containers and runs drone_core and micro_agent automatically. and with restart:unless-stopped it will restart on boot. This means Docker will automatically restart your containers on boot, as long as they were running before the reboot. Now you should be able to send commands to your real drone hardware from the GCS CLI. 
 
 
-  >`drone_core`:
-   >  - Pre-built ROS 2 Humble image with all dependencies
-    > - Contains compiled `drone_core` node and SDK
-     >- Only mounts logs directory for persistence
-     >- Configured for specific drone ID and MAVLink system ID
+  `drone_core`:
+    - Pre-built ROS 2 Humble image with all dependencies
+    - Contains compiled `drone_core` node and SDK
+    - Only mounts logs directory for persistence
+    - Configured for specific drone ID and MAVLink system ID
   
-  >`micro_agent`:
-  >   - Pre-built agent binary optimized for production
-   >  - Configured for serial communication with PX4
-    > - Includes udev rules for stable device naming
+  `micro_agent`:
+    - Pre-built agent binary optimized for production
+    - Configured for serial communication with PX4
+    - Includes udev rules for stable device naming
 - Uses host network mode for Tailscale VPN connectivity
 - Supports multi-drone setups with unique node names and MAVLink IDs
 - Each physical drone requires its own companion computer running these two containers
@@ -464,11 +386,11 @@ This builds the docker containers and runs drone_core and micro_agent automatica
    - Ensure the RPi user has permission to access the serial device: `sudo usermod -a -G dialout $USER` and reboot
 
 
-> **Important Notes**:
-> - The `docker-compose.yml` file is already configured for a single real drone with:
->   - Serial communication to PX4
->   - Host networking for Tailscale/ROS2 communication
->   - Default configuration for drone1
+**Important Notes**:
+- The `docker-compose.yml` file is already configured for a single real drone with:
+  - Serial communication to PX4
+  - Host networking for Tailscale/ROS2 communication
+  - Default configuration for drone1
 
 ### Deployment Scenarios: SITL vs. Real Drone
 
@@ -480,11 +402,11 @@ In contrast, the **Real Drone** scenario involves running PX4 on an actual fligh
 
 In summary, SITL is best suited for rapid development and simulation on a single machine using network-based communication, while the Real Drone setup is designed for actual flight, requiring hardware connections and often more complex networking. The way the Micro XRCE-DDS Agent interfaces with PX4—UDP for SITL, Serial/USB for real hardware—is the key technical difference.
 
-> **Note on HITL (Hardware-In-The-Loop)**: This approach runs PX4 on real hardware but uses simulated sensors. While possible using Serial/USB or UDP, this configuration is still experimental and not fully documented here.
+**Note on HITL (Hardware-In-The-Loop)**: This approach runs PX4 on real hardware but uses simulated sensors. While possible using Serial/USB or UDP, this configuration is still experimental and not fully documented here.
 
-> **Note**: The Micro XRCE-DDS Agent command and PX4 parameters (e.g., `XRCE_DDS_CFG`, baud rates) must be configured according to your specific setup:
-> - For SITL: Use UDP communication with appropriate port settings
-> - For Real Drone: Configure serial baud rate and device path
+**Note**: The Micro XRCE-DDS Agent command and PX4 parameters (e.g., `XRCE_DDS_CFG`, baud rates) must be configured according to your specific setup:
+- For SITL: Use UDP communication with appropriate port settings
+- For Real Drone: Configure serial baud rate and device path
 
 ### Remote Communication (e.g., over 4G/WAN)
 
