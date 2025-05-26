@@ -57,7 +57,17 @@ services:
     # --- COMMAND OVERRIDE (CRITICAL) ---
     # Provides the specific arguments for THIS drone.
     # The ENTRYPOINT script will source setup files first
-    command: ["bash", "-c", "while true; do sleep 1000; done"]
+    command:
+      - bash
+      - -c
+      - |
+        . /opt/ros/humble/setup.bash
+        . /root/ws_droneOS/install/setup.bash
+        ros2 run drone_core drone_core --ros-args \
+          -r __node:=drone1 \
+          -p drone_name:=drone1 \
+          -p px4_namespace:=/fmu/ \
+          -p mav_sys_id:=1
 
   # --- Micro XRCE-DDS Agent Service ---
   # Bridges communication between ROS 2 (DDS) and PX4 SITL instances
@@ -91,7 +101,12 @@ services:
       - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
       # Whitelist all interfaces for Fast-RTPS (temporary for testing)
       - FASTRTPS_WHITELIST_INTERFACES=all
-    command: ["bash", "-c", "while true; do sleep 1000; done"]
+    command:
+      - bash
+      - -c
+      - |
+        cd /root/ws_droneOS/Micro-XRCE-DDS-Agent/build && \
+        ./MicroXRCEAgent udp4 -p 8888
     volumes:
       - ../../Micro-XRCE-DDS-Agent:/root/ws_droneOS/Micro-XRCE-DDS-Agent
       # Mount the FastDDS config file
@@ -122,7 +137,7 @@ services:
       - ROS_LOG_SEVERITY_THRESHOLD=debug
       # DDS Domain ID (must match across all containers)
       - ROS_DOMAIN_ID=0
-      # DDS Discovery settings
+      # DDS Discovery settings      
       - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
       - FASTRTPS_WHITELIST_INTERFACES=all
       - DRONE_NAME=drone1 # Set a default drone name
@@ -167,7 +182,6 @@ services:
       # It's best to use Docker secrets or pass it from the host environment.
       # Example: OPENAI_API_KEY=${OPENAI_API_KEY} (if OPENAI_API_KEY is set on host)
       # Or load from a .env file if you mount one (see volumes)
-      # - OPENAI_API_KEY # This will pick it up if set in the host environment running docker compose or from env_file
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - ROS_DOMAIN_ID=0 # Must match other services
       - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
