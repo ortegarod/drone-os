@@ -1,0 +1,183 @@
+Edge TPU Runtime
+
+PyCoral Library
+
+TensorFlow Lite Model
+
+
+Requirements
+Linux Debian 10, or a derivative thereof (such as Ubuntu 18.04), and a system architecture of either x86-64, Armv7 (32-bit), or Armv8 (64-bit) (includes support for Raspberry Pi 3 Model B+, Raspberry Pi 4, and Raspberry Pi Zero 2)
+One available USB port (for the best performance, use a USB 3.0 port)
+Python 3.6 - 3.9
+
+1: Install the Edge TPU runtime
+
+1a: On Linux
+
+Add our Debian package repository to your system: echo "deb https://packages.cloud.google.com/apt coral-edgetpu-stable main" | sudo tee /etc/apt/sources.list.d/coral-edgetpu.list
+
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
+sudo apt-get update
+
+Install the Edge TPU runtime: sudo apt-get install libedgetpu1-std
+
+Now connect the USB Accelerator to your computer using the provided USB 3.0 cable. If you already plugged it in, remove it and replug it so the newly-installed udev rule can take effect.
+
+Confirm Parameters from USB device being detected
+Open the terminal and check for the USB devices that are connected as follows:
+
+
+
+
+Then continue to install the PyCoral library.
+
+2: Install the PyCoral library
+
+PyCoral is a Python library built on top of the TensorFlow Lite library to speed up your development and provide extra functionality for the Edge TPU.
+
+To install the PyCoral library (and its dependencies), use the following commands based on your system.
+
+Note: PyCoral currently supports Python 3.6 through 3.9. If your default version is something else, we suggest you install Python 3.9 with pyenv.
+
+2a: On Linux
+
+If you're using Debian-based Linux system (including a Raspberry Pi), install PyCoral as follows:
+
+sudo apt-get install python3-pycoral
+
+3: Run a model on the Edge TPU
+
+You’ve already installed PyCoral with apt-get… this is for the examples on Github (which include required models and other files required to run each example).
+
+https://github.com/google-coral/pycoral/tree/master/examples
+
+Now you're ready to run an inference on the Edge TPU.
+
+Follow these steps to perform image classification with our example code and MobileNet v2:
+
+Download the example code from GitHub: mkdir coral && cd coral
+
+git clone https://github.com/google-coral/pycoral.git
+
+cd pycoral
+
+Download the model, labels, and bird photo: bash examples/install_requirements.sh classify_image.py
+
+Run the image classifier with the bird photo (shown in figure 1):
+ python3 examples/classify_image.py \
+--model test_data/mobilenet_v2_1.0_224_inat_bird_quant_edgetpu.tflite \
+--labels test_data/inat_bird_labels.txt \
+--input test_data/parrot.jpg
+
+Figure 1. parrot.jpg
+You should see results like this:
+----INFERENCE TIME----
+Note: The first inference on Edge TPU is slow because it includes loading the model into Edge TPU memory.
+11.8ms
+3.0ms
+2.8ms
+2.9ms
+2.9ms
+-------RESULTS--------
+Ara macao (Scarlet Macaw): 0.75781
+
+
+To learn more about how the code works, take a look at the classify_image.py source code and read about how to run inference with TensorFlow Lite.
+
+Note: The example above uses the PyCoral API, which calls into the TensorFlow Lite Python API, but you can instead directly call the TensorFlow Lite Python API or use the TensorFlow Lite C++ API. For more information about these options, read the Edge TPU inferencing overview.
+
+Next steps
+
+To run some other models, such as real-time object detection, pose estimation, keyphrase detection, on-device transfer learning, and others, check out our example projects. In particular, if you want to try running a model with camera input (including support for the Raspberry Pi camera), try one of the several camera examples.
+
+https://github.com/google-coral/examples-camera
+
+If you want to train your own model, try these tutorials:
+Retrain an image classification model using post-training quantization (runs in Google Colab)
+Retrain an image classification model using quantization-aware training (runs in Docker)
+Retrain an object detection model using quantization-aware training (runs in Docker)
+Or to create your own model that's compatible with the Edge TPU, read TensorFlow Models on the Edge TPU.
+
+Run inference on the Edge TPU with Python
+
+To simplify development with Coral, we made the Edge TPU compatible with the standard TensorFlow Lite API. So if you already have code using the TensorFlow Lite API, then you can run a model on the Edge TPU by changing just a couple lines of code.
+And to make development even easier, we created a wrapper library—the PyCoral API—to handle a lot of boilerplate code that's required when running an inference with TensorFlow Lite. Plus, this library provides features specific for the Edge TPU, such as model pipelining and on-device transfer learning.
+
+In the following sections, we'll show you how to run an inference using the PyCoral API.
+
+Note: If you want to use C++, instead read Run inference on the Edge TPU with C++. And if you're using a microcontoller board, you need to use coralmicro.
+
+Run an inference with the PyCoral API
+
+The PyCoral API is a small set of convenience functions that initialize the TensorFlow Lite Interpreter with the Edge TPU delegate and perform other inferencing tasks such as parse a labels file, pre-process input tensors, and post-process output tensors for common models.
+
+To get started, all you need to do is the following:
+Install the PyCoral API.
+On Linux, you can install it with a Debian package:  sudo apt-get update
+
+sudo apt-get install python3-pycoral
+On Mac or Windows, you can install the Python wheel.
+In your Python code, import the pycoral module (or just some specific sub-modules).
+Initialize the TensorFlow Lite Interpreter for the Edge TPU by calling make_interpreter().
+Then use our "model adapter" functions to simplify your code—such as using classify.set_input() and classify.get_output() to process the input and output tensors—in combination with calls to the TensorFlow Lite Interpreter, as shown in the following example.
+
+Again, the workflow is entirely based on the TensorFlow Lite interpreter API, so you should understand that API first. 
+
+Note: TensorFlow Lite Interpreter API link redirects to “Get started with LiteRT” - and to make it more confusing there is now a new set of APIs called LiteRT Next - LiteRT Next is a new set of APIs that improves upon LiteRT, particularly in terms of hardware acceleration and performance for on-device ML and AI applications.
+
+Then you can use our Coral API to remove some of the boilerplate code for initializing the interpreter and processing your input and output tensors.
+
+For more detail about the APIs, see the PyCoral API reference.
+
+PyCoral API overview
+
+pycoral.utils.dataset  Utilities to help process a dataset.
+pycoral.utils.edgetpu  Utilities for using the TensorFlow Lite Interpreter with Edge TPU.
+pycoral.adapters.common  Functions to work with any model.
+pycoral.adapters.classify  Functions to work with a classification model.
+pycoral.adapters.detect  Functions to work with a detection model.
+pycoral.pipeline.pipelined_model_runner  The pipeline API allows you to run a segmented model across multiple Edge TPUs. For more information, see Pipeline a model with multiple Edge TPUs.
+pycoral.learn.backprop.softmax_regression  A softmax regression model for on-device backpropagation of the last layer.
+pycoral.learn.imprinting.engine  A weight imprinting engine that performs low-shot transfer-learning for image classification models. For more information about how to use this API and how to create the type of model required, see Retrain a classification model on-device with weight imprinting.
+
+Inferencing example
+
+Just to show how simple your code can be, the following is a complete script that runs a classification model using the PyCoral API:
+
+import os
+import pathlib
+from pycoral.utils import edgetpu
+from pycoral.utils import dataset
+from pycoral.adapters import common
+from pycoral.adapters import classify
+from PIL import Image
+
+# Specify the TensorFlow model, labels, and image
+script_dir = pathlib.Path(__file__).parent.absolute()
+model_file = os.path.join(script_dir, 'mobilenet_v2_1.0_224_quant_edgetpu.tflite')
+label_file = os.path.join(script_dir, 'imagenet_labels.txt')
+image_file = os.path.join(script_dir, 'parrot.jpg')
+
+# Initialize the TF interpreter
+interpreter = edgetpu.make_interpreter(model_file)
+interpreter.allocate_tensors()
+
+# Resize the image
+size = common.input_size(interpreter)
+image = Image.open(image_file).convert('RGB').resize(size, Image.ANTIALIAS)
+
+# Run an inference
+common.set_input(interpreter, image)
+interpreter.invoke()
+classes = classify.get_classes(interpreter, top_k=1)
+
+# Print the result
+labels = dataset.read_label_file(label_file)
+for c in classes:
+  print('%s: %.5f' % (labels.get(c.id, c.id), c.score))
+
+
+You can also find more example code and projects on our examples page.
+
+For more advanced features using the Coral API, also check out how to run multiple models with multiple Edge TPUs and perform on-device transfer-learning.

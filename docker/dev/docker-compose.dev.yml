@@ -188,6 +188,36 @@ services:
       - PYTHONUNBUFFERED=1 # For immediate Python print output
       # Add any other environment variables your agent might need
 
+  # --- Edge TPU Object Detector Service ---
+  # Runs object detection using Google Coral Edge TPU accelerator
+  object_detector:
+    build:
+      context: .
+      dockerfile: object_detector.dev.Dockerfile
+    container_name: object_detector_node
+    stdin_open: true
+    tty: true
+    network_mode: "host"
+    restart: unless-stopped
+    privileged: true # Required for USB device access
+    volumes:
+      # Mount models directory
+      - ../../models:/workspace/models
+      # Mount source code for custom detector development
+      - ../../src/object_detector:/workspace/src
+      # Mount logs
+      - ../../logs:/workspace/logs
+      # Mount the FastDDS config file
+      - ../../fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
+    devices:
+      # Pass through USB devices (Edge TPU will show up as a USB device)
+      - /dev/bus/usb:/dev/bus/usb
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      - PYTHONUNBUFFERED=1
+
 volumes:
   logs: # Declares that the host path './logs' is expected
     driver: local

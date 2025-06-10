@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  edge_tpu_test:
+    build:
+      context: ../..
+      dockerfile: docker/dev/edge_tpu_test.Dockerfile
+    container_name: edge_tpu_test
+    stdin_open: true
+    tty: true
+    privileged: true  # Required for USB access
+    volumes:
+      # Mount source code for testing
+      - ../../src/object_detector:/workspace/src
+      # Mount models directory
+      - ../../models:/workspace/models
+    devices:
+      # Pass through USB devices
+      - /dev/bus/usb:/dev/bus/usb
