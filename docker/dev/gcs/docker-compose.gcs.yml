@@ -33,9 +33,8 @@ services:
       - ROS_DOMAIN_ID=0
       # DDS Discovery settings
       - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
-      # Whitelist all interfaces for Fast-RTPS (temporary for testing)
-      - FASTRTPS_WHITELIST_INTERFACES=all
+      # - FASTRTPS_WHITELIST_INTERFACES=all # Commented out for testing
 
 volumes:
   logs: # Declares that the host path './logs' is expected
-    driver: local 
+    driver: local
