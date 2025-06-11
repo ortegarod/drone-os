@@ -1,0 +1,14 @@
+# Google Coral Edge TPU USB Accelerator udev rules
+# This handles both device IDs that the Edge TPU presents:
+# - 1a6e:089a (before driver initialization)  
+# - 18d1:9302 (after driver initialization)
+
+# Before driver loads - Global Unichip Corp device
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1a6e", ATTRS{idProduct}=="089a", MODE="0664", GROUP="plugdev", TAG+="uaccess"
+
+# After driver loads - Google Inc device  
+SUBSYSTEM=="usb", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="9302", MODE="0664", GROUP="plugdev", TAG+="uaccess"
+
+# Alternative rules for older systems that might need different approach
+KERNEL=="hidraw*", ATTRS{idVendor}=="1a6e", ATTRS{idProduct}=="089a", MODE="0664", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="9302", MODE="0664", GROUP="plugdev"

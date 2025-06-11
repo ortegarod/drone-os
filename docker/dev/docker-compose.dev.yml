@@ -190,10 +190,11 @@ services:
 
   # --- Edge TPU Object Detector Service ---
   # Runs object detection using Google Coral Edge TPU accelerator
+  # WORKING: ROS 2 Galactic + Edge TPU + Ubuntu 20.04 + Python 3.8
   object_detector:
     build:
       context: .
-      dockerfile: object_detector.dev.Dockerfile
+      dockerfile: object_detector_ros2.dev.Dockerfile
     container_name: object_detector_node
     stdin_open: true
     tty: true

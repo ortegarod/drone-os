@@ -35,7 +35,7 @@ class EdgeTPUDetector:
         self.threshold = threshold
         
         # Load labels
-        self.labels = read_label_file(labels_path) if labels_path else {}
+        self.labels = dataset.read_label_file(labels_path) if labels_path else {}
         
         # Initialize the TF interpreter for Edge TPU
         print("Initializing Edge TPU...")

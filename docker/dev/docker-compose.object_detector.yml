@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  object_detector:
+    build:
+      context: ../..
+      dockerfile: docker/dev/object_detector_ros2.dev.Dockerfile
+    container_name: object_detector_node
+    stdin_open: true
+    tty: true
+    privileged: true  # Required for Edge TPU USB access
+    network_mode: "host"  # Required for ROS 2 communication
+    volumes:
+      # Mount source code for development
+      - ../../src/object_detector:/workspace/src
+      # Mount models directory  
+      - ../../models:/workspace/models
+      # Mount logs for debugging
+      - ../../logs:/workspace/logs
+    devices:
+      # Pass through USB devices for Edge TPU
+      - /dev/bus/usb:/dev/bus/usb
+    environment:
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/workspace/fastdds_config.xml
+    # Auto-restart unless manually stopped
+    restart: unless-stopped
