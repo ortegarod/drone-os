@@ -135,28 +135,19 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
    
    ### `micro_agent` Container
    
-   - This container is used to build and run the DDS agent that bridges ROS 2 and PX4. The agent source and build directories are mounted from the host. You only need to rebuild the agent if you change the source code or delete the build artifacts. The compiled binary and build directory persist across container restarts due to the volume mount.
-   - TODO: Revisit using the official eProsima Micro XRCE-DDS Agent Docker image. We currently build from source because the official repo did not compile correctly in some environments without a small change.
+   - This container automatically builds and runs the DDS agent that bridges ROS 2 and PX4. The agent starts automatically when the container launches.
+   - **Verification**: Check that the agent is running correctly by viewing logs:
      ```bash
-     # Enter the micro_agent container
-     docker compose -f docker/dev/docker-compose.dev.yml exec micro_agent bash
-     
-     # Only build if you haven't built before or if you've changed the source code
-     # If you've already built, you can skip to the 'Start the agent' step
-     cd /root/ws_droneOS/Micro-XRCE-DDS-Agent
-     mkdir build && cd build
-     cmake ..
-     make
-     make install
-     ldconfig /usr/local/lib/
-     
-     # Start the agent (in the same shell)
-     # Make sure you're in the build directory when running the agent
-     cd /root/ws_droneOS/Micro-XRCE-DDS-Agent/build
-     ./MicroXRCEAgent udp4 -p 8888
+     docker logs -f micro_agent_service
      ```
+     You should see initialization messages indicating creation of topics, subscribers, and datareaders, confirming PX4 has connected to the agent.
    
-     **Note**: When you start the agent, watch for the initialization output. You should see a series of messages indicating the creation of topics, subscribers, and datareaders. This output confirms that PX4 has successfully connected to the agent and is setting up the necessary DDS communication channels. If you don't see these messages, it might indicate that PX4 hasn't connected properly.
+   - **Manual rebuild** (only needed if you modify agent source code):
+     ```bash
+     docker compose -f docker/dev/docker-compose.dev.yml exec micro_agent bash
+     cd /root/ws_droneOS/Micro-XRCE-DDS-Agent
+     mkdir build && cd build && cmake .. && make && make install && ldconfig /usr/local/lib/
+     ```
    
    
 
@@ -203,38 +194,27 @@ By correctly configuring the `initialPeersList` and `metatrafficUnicastLocatorLi
 
 ### `drone_core` Container
    
-
-   - Now that we have the containers built, we have our development environment all setup and ready to run our Drone SDK. To do this we need to "enter" the container. Note: look into VSCode extensions for coding in Docker container shell.
-   
+   - This container automatically builds and runs the Drone SDK. By default, it starts `drone1` connected to PX4 SITL.
+   - **Verification**: Check that drone_core is running correctly:
      ```bash
-     # Enter the drone_core container - this gives us a clean, optimized ROS 2 environment where we can run our Drone SDK code. 
+     docker logs -f drone_core_node
+     ```
+     You should see service initialization messages for `/drone1/arm`, `/drone1/takeoff`, etc.
    
+   - **Manual development** (for code changes or additional drones):
+     ```bash
+     # Enter the container for development
      docker compose -f docker/dev/docker-compose.dev.yml exec drone_core bash
      
-     # Build packages
-     cd /root/ws_droneOS
-     colcon build
-     source install/setup.bash
+     # Rebuild after code changes
+     cd /root/ws_droneOS && colcon build && source install/setup.bash
      
-     # Run the drone_core executable for each drone - required parameters must match your PX4 SITL instance configuration!
-   
-     # For drone 1
-     ros2 run drone_core drone_core --ros-args \
-         -r __node:=drone1 \
-         -p drone_name:=drone1 \
-         -p px4_namespace:=/fmu/ \
-         -p mav_sys_id:=1
-   
-     # For drone 2 
+     # Run additional drone instances manually (if needed)
      ros2 run drone_core drone_core --ros-args \
          -r __node:=drone2 \
          -p drone_name:=drone2 \
          -p px4_namespace:=/px4_1/fmu/ \
          -p mav_sys_id:=2
-   
-     # For additional drones, follow the same pattern:
-     # - Increment __node and drone_name (drone3, drone4, etc.)
-     # - Use /px4_N/fmu/ namespace where N is the drone number
      ```
    
    - For local development, a single `drone_core` Docker container can run multiple `drone_core` SDK instances, each controlling a different drone. This is possible because everything runs locally with low latency and high bandwidth and `micro_agent` can handle multiple connections on same port. 
@@ -245,7 +225,7 @@ By correctly configuring the `initialPeersList` and `metatrafficUnicastLocatorLi
    
      
    **Notes on Docker**:
-   - Our development containers (`drone_core`, `micro_agent`) are intentionally minimal on startup in `docker-compose.dev.yml` - they don't automatically run their main applications. This design gives you full control over what runs and when via `docker exec`, making it easier to test different configurations and debug issues. The `agent_system` container, however, defaults to running its main script.
+   - The development containers (`drone_core`, `micro_agent`) automatically start their main applications when launched. The `drone_core` container runs the drone SDK, and `micro_agent` starts the XRCE-DDS bridge to PX4. The `agent_system` container is configured for interactive mode and requires manual startup or the `docker compose run` command for interactive sessions.
    - All your development work (source code, builds, installations, and logs) is mounted from your host machine into the container. This means you can edit code in your preferred IDE and see changes immediately without rebuilding the container (though C++/Python builds like `colcon build` or Python script restarts are still needed).
    - **Viewing Container Logs**: To view the logs for a specific running container, you can use the `docker logs` command. For example, to see the logs for the `drone_core_node` container:
      ```bash

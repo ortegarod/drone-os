@@ -1,0 +1,31 @@
+# Service to get current drone state information
+
+# Request (no parameters needed)
+---
+# Response
+bool success                # True if state data is available/valid
+string message             # Optional status message
+
+# Position data (NED frame)
+float32 local_x            # Local X position (meters)
+float32 local_y            # Local Y position (meters) 
+float32 local_z            # Local Z position (meters, positive down)
+float32 local_yaw          # Local yaw angle (radians)
+bool position_valid        # True if position data is valid
+
+# Velocity data (NED frame)
+float32 velocity_x         # Local X velocity (m/s)
+float32 velocity_y         # Local Y velocity (m/s)
+float32 velocity_z         # Local Z velocity (m/s)
+bool velocity_valid        # True if velocity data is valid
+
+# State information
+string nav_state           # Navigation state (OFFBOARD, MANUAL, etc.)
+string arming_state        # Arming state (ARMED, DISARMED)
+string landing_state       # Landing state (AIRBORNE, LANDED, etc.)
+
+# Global position (GPS)
+float64 latitude           # Latitude (degrees)
+float64 longitude          # Longitude (degrees)  
+float32 altitude           # Altitude (meters, AMSL)
+bool global_position_valid # True if GPS data is valid

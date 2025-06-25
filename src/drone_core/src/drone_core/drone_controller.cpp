@@ -77,6 +77,12 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
         std::bind(&DroneController::set_position_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_position_service_->get_service_name());
 
+    // Create GetState service
+    get_state_service_ = node_->create_service<drone_interfaces::srv::GetState>(
+        "/" + name_ + "/get_state",
+        std::bind(&DroneController::get_state_callback, this, _1, _2, _3));
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), get_state_service_->get_service_name());
+
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] All services created.", name_.c_str());
 }
 
@@ -579,4 +585,66 @@ void DroneController::set_position_callback(
         response->success = false;
         response->message = std::string("Exception during set_position: ") + e.what();
     } 
+}
+
+// --- Added GetState Callback Implementation ---
+void DroneController::get_state_callback(
+    const std::shared_ptr<rmw_request_id_t> /*request_header*/,
+    const std::shared_ptr<drone_interfaces::srv::GetState::Request> /*request*/,
+    std::shared_ptr<drone_interfaces::srv::GetState::Response> response)
+{
+    RCLCPP_DEBUG(node_->get_logger(), "[%s][Controller] Get State service called", name_.c_str());
+
+    try {
+        // Get position data
+        float local_x, local_y, local_z;
+        bool position_valid = drone_state_->get_latest_local_position(local_x, local_y, local_z);
+        
+        response->local_x = local_x;
+        response->local_y = local_y;
+        response->local_z = local_z;
+        response->position_valid = position_valid;
+
+        // Get yaw
+        float local_yaw = drone_state_->get_latest_local_yaw();
+        response->local_yaw = std::isnan(local_yaw) ? 0.0f : local_yaw;
+
+        // Get velocity data
+        float velocity_x, velocity_y, velocity_z;
+        bool velocity_valid = drone_state_->get_latest_local_velocity(velocity_x, velocity_y, velocity_z);
+        
+        response->velocity_x = velocity_x;
+        response->velocity_y = velocity_y;
+        response->velocity_z = velocity_z;
+        response->velocity_valid = velocity_valid;
+
+        // Get state information
+        response->nav_state = nav_state_enum_to_string(drone_state_->get_nav_state());
+        response->arming_state = arming_state_enum_to_string(drone_state_->get_arming_state());
+        response->landing_state = landing_state_enum_to_string(drone_state_->get_landing_state());
+
+        // Get global position data
+        double latitude, longitude;
+        float altitude;
+        bool global_position_valid = drone_state_->get_latest_global_position(latitude, longitude, altitude);
+        
+        response->latitude = latitude;
+        response->longitude = longitude;
+        response->altitude = altitude;
+        response->global_position_valid = global_position_valid;
+
+        // Set success
+        response->success = true;
+        response->message = "State data retrieved successfully";
+
+        RCLCPP_DEBUG(node_->get_logger(), 
+                    "[%s][Controller] State: Pos(%.2f,%.2f,%.2f) Valid:%d, Armed:%s, Mode:%s", 
+                    name_.c_str(), local_x, local_y, local_z, position_valid,
+                    response->arming_state.c_str(), response->nav_state.c_str());
+
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during get_state: %s", name_.c_str(), e.what());
+        response->success = false;
+        response->message = std::string("Exception during get_state: ") + e.what();
+    }
 }

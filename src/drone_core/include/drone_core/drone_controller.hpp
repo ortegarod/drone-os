@@ -17,6 +17,7 @@
 #include <vector> // Potentially used internally or by included headers
 #include <cmath> // Used for std::isnan in cpp, potentially by included headers
 #include <drone_interfaces/srv/set_position.hpp> // Used for SetPosition service
+#include <drone_interfaces/srv/get_state.hpp> // Used for GetState service
 
 /**
  * @class DroneController
@@ -145,6 +146,7 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_offboard_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_position_mode_service_;
     rclcpp::Service<drone_interfaces::srv::SetPosition>::SharedPtr set_position_service_; // Added SetPosition service
+    rclcpp::Service<drone_interfaces::srv::GetState>::SharedPtr get_state_service_; // Added GetState service
     // TODO: Add services for RTL, SetBehavior, etc. later
 
     /**
@@ -190,6 +192,11 @@ private:
     void set_position_callback(const std::shared_ptr<rmw_request_id_t> request_header,
                                const std::shared_ptr<drone_interfaces::srv::SetPosition::Request> request,
                                std::shared_ptr<drone_interfaces::srv::SetPosition::Response> response);
+
+    // Added GetState service callback declaration
+    void get_state_callback(const std::shared_ptr<rmw_request_id_t> request_header,
+                           const std::shared_ptr<drone_interfaces::srv::GetState::Request> request,
+                           std::shared_ptr<drone_interfaces::srv::GetState::Response> response);
 
     // TODO: Add callbacks for other services later
 };

@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
 from std_srvs.srv import Trigger
-from drone_interfaces.srv import SetPosition  # Assuming this is in the drone_interfaces package
+from drone_interfaces.srv import SetPosition, GetState  # Drone interfaces
 from agents import function_tool # For OpenAI Agents SDK
 import time
 
@@ -44,6 +44,10 @@ class DroneROS2Commander(Node):
         set_pos_service_name = f'/{drone_name}/set_position'
         self._service_clients_map['set_position'] = self.create_client(SetPosition, set_pos_service_name)
         self.get_logger().debug(f"  - Client created for {set_pos_service_name} and stored in map.")
+
+        get_state_service_name = f'/{drone_name}/get_state'
+        self._service_clients_map['get_state'] = self.create_client(GetState, get_state_service_name)
+        self.get_logger().debug(f"  - Client created for {get_state_service_name} and stored in map.")
 
     def _destroy_clients(self):
         # We need to iterate through our map to get the client objects to destroy.
@@ -164,13 +168,80 @@ class DroneROS2Commander(Node):
             msg = f"Service call '{client.srv_name}' timed out after 10 seconds."
             self.get_logger().error(msg)
             return False, msg
+
+    def _call_get_state_service(self):
+        service_name_suffix = 'get_state'
+        if service_name_suffix not in self._service_clients_map:
+            msg = f"Error: Client for service suffix '{service_name_suffix}' not found for drone '{self.target_drone}'."
+            self.get_logger().error(msg)
+            return False, msg, None
+            
+        client = self._service_clients_map[service_name_suffix]
+        
+        if not client.wait_for_service(timeout_sec=3.0):
+            msg = f"Error: Service '{client.srv_name}' not available after 3 seconds."
+            self.get_logger().error(msg)
+            return False, msg, None
+
+        request = GetState.Request()
+        self.get_logger().debug(f"Calling service '{client.srv_name}'...")
+        future = client.call_async(request)
+        self.executor.spin_until_future_complete(future, timeout_sec=10.0)
+
+        if future.done():
+            try:
+                response = future.result()
+                if response.success:
+                    self.get_logger().debug(f"Service '{client.srv_name}' response: Success")
+                    return True, response.message, response
+                else:
+                    self.get_logger().warning(f"Service '{client.srv_name}' response: Success=False, Message='{response.message}'")
+                    return False, response.message, response
+            except Exception as e:
+                msg = f"Service call '{client.srv_name}' failed with exception: {e}"
+                self.get_logger().error(msg)
+                return False, msg, None
+        else:
+            msg = f"Service call '{client.srv_name}' timed out after 10 seconds."
+            self.get_logger().error(msg)
+            return False, msg, None
             
     def get_latest_telemetry(self) -> dict:
-        # This method will be fully implemented in Phase 1 (refined)
-        self.get_logger().info("Fetching latest telemetry (currently placeholder).")
-        # In a real implementation, this would return self.current_telemetry
-        # which is updated by ROS subscribers.
-        return {"status": "Telemetry not yet implemented", "battery": 0, "position": {"x":0,"y":0,"z":0}}
+        # Use the real GetState service instead of placeholder
+        success, message, response = self._call_get_state_service()
+        
+        if not success or response is None:
+            self.get_logger().warning(f"Failed to get telemetry: {message}")
+            return {"status": "Failed to get telemetry", "error": message}
+        
+        # Convert response to dictionary for backward compatibility
+        return {
+            "status": "Real telemetry data",
+            "position": {
+                "x": response.local_x,
+                "y": response.local_y, 
+                "z": response.local_z,
+                "yaw": response.local_yaw,
+                "valid": response.position_valid
+            },
+            "velocity": {
+                "x": response.velocity_x,
+                "y": response.velocity_y,
+                "z": response.velocity_z,
+                "valid": response.velocity_valid
+            },
+            "states": {
+                "nav_state": response.nav_state,
+                "arming_state": response.arming_state,
+                "landing_state": response.landing_state
+            },
+            "global_position": {
+                "latitude": response.latitude,
+                "longitude": response.longitude,
+                "altitude": response.altitude,
+                "valid": response.global_position_valid
+            }
+        }
 
     def spin_once(self):
         """
@@ -270,7 +341,6 @@ def drone_set_position(x: float, y: float, z: float, yaw: float) -> str:
 def get_drone_telemetry() -> str:
     """
     Retrieves real-time telemetry data from the currently targeted drone.
-    (Placeholder: Full implementation deferred until telemetry topics/types are provided)
     Returns:
         str: A string representation of the drone's telemetry data.
     """
@@ -281,6 +351,39 @@ def get_drone_telemetry() -> str:
         return f"Current telemetry: {telemetry_data}"
     except Exception as e:
         return f"Error in get_drone_telemetry: {e}"
+
+@function_tool
+def get_drone_position() -> str:
+    """
+    Gets the current position and basic state of the targeted drone.
+    Returns position in NED frame (North-East-Down).
+    Returns:
+        str: Current position (X, Y, Z, Yaw) and state information (Armed, Flight Mode).
+    """
+    try:
+        commander = _get_commander()
+        success, message, response = commander._call_get_state_service()
+        
+        if not success or response is None:
+            return f"Failed to get drone position: {message}"
+        
+        # Format position information for the AI agent
+        pos_info = (
+            f"Position: X={response.local_x:.2f}m, Y={response.local_y:.2f}m, "
+            f"Z={response.local_z:.2f}m, Yaw={response.local_yaw:.2f}rad"
+        )
+        
+        state_info = (
+            f"State: {response.arming_state}, Mode: {response.nav_state}, "
+            f"Landing: {response.landing_state}"
+        )
+        
+        validity = f"Position Valid: {response.position_valid}"
+        
+        return f"{pos_info} | {state_info} | {validity}"
+        
+    except Exception as e:
+        return f"Error in get_drone_position: {e}"
 
 # Example of how to initialize and use (intended for the main agent script)
 if __name__ == '__main__':
