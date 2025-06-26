@@ -1,0 +1,12 @@
+# Service to trigger AI agent execution based on events
+# Request
+string trigger_type        # Type of trigger: POSITION_DRIFT, BATTERY_LOW, MODE_CHANGE, EXTERNAL_COMMAND, OBJECT_DETECTED, FAILSAFE_TRIGGERED, ANOMALY_DETECTED
+string context_data       # JSON context about the situation (position, state, sensor data, etc.)
+float32 priority          # 0.0-1.0 urgency level (1.0 = critical/immediate, 0.0 = low priority)
+string description        # Human-readable description of the trigger event
+---
+# Response
+bool success              # True if AI agent was executed successfully
+string response           # AI agent's response/analysis of the situation
+string[] commands_executed  # List of drone commands executed by AI agent
+string error_message      # Error message if success=false

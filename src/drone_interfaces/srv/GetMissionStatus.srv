@@ -1,0 +1,13 @@
+# Service to get current mission status
+# Request (no parameters needed)
+---
+# Response
+bool success            # True if status data is available
+string message          # Status message
+bool mission_valid      # True if a mission is loaded
+bool mission_finished   # True if mission completed
+bool mission_running    # True if mission is actively executing
+uint16 current_item     # Current mission item index (0-based)
+uint16 total_items      # Total number of mission items  
+uint32 mission_id       # ID of currently loaded mission
+float32 mission_progress # Progress percentage (0.0-1.0)

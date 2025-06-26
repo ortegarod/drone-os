@@ -1,10 +1,129 @@
 import rclpy
-from agents import Agent, Runner
+from agents import Agent, Runner, ModelSettings
 import drone_agent_tools # Import the module
 import os # For OPENAI_API_KEY
 import sys
 import traceback # Import the traceback module
+import asyncio
+import time
+from datetime import datetime
+from dataclasses import dataclass
+from typing import Optional
 from rclpy.executors import SingleThreadedExecutor # Need to import this for the test
+
+@dataclass
+class DroneContext:
+    drone_id: str = "drone1"
+    mission_active: bool = False
+    autonomous_mode: bool = True
+    last_command_time: Optional[datetime] = None
+    conversation_history: list = None
+    last_api_call_time: float = 0.0
+    
+    def __post_init__(self):
+        if self.conversation_history is None:
+            self.conversation_history = []
+
+def get_dynamic_instructions(ctx, agent) -> str:
+    """Dynamic instructions that include real-time drone state"""
+    try:
+        # Get current position for context
+        current_pos = drone_agent_tools.get_drone_position() if drone_agent_tools.drone_commander_instance else "Position unavailable"
+    except:
+        current_pos = "Position unavailable"
+    
+    mode_text = "AUTONOMOUS" if ctx.context.autonomous_mode else "MANUAL"
+    mission_text = "ACTIVE" if ctx.context.mission_active else "STANDBY"
+    
+    instructions = f"""You are an autonomous drone pilot for {ctx.context.drone_id}.
+
+CURRENT STATUS:
+- Position: {current_pos}
+- Mode: {mode_text} 
+- Mission: {mission_text}
+- Last command: {ctx.context.last_command_time or 'None'}
+
+CAPABILITIES:
+You can execute complex maneuvers using multiple tool calls in sequence:
+
+BASIC CONTROL:
+- get_drone_position() - Check current location and state
+- drone_set_offboard_mode() - Enter offboard control  
+- drone_arm() - Arm the drone
+- drone_set_position(x, y, z, yaw) - Move to specific position
+- drone_land() - Land safely
+- drone_disarm() - Disarm after landing
+
+MISSION PLANNING (REQUIRED for patterns/patrols):
+- upload_mission(waypoints_json) - Upload mission for patrols, patterns, multi-waypoint sequences
+- start_mission() - Execute uploaded mission autonomously with persistent monitoring
+- get_mission_status() - Monitor mission progress
+- pause_mission() / resume_mission() / stop_mission() - Mission control
+
+CRITICAL TOOL SELECTION:
+- Use upload_mission() + start_mission() for: patrols, patterns, surveys, any multi-waypoint sequence
+- Use drone_set_position() ONLY for: single simple moves to one location
+
+🚨 MANDATORY SEQUENCE FOR ALL MISSIONS 🚨
+For ANY patrol/pattern/mission request:
+1. FIRST: Calculate waypoint coordinates 
+2. SECOND: Call upload_mission() with JSON waypoint data
+3. THIRD: Call start_mission() to begin execution
+4. OPTIONAL: Monitor with get_mission_status() if needed
+
+⛔ NEVER call start_mission() without upload_mission() first!
+⛔ NEVER describe waypoints without actually calling upload_mission()!
+⛔ You MUST use the actual tool functions, not just describe them!
+
+COORDINATE SYSTEM - CRITICAL UNDERSTANDING:
+NED frame (North-East-Down) relative to takeoff position:
+- X: North direction (+ = north, - = south)  
+- Y: East direction (+ = east, - = west)
+- Z: Down direction (+ = underground, - = altitude)
+
+FOR ALTITUDE: Always use NEGATIVE Z values!
+- Z = -10 means 10 meters above takeoff
+- Z = -20 means 20 meters above takeoff  
+- Z = +5 means 5 meters below ground (WRONG!)
+
+FLIGHT PROCEDURES:
+1. For ANY pattern/patrol (even 2+ waypoints): ALWAYS use upload_mission() + start_mission()
+2. For single simple moves only: Use drone_set_position() 
+3. Always get current position first with get_drone_position()
+4. Calculate waypoints relative to current position for patterns
+
+NEVER use multiple drone_set_position() calls - use missions instead!
+
+PATTERN CALCULATIONS:
+- For radius patterns: Calculate waypoints around current position
+- For 100ft radius = ~30.5 meters radius
+- Example: Current at (0,0,-15), patrol waypoints could be:
+  [(30,0,-15), (0,30,-15), (-30,0,-15), (0,-30,-15)]
+
+PATROL MISSION EXAMPLE:
+For "patrol 50ft radius at 20ft altitude":
+1. Get current position first
+2. Calculate waypoints around current position (50ft = ~15.2m radius)"""
+    
+    instructions += '''
+3. Convert altitude: 20ft = 6.1m, so Z = -6.1 (NEGATIVE for altitude!)
+4. ACTUALLY CALL upload_mission() tool with JSON: [{"x": 15.2, "y": 0, "z": -6.1, "yaw": 0}, ...]
+5. ACTUALLY CALL start_mission() tool - mission runs persistently with automatic waypoint sequencing
+
+🚨 CRITICAL: You MUST actually use the tools, not just describe what you would do!
+🚨 For patrol commands, you MUST call upload_mission() then start_mission()
+🚨 DO NOT just say you are doing it - ACTUALLY DO IT using the function tools!
+
+ALTITUDE CONVERSION REFERENCE:
+- 10ft = 3.05m → Z = -3.05
+- 20ft = 6.1m → Z = -6.1  
+- 30ft = 9.15m → Z = -9.15
+- 50ft = 15.25m → Z = -15.25
+'''
+    
+    return instructions
+
+
 
 def main():
     # Ensure OPENAI_API_KEY is set
@@ -63,46 +182,38 @@ def main():
     # If setup was successful, proceed with agent logic
     # List of tool functions from the drone_agent_tools module
     tools_list = [
-        # drone_agent_tools.set_active_drone tool has been removed. All commands target 'drone1'.
+        # Basic drone control
         drone_agent_tools.drone_set_offboard_mode,
-        # drone_set_position_control_mode tool has been removed.
         drone_agent_tools.drone_arm,
-        # drone_takeoff tool has been removed.
         drone_agent_tools.drone_land,
         drone_agent_tools.drone_disarm,
         drone_agent_tools.drone_set_position,
-        drone_agent_tools.get_drone_telemetry # Includes the placeholder telemetry tool
+        drone_agent_tools.get_drone_telemetry,
+        drone_agent_tools.get_drone_position,
+        
+        # Mission planning and execution
+        drone_agent_tools.upload_mission,
+        drone_agent_tools.start_mission,
+        drone_agent_tools.pause_mission,
+        drone_agent_tools.resume_mission,
+        drone_agent_tools.stop_mission,
+        drone_agent_tools.get_mission_status
     ]
 
-    agent_instructions = (
-        "You are the mission-critical flight control system for the designated drone. Your function is to interpret high-level user commands and execute them by precisely sequencing low-level flight operations using the available tools. "
-        "Safety, adherence to GCS (Ground Control Station) protocols, and mission success are your primary directives. All commands implicitly target 'drone1'. "
-        "Core functions include: arming/disarming, managing flight modes (specifically offboard), and setting precise 3D position waypoints (x, y, z in NED frame, yaw in radians) for 'drone1'. "
-        "The 'drone_takeoff', 'drone_set_position_control_mode', and 'set_active_drone' tools have been deprecated to ensure all flight initiation and control are managed via explicit offboard procedures solely for 'drone1'. "
-        "System telemetry for 'drone1' is accessible via 'get_drone_telemetry'. "
-        "User commands will be interpreted as applying to 'drone1'. "
-        "For all position commands, remember: X, Y, Z are in meters (NED frame - North, East, Down), so a positive Z means moving downwards. Yaw is in radians. "
-        "\nIMPORTANT FLIGHT PROCEDURES (for 'drone1'):\n"
-        "1. Offboard Mode Takeoff/Initiating Flight: To take off or initiate flight in offboard mode, follow this sequence meticulously: "
-        "   a. Ensure the drone is in offboard mode. If not, call 'drone_set_offboard_mode'. Confirm success. "
-        "   b. Determine the target initial position. If the user specifies coordinates (x, y, z, yaw) or a relative altitude in their takeoff command, use those. If not specified, assume a default relative takeoff altitude of Z=-3.0 (3 meters straight up from current position) and maintain current X, Y, and yaw. Inform the user of the assumed coordinates when setting the position. For example, if the user says 'takeoff', you would state 'Setting initial position to current X, Y, Z=-3.0, current yaw.' before calling 'drone_set_position'. Avoid asking for confirmation unless the user's initial command is very ambiguous about the intent to take off. "
-        "   c. Call 'drone_set_position' with the target X, Y, Z, and yaw. Confirm success. "
-        "   d. After 'drone_set_position' is successfully confirmed, call 'drone_arm'. The drone will then attempt to move to the specified setpoint upon arming in offboard mode. "
-        "2. Changing Waypoints in Offboard Mode: To change the drone's target position or waypoint while it is already in flight under offboard mode and armed, simply call 'drone_set_position' with the new x, y, z, and yaw coordinates. The drone should then fly to this new setpoint. "
-        "3. Landing: Use 'drone_land' for landing. "
-        "4. General Safety: Before arming or initiating flight, it's good practice to confirm the drone is in a safe state, has sufficient battery (check telemetry if available), and is in the correct flight mode for the intended operation. "
-        "Always explain the sequence of commands you are about to execute if it's complex, especially for initiating flight, landing, or mode changes."
-    )
+    # Create drone context for this session
+    drone_context = DroneContext()
 
-    ai_drone_agent = Agent(
-        name="BasicDroneControllerAgent",
-        instructions=agent_instructions,
+    ai_drone_agent = Agent[DroneContext](
+        name="AutonomousDroneAgent", 
+        instructions=get_dynamic_instructions,  # Dynamic instructions function
         tools=tools_list,
-        # You might want to specify a model, e.g., model="gpt-4o-mini"
-        # model="gpt-4o-mini" # Example
+        model="gpt-4o",  # Use full gpt-4o for better tool usage reliability
+        model_settings=ModelSettings(
+            tool_choice="required"  # Force the agent to use tools for mission commands
+        )
     )
 
-    print("Basic Drone Agent CLI. Type 'exit' to quit.")
+    print("Autonomous Drone Agent. Type 'exit' to quit.")
     # Ensure instance is not None before accessing attributes, in case of early exit
     if drone_agent_tools.drone_commander_instance:
         print(f"Targeting drone: '{drone_agent_tools.drone_commander_instance.target_drone}' initially.")
@@ -116,42 +227,61 @@ def main():
         
     print("Make sure your ROS 2 environment is sourced and drone services are available.")
 
-    # Main application try/finally block for graceful shutdown
+    # Interactive CLI mode only
+    print("Running in interactive CLI mode.")
     try:
-        if sys.stdin.isatty():
-            print("Running in interactive mode. CLI is active.")
-            try:
-                while True:
-                    executor.spin_once(timeout_sec=0.05) 
-                    user_input = input("Drone Agent> ").strip()
-                    if not user_input:
-                        continue
-                    if user_input.lower() == "exit":
-                        print("Exiting agent...")
-                        break
-                    print(f"Sending to agent: '{user_input}'")
-                    result = Runner.run_sync(ai_drone_agent, user_input)
-                    if result and result.final_output:
-                        print(f"Agent Response: {result.final_output}")
-                    else:
-                        print("Agent did not produce a final output or an error occurred.")
-            except KeyboardInterrupt:
-                print("\nUser interrupted (interactive mode). Shutting down...")
-            except EOFError:
-                print("\nEOF received (interactive mode). Shutting down...")
-            except Exception as e:
-                print(f"An unexpected error occurred in the interactive main loop: {e}")
-                traceback.print_exc()
-        else:
-            print("Running in non-interactive mode. ROS node will spin. (No CLI input)")
-            try:
-                while rclpy.ok(): 
-                    executor.spin_once(timeout_sec=1.0) 
-            except KeyboardInterrupt:
-                print("\nUser interrupted (non-interactive mode). Shutting down...")
-            except Exception as e:
-                print(f"An unexpected error occurred in the non-interactive main loop: {e}")
-                traceback.print_exc()
+        while True:
+            executor.spin_once(timeout_sec=0.05) 
+            user_input = input("Drone Agent> ").strip()
+            if not user_input:
+                continue
+            if user_input.lower() == "exit":
+                print("Exiting agent...")
+                break
+            print(f"Sending to agent: '{user_input}'")
+            
+            # Rate limiting - minimum 2 seconds between API calls
+            current_time = time.time()
+            time_since_last_call = current_time - drone_context.last_api_call_time
+            if time_since_last_call < 2.0:
+                wait_time = 2.0 - time_since_last_call
+                print(f"Rate limiting: waiting {wait_time:.1f}s before API call...")
+                time.sleep(wait_time)
+            
+            # Update context for interactive mode
+            drone_context.autonomous_mode = False
+            drone_context.last_command_time = datetime.now()
+            drone_context.last_api_call_time = time.time()
+            
+            # Use context in interactive mode too - but clear history for mission commands to avoid confusion
+            if user_input.lower().startswith('patrol') or 'mission' in user_input.lower():
+                # Clear conversation history for mission commands to avoid tool sequence confusion
+                input_list = user_input
+                drone_context.conversation_history = []
+                print("DEBUG: Cleared conversation history for mission command")
+            elif drone_context.conversation_history:
+                input_list = drone_context.conversation_history + [{"role": "user", "content": user_input}]
+            else:
+                input_list = user_input
+            
+            result = Runner.run_sync(ai_drone_agent, input_list, context=drone_context)
+            
+            if result:
+                # Update conversation history
+                drone_context.conversation_history = result.to_input_list()
+                if result.final_output:
+                    print(f"Agent Response: {result.final_output}")
+                else:
+                    print("Agent did not produce a final output.")
+            else:
+                print("Agent error occurred.")
+    except KeyboardInterrupt:
+        print("\nUser interrupted. Shutting down...")
+    except EOFError:
+        print("\nEOF received. Shutting down...")
+    except Exception as e:
+        print(f"An unexpected error occurred in the main loop: {e}")
+        traceback.print_exc()
     finally:
         print("Cleaning up...")
         if drone_agent_tools.drone_commander_instance:

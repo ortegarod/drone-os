@@ -2,7 +2,8 @@ import rclpy
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
 from std_srvs.srv import Trigger
-from drone_interfaces.srv import SetPosition, GetState  # Drone interfaces
+from drone_interfaces.srv import SetPosition, GetState, UploadMission, MissionControl, GetMissionStatus  # Drone interfaces
+from drone_interfaces.msg import Waypoint
 from agents import function_tool # For OpenAI Agents SDK
 import time
 
@@ -48,6 +49,19 @@ class DroneROS2Commander(Node):
         get_state_service_name = f'/{drone_name}/get_state'
         self._service_clients_map['get_state'] = self.create_client(GetState, get_state_service_name)
         self.get_logger().debug(f"  - Client created for {get_state_service_name} and stored in map.")
+
+        # Mission services
+        upload_mission_service_name = f'/{drone_name}/upload_mission'
+        self._service_clients_map['upload_mission'] = self.create_client(UploadMission, upload_mission_service_name)
+        self.get_logger().debug(f"  - Client created for {upload_mission_service_name} and stored in map.")
+
+        mission_control_service_name = f'/{drone_name}/mission_control'
+        self._service_clients_map['mission_control'] = self.create_client(MissionControl, mission_control_service_name)
+        self.get_logger().debug(f"  - Client created for {mission_control_service_name} and stored in map.")
+
+        get_mission_status_service_name = f'/{drone_name}/get_mission_status'
+        self._service_clients_map['get_mission_status'] = self.create_client(GetMissionStatus, get_mission_status_service_name)
+        self.get_logger().debug(f"  - Client created for {get_mission_status_service_name} and stored in map.")
 
     def _destroy_clients(self):
         # We need to iterate through our map to get the client objects to destroy.
@@ -255,6 +269,105 @@ class DroneROS2Commander(Node):
         # self.get_logger().debug("Node-level spin_once() called, but executor is managed externally.")
         pass # Executor is spun by the main script
 
+    def _call_upload_mission_service(self, waypoints):
+        """Call the upload_mission service with a list of waypoints"""
+        client = self._service_clients_map.get('upload_mission')
+        if not client:
+            return False, "upload_mission service client not available", 0
+        
+        if not client.wait_for_service(timeout_sec=5.0):
+            return False, "upload_mission service not available", 0
+        
+        request = UploadMission.Request()
+        request.waypoints = waypoints
+        self.get_logger().info(f"Calling service '{client.srv_name}' with {len(waypoints)} waypoints...")
+        future = client.call_async(request)
+        self.executor.spin_until_future_complete(future, timeout_sec=10.0)
+
+        if future.done():
+            try:
+                response = future.result()
+                if response.success:
+                    self.get_logger().info(f"Service '{client.srv_name}' response: Success, Mission ID: {response.mission_id}")
+                    return True, response.message, response.mission_id
+                else:
+                    self.get_logger().warning(f"Service '{client.srv_name}' response: Success=False, Message='{response.message}'")
+                    return False, response.message, 0
+            except Exception as e:
+                msg = f"Service call '{client.srv_name}' failed with exception: {e}"
+                self.get_logger().error(msg)
+                return False, msg, 0
+        else:
+            msg = f"Service call '{client.srv_name}' timed out after 10 seconds."
+            self.get_logger().error(msg)
+            return False, msg, 0
+
+    def _call_mission_control_service(self, command, item_index=0):
+        """Call the mission_control service with a command"""
+        client = self._service_clients_map.get('mission_control')
+        if not client:
+            return False, "mission_control service client not available"
+        
+        if not client.wait_for_service(timeout_sec=5.0):
+            return False, "mission_control service not available"
+        
+        request = MissionControl.Request()
+        request.command = command
+        request.item_index = item_index
+        self.get_logger().info(f"Calling service '{client.srv_name}' with command: {command}...")
+        future = client.call_async(request)
+        self.executor.spin_until_future_complete(future, timeout_sec=10.0)
+
+        if future.done():
+            try:
+                response = future.result()
+                if response.success:
+                    self.get_logger().info(f"Service '{client.srv_name}' response: Success=True, Message='{response.message}'")
+                    return True, response.message
+                else:
+                    self.get_logger().warning(f"Service '{client.srv_name}' response: Success=False, Message='{response.message}'")
+                    return False, response.message
+            except Exception as e:
+                msg = f"Service call '{client.srv_name}' failed with exception: {e}"
+                self.get_logger().error(msg)
+                return False, msg
+        else:
+            msg = f"Service call '{client.srv_name}' timed out after 10 seconds."
+            self.get_logger().error(msg)
+            return False, msg
+
+    def _call_get_mission_status_service(self):
+        """Call the get_mission_status service"""
+        client = self._service_clients_map.get('get_mission_status')
+        if not client:
+            return False, "get_mission_status service client not available", None
+        
+        if not client.wait_for_service(timeout_sec=5.0):
+            return False, "get_mission_status service not available", None
+        
+        request = GetMissionStatus.Request()
+        self.get_logger().debug(f"Calling service '{client.srv_name}'...")
+        future = client.call_async(request)
+        self.executor.spin_until_future_complete(future, timeout_sec=10.0)
+
+        if future.done():
+            try:
+                response = future.result()
+                if response.success:
+                    self.get_logger().debug(f"Service '{client.srv_name}' response: Success")
+                    return True, response.message, response
+                else:
+                    self.get_logger().warning(f"Service '{client.srv_name}' response: Success=False, Message='{response.message}'")
+                    return False, response.message, response
+            except Exception as e:
+                msg = f"Service call '{client.srv_name}' failed with exception: {e}"
+                self.get_logger().error(msg)
+                return False, msg, None
+        else:
+            msg = f"Service call '{client.srv_name}' timed out after 10 seconds."
+            self.get_logger().error(msg)
+            return False, msg, None
+
     def shutdown(self):
         self.get_logger().info("Shutting down DroneROS2Commander node (executor managed externally).")
         self._destroy_clients()
@@ -321,12 +434,23 @@ def drone_disarm() -> str:
 @function_tool
 def drone_set_position(x: float, y: float, z: float, yaw: float) -> str:
     """
-    Sets the target position and yaw for the currently targeted drone in Offboard mode.
+    Sets the target position and yaw for SINGLE WAYPOINT movements only.
+    
+    WARNING: For patterns, patrols, or multiple waypoints, use upload_mission() + start_mission() instead!
+    This tool is only for simple single-point navigation.
+    
+    COORDINATE SYSTEM: NED (North-East-Down) frame relative to takeoff position
+    - X: North direction in meters (positive = north, negative = south)
+    - Y: East direction in meters (positive = east, negative = west)  
+    - Z: Down direction in meters (POSITIVE = down/underground, NEGATIVE = up/altitude)
+    
+    CRITICAL: For altitude, use NEGATIVE Z values (e.g., Z=-20 means 20 meters above takeoff)
+    
     Args:
-        x (float): Target X position (meters, NED frame).
-        y (float): Target Y position (meters, NED frame).
-        z (float): Target Z position (meters, NED frame, positive down).
-        yaw (float): Target yaw angle (radians).
+        x (float): Target X position in meters (North direction from takeoff point)
+        y (float): Target Y position in meters (East direction from takeoff point)  
+        z (float): Target Z position in meters (Down direction - USE NEGATIVE for altitude!)
+        yaw (float): Target yaw angle in radians (0 = north, positive = clockwise)
     Returns:
         str: A message indicating the outcome of the service call.
     """
@@ -384,6 +508,178 @@ def get_drone_position() -> str:
         
     except Exception as e:
         return f"Error in get_drone_position: {e}"
+
+@function_tool
+def upload_mission(waypoints_data: str) -> str:
+    """
+    Upload a complete mission for PATTERNS, PATROLS, and MULTI-WAYPOINT sequences.
+    
+    CRITICAL: This MUST be called FIRST before start_mission()!
+    
+    USE THIS FOR: patrols, patterns, surveys, multi-point navigation, autonomous missions
+    DO NOT USE: for single waypoint moves (use drone_set_position for those)
+    
+    COORDINATE SYSTEM: NED (North-East-Down) frame relative to takeoff position
+    - X: North direction in meters (positive = north, negative = south)
+    - Y: East direction in meters (positive = east, negative = west)  
+    - Z: Down direction in meters (POSITIVE = down, NEGATIVE = up/altitude)
+    
+    CRITICAL: For altitude waypoints, use NEGATIVE Z values (e.g., Z=-15 means 15 meters high)
+    
+    Args:
+        waypoints_data: JSON string containing waypoint list in NED coordinates. Format:
+        '[{"x": 10.0, "y": 0.0, "z": -20.0, "yaw": 0.0, "hold_time": 2.0}, ...]'
+        
+        Each waypoint requires:
+        - x: North position in meters from takeoff point
+        - y: East position in meters from takeoff point  
+        - z: NEGATIVE value for altitude (e.g., -20 = 20m high)
+        - yaw: Optional heading in radians (0 = north)
+        - hold_time: Optional time to stay at waypoint in seconds
+        
+    Returns:
+        str: Mission upload result with mission ID for tracking
+    """
+    try:
+        import json
+        
+        commander = _get_commander()
+        
+        # Parse waypoint data
+        waypoint_list = json.loads(waypoints_data)
+        
+        # Convert to ROS Waypoint messages
+        waypoints = []
+        for wp in waypoint_list:
+            waypoint = Waypoint()
+            waypoint.command = 16  # NAV_WAYPOINT
+            waypoint.latitude = 0.0  # Using local frame
+            waypoint.longitude = 0.0
+            waypoint.altitude = wp.get('z', -10.0)
+            waypoint.yaw = wp.get('yaw', 0.0)
+            waypoint.acceptance_radius = wp.get('radius', 2.0)
+            waypoint.hold_time = wp.get('hold_time', 0.0)
+            waypoint.autocontinue = True
+            waypoint.frame = 1  # LOCAL_NED frame
+            
+            # For local frame, use altitude field for z and store x,y in lat/lon temporarily
+            # This is a simplification - in real implementation might use mission parameters
+            waypoint.latitude = wp.get('x', 0.0)  # Store x in latitude field
+            waypoint.longitude = wp.get('y', 0.0)  # Store y in longitude field
+            
+            waypoints.append(waypoint)
+        
+        success, message, mission_id = commander._call_upload_mission_service(waypoints)
+        
+        if success:
+            return f"Mission uploaded successfully: {len(waypoints)} waypoints, Mission ID: {mission_id}"
+        else:
+            return f"Failed to upload mission: {message}"
+        
+    except json.JSONDecodeError:
+        return "Error: Invalid JSON format for waypoints"
+    except Exception as e:
+        return f"Error in upload_mission: {e}"
+
+@function_tool
+def start_mission() -> str:
+    """
+    Start executing the currently uploaded mission.
+    
+    ⚠️  CRITICAL: This function WILL FAIL if upload_mission() was not called first!
+    
+    PREREQUISITE SEQUENCE:
+    1. MUST call upload_mission() with waypoint JSON first
+    2. THEN call this function to start execution
+    
+    DO NOT call this function unless you have already uploaded a mission!
+    
+    Returns:
+        str: Mission start result - will include error if no mission uploaded
+    """
+    try:
+        commander = _get_commander()
+        success, message = commander._call_mission_control_service("START")
+        
+        # Add validation to check if mission was properly uploaded first
+        if success and "started" in message.lower():
+            return f"Mission execution started successfully: {message}"
+        else:
+            return f"Mission start failed - did you call upload_mission() first? Response: {message}"
+            
+    except Exception as e:
+        return f"Error in start_mission: {e}"
+
+@function_tool
+def pause_mission() -> str:
+    """
+    Pause the currently executing mission.
+    
+    Returns:
+        str: Mission pause result
+    """
+    try:
+        commander = _get_commander()
+        success, message = commander._call_mission_control_service("PAUSE")
+        return message
+    except Exception as e:
+        return f"Error in pause_mission: {e}"
+
+@function_tool
+def resume_mission() -> str:
+    """
+    Resume a paused mission.
+    
+    Returns:
+        str: Mission resume result
+    """
+    try:
+        commander = _get_commander()
+        success, message = commander._call_mission_control_service("RESUME")
+        return message
+    except Exception as e:
+        return f"Error in resume_mission: {e}"
+
+@function_tool
+def stop_mission() -> str:
+    """
+    Stop the currently executing mission.
+    
+    Returns:
+        str: Mission stop result
+    """
+    try:
+        commander = _get_commander()
+        success, message = commander._call_mission_control_service("STOP")
+        return message
+    except Exception as e:
+        return f"Error in stop_mission: {e}"
+
+@function_tool
+def get_mission_status() -> str:
+    """
+    Get the status of the current mission.
+    
+    Returns:
+        str: Mission status including progress and current waypoint
+    """
+    try:
+        commander = _get_commander()
+        success, message, status = commander._call_get_mission_status_service()
+        
+        if not success or status is None:
+            return f"Failed to get mission status: {message}"
+        
+        if not status.mission_valid:
+            return "No valid mission loaded"
+        
+        progress_info = f"Progress: {status.mission_progress*100:.1f}% ({status.current_item}/{status.total_items})"
+        state_info = f"Running: {status.mission_running}, Finished: {status.mission_finished}"
+        
+        return f"Mission Status - {progress_info} | {state_info} | ID: {status.mission_id}"
+        
+    except Exception as e:
+        return f"Error in get_mission_status: {e}"
 
 # Example of how to initialize and use (intended for the main agent script)
 if __name__ == '__main__':

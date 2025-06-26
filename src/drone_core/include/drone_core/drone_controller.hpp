@@ -8,6 +8,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include "drone_core/drone_agent.hpp"
 #include "drone_core/offboard_control.hpp"
+#include "drone_core/mission_manager.hpp"
 #include <memory>
 #include <future>     // Used for sync methods
 #include <chrono>     // Used for sync methods
@@ -18,6 +19,9 @@
 #include <cmath> // Used for std::isnan in cpp, potentially by included headers
 #include <drone_interfaces/srv/set_position.hpp> // Used for SetPosition service
 #include <drone_interfaces/srv/get_state.hpp> // Used for GetState service
+#include <drone_interfaces/srv/upload_mission.hpp> // Used for mission services
+#include <drone_interfaces/srv/mission_control.hpp>
+#include <drone_interfaces/srv/get_mission_status.hpp>
 
 /**
  * @class DroneController
@@ -137,6 +141,7 @@ private:
     std::unique_ptr<DroneAgent> drone_agent_;    ///< Command relay for PX4 communication
     std::unique_ptr<OffboardControl> offboard_control_;    ///< Offboard control manager
     std::unique_ptr<DroneState> drone_state_;       ///< Drone state tracker
+    std::unique_ptr<drone_core::MissionManager> mission_manager_;  ///< Mission planning and execution
 
     // ROS 2 Services (Added)
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr arm_service_;
@@ -147,6 +152,12 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_position_mode_service_;
     rclcpp::Service<drone_interfaces::srv::SetPosition>::SharedPtr set_position_service_; // Added SetPosition service
     rclcpp::Service<drone_interfaces::srv::GetState>::SharedPtr get_state_service_; // Added GetState service
+    
+    // Mission Services
+    rclcpp::Service<drone_interfaces::srv::UploadMission>::SharedPtr upload_mission_service_;
+    rclcpp::Service<drone_interfaces::srv::MissionControl>::SharedPtr mission_control_service_;
+    rclcpp::Service<drone_interfaces::srv::GetMissionStatus>::SharedPtr get_mission_status_service_;
+    
     // TODO: Add services for RTL, SetBehavior, etc. later
 
     /**
@@ -197,6 +208,19 @@ private:
     void get_state_callback(const std::shared_ptr<rmw_request_id_t> request_header,
                            const std::shared_ptr<drone_interfaces::srv::GetState::Request> request,
                            std::shared_ptr<drone_interfaces::srv::GetState::Response> response);
+
+    // Mission service callbacks
+    void upload_mission_callback(const std::shared_ptr<rmw_request_id_t> request_header,
+                                const std::shared_ptr<drone_interfaces::srv::UploadMission::Request> request,
+                                std::shared_ptr<drone_interfaces::srv::UploadMission::Response> response);
+
+    void mission_control_callback(const std::shared_ptr<rmw_request_id_t> request_header,
+                                 const std::shared_ptr<drone_interfaces::srv::MissionControl::Request> request,
+                                 std::shared_ptr<drone_interfaces::srv::MissionControl::Response> response);
+
+    void get_mission_status_callback(const std::shared_ptr<rmw_request_id_t> request_header,
+                                    const std::shared_ptr<drone_interfaces::srv::GetMissionStatus::Request> request,
+                                    std::shared_ptr<drone_interfaces::srv::GetMissionStatus::Response> response);
 
     // TODO: Add callbacks for other services later
 };

@@ -1,0 +1,10 @@
+# Service to control mission execution  
+# Request
+string command          # Command: START, PAUSE, RESUME, STOP, CLEAR, GOTO_ITEM
+uint16 item_index       # For GOTO_ITEM command (optional, 0-based index)
+---
+# Response  
+bool success            # True if command succeeded
+string message          # Status message or error description
+uint16 current_item     # Current mission item index
+uint16 total_items      # Total number of mission items

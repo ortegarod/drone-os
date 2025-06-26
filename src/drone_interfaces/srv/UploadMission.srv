@@ -1,0 +1,8 @@
+# Service to upload a complete mission to the drone
+# Request
+Waypoint[] waypoints     # Array of waypoints defining the mission
+---
+# Response
+bool success            # True if mission upload succeeded
+string message          # Status message or error description
+uint32 mission_id       # Unique identifier for this mission

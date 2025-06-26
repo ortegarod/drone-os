@@ -37,6 +37,9 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
     drone_state_ = std::make_unique<DroneState>(node_, ns_, name_); // Re-enabled DroneState
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] DroneState created.", name_.c_str());
     
+    mission_manager_ = std::make_unique<drone_core::MissionManager>(node_, name_);
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] MissionManager created.", name_.c_str());
+    
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Drone components initialized. Creating services...", name_.c_str());
 
     // --- Create Services (Added) ---
@@ -83,7 +86,31 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
         std::bind(&DroneController::get_state_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), get_state_service_->get_service_name());
 
+    // Create Mission services
+    upload_mission_service_ = node_->create_service<drone_interfaces::srv::UploadMission>(
+        "/" + name_ + "/upload_mission",
+        std::bind(&DroneController::upload_mission_callback, this, _1, _2, _3));
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), upload_mission_service_->get_service_name());
+
+    mission_control_service_ = node_->create_service<drone_interfaces::srv::MissionControl>(
+        "/" + name_ + "/mission_control",
+        std::bind(&DroneController::mission_control_callback, this, _1, _2, _3));
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), mission_control_service_->get_service_name());
+
+    get_mission_status_service_ = node_->create_service<drone_interfaces::srv::GetMissionStatus>(
+        "/" + name_ + "/get_mission_status",
+        std::bind(&DroneController::get_mission_status_callback, this, _1, _2, _3));
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), get_mission_status_service_->get_service_name());
+
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] All services created.", name_.c_str());
+    
+    // Set offboard control reference in mission manager for waypoint execution
+    mission_manager_->set_offboard_control(offboard_control_.get());
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Mission manager configured with offboard control.", name_.c_str());
+    
+    // Set drone state reference in mission manager for position-based waypoint completion
+    mission_manager_->set_drone_state(drone_state_.get());
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Mission manager configured with drone state feedback.", name_.c_str());
 }
 
 DroneController::~DroneController()
@@ -646,5 +673,120 @@ void DroneController::get_state_callback(
         RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during get_state: %s", name_.c_str(), e.what());
         response->success = false;
         response->message = std::string("Exception during get_state: ") + e.what();
+    }
+}
+
+// Mission service callbacks
+void DroneController::upload_mission_callback(const std::shared_ptr<rmw_request_id_t> /*request_header*/,
+                                              const std::shared_ptr<drone_interfaces::srv::UploadMission::Request> request,
+                                              std::shared_ptr<drone_interfaces::srv::UploadMission::Response> response)
+{
+    try {
+        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Upload mission request: %zu waypoints", 
+                    name_.c_str(), request->waypoints.size());
+
+        uint32_t mission_id;
+        bool success = mission_manager_->upload_mission(request->waypoints, mission_id);
+        
+        response->success = success;
+        response->mission_id = mission_id;
+        response->message = success ? "Mission uploaded successfully" : "Failed to upload mission";
+        
+        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Mission upload %s (ID: %u)", 
+                    name_.c_str(), success ? "succeeded" : "failed", mission_id);
+
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during upload_mission: %s", name_.c_str(), e.what());
+        response->success = false;
+        response->message = std::string("Exception during upload_mission: ") + e.what();
+        response->mission_id = 0;
+    }
+}
+
+void DroneController::mission_control_callback(const std::shared_ptr<rmw_request_id_t> /*request_header*/,
+                                               const std::shared_ptr<drone_interfaces::srv::MissionControl::Request> request,
+                                               std::shared_ptr<drone_interfaces::srv::MissionControl::Response> response)
+{
+    try {
+        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Mission control command: %s", 
+                    name_.c_str(), request->command.c_str());
+
+        bool success = false;
+        std::string message;
+
+        if (request->command == "START") {
+            success = mission_manager_->start_mission();
+            message = success ? "Mission started" : "Failed to start mission";
+        } else if (request->command == "PAUSE") {
+            success = mission_manager_->pause_mission();
+            message = success ? "Mission paused" : "Failed to pause mission";
+        } else if (request->command == "RESUME") {
+            success = mission_manager_->resume_mission();
+            message = success ? "Mission resumed" : "Failed to resume mission";
+        } else if (request->command == "STOP") {
+            success = mission_manager_->stop_mission();
+            message = success ? "Mission stopped" : "Failed to stop mission";
+        } else if (request->command == "CLEAR") {
+            success = mission_manager_->clear_mission();
+            message = success ? "Mission cleared" : "Failed to clear mission";
+        } else if (request->command == "GOTO_ITEM") {
+            success = mission_manager_->goto_mission_item(request->item_index);
+            message = success ? "Going to mission item" : "Failed to go to mission item";
+        } else {
+            message = "Unknown mission command: " + request->command;
+        }
+
+        // Get current mission status
+        auto status = mission_manager_->get_mission_status();
+        
+        response->success = success;
+        response->message = message;
+        response->current_item = status.current_item;
+        response->total_items = status.total_items;
+
+        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Mission control result: %s", 
+                    name_.c_str(), message.c_str());
+
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during mission_control: %s", name_.c_str(), e.what());
+        response->success = false;
+        response->message = std::string("Exception during mission_control: ") + e.what();
+        response->current_item = 0;
+        response->total_items = 0;
+    }
+}
+
+void DroneController::get_mission_status_callback(const std::shared_ptr<rmw_request_id_t> /*request_header*/,
+                                                 const std::shared_ptr<drone_interfaces::srv::GetMissionStatus::Request> /*request*/,
+                                                 std::shared_ptr<drone_interfaces::srv::GetMissionStatus::Response> response)
+{
+    try {
+        auto status = mission_manager_->get_mission_status();
+        
+        response->success = true;
+        response->message = "Mission status retrieved successfully";
+        response->mission_valid = status.mission_valid;
+        response->mission_finished = status.mission_finished;
+        response->mission_running = status.mission_running;
+        response->current_item = status.current_item;
+        response->total_items = status.total_items;
+        response->mission_id = status.mission_id;
+        response->mission_progress = status.mission_progress;
+
+        RCLCPP_DEBUG(node_->get_logger(), "[%s][Controller] Mission status: Valid:%d Running:%d Progress:%.1f%% (%u/%u)", 
+                     name_.c_str(), status.mission_valid, status.mission_running, 
+                     status.mission_progress * 100.0f, status.current_item, status.total_items);
+
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during get_mission_status: %s", name_.c_str(), e.what());
+        response->success = false;
+        response->message = std::string("Exception during get_mission_status: ") + e.what();
+        response->mission_valid = false;
+        response->mission_finished = false;
+        response->mission_running = false;
+        response->current_item = 0;
+        response->total_items = 0;
+        response->mission_id = 0;
+        response->mission_progress = 0.0f;
     }
 }

@@ -22,6 +22,7 @@ add_library(drone_core_lib
   src/drone_core/drone_agent.cpp
   src/drone_core/offboard_control.cpp
   src/drone_core/drone_state.cpp
+  src/drone_core/mission_manager.cpp
   src/utils/state_enums.cpp
 )
 target_include_directories(drone_core_lib PUBLIC include)

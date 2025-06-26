@@ -10,8 +10,13 @@ find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Waypoint.msg"
   "srv/SetPosition.srv"
   "srv/GetState.srv"
+  "srv/UploadMission.srv"
+  "srv/MissionControl.srv"
+  "srv/GetMissionStatus.srv"
+  "srv/ExecuteAIAgent.srv"
   # Add other .msg/.srv files here if needed
 )
 
