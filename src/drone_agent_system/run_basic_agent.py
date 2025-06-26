@@ -1,5 +1,5 @@
 import rclpy
-from agents import Agent, Runner, ModelSettings
+from agents import Agent, Runner, ModelSettings, ItemHelpers
 import drone_agent_tools # Import the module
 import os # For OPENAI_API_KEY
 import sys
@@ -20,9 +20,16 @@ class DroneContext:
     conversation_history: list = None
     last_api_call_time: float = 0.0
     
+    # Mission context state
+    current_mission_id: Optional[int] = None
+    mission_type: Optional[str] = None  # "patrol", "sprint", etc.
+    mission_completion_actions: list = None  # Actions to take when mission completes
+    
     def __post_init__(self):
         if self.conversation_history is None:
             self.conversation_history = []
+        if self.mission_completion_actions is None:
+            self.mission_completion_actions = []
 
 def get_dynamic_instructions(ctx, agent) -> str:
     """Dynamic instructions that include real-time drone state"""
@@ -60,20 +67,29 @@ MISSION PLANNING (REQUIRED for patterns/patrols):
 - get_mission_status() - Monitor mission progress
 - pause_mission() / resume_mission() / stop_mission() - Mission control
 
+CONTEXT-AWARE MISSION COMPLETION:
+- store_mission_completion_actions(actions_json) - Store actions to execute when mission completes
+- check_mission_completion_and_execute_actions() - Check if mission done and execute stored actions
+
+AUTONOMOUS MISSION MANAGEMENT:
+The AI acts as MISSION PLANNER only. Mission execution is autonomous:
+1. Plan mission waypoints and completion actions
+2. Store completion actions (land, disarm, return to base, next mission)
+3. Mission runs autonomously using C++ implementation
+4. System executes stored actions when mission completes
+
 CRITICAL TOOL SELECTION:
 - Use upload_mission() + start_mission() for: patrols, patterns, surveys, any multi-waypoint sequence
 - Use drone_set_position() ONLY for: single simple moves to one location
 
-🚨 MANDATORY SEQUENCE FOR ALL MISSIONS 🚨
-For ANY patrol/pattern/mission request:
-1. FIRST: Calculate waypoint coordinates 
-2. SECOND: Call upload_mission() with JSON waypoint data
-3. THIRD: Call start_mission() to begin execution
-4. OPTIONAL: Monitor with get_mission_status() if needed
+MULTI-WAYPOINT OPERATIONS:
+For requests with multiple destinations (patrol, sprint, fly to X then Y):
+1. Calculate waypoint coordinates in meters (NED frame)
+2. Call upload_mission() with JSON waypoint data
+3. Call start_mission_and_wait() - this blocks until mission completes
+4. Then call any subsequent commands (like drone_land(), drone_disarm())
 
-⛔ NEVER call start_mission() without upload_mission() first!
-⛔ NEVER describe waypoints without actually calling upload_mission()!
-⛔ You MUST use the actual tool functions, not just describe them!
+Examples requiring missions: "sprint to X and back", "fly to A then B", "patrol", "circle", "survey"
 
 COORDINATE SYSTEM - CRITICAL UNDERSTANDING:
 NED frame (North-East-Down) relative to takeoff position:
@@ -106,19 +122,29 @@ For "patrol 50ft radius at 20ft altitude":
 2. Calculate waypoints around current position (50ft = ~15.2m radius)"""
     
     instructions += '''
-3. Convert altitude: 20ft = 6.1m, so Z = -6.1 (NEGATIVE for altitude!)
-4. ACTUALLY CALL upload_mission() tool with JSON: [{"x": 15.2, "y": 0, "z": -6.1, "yaw": 0}, ...]
-5. ACTUALLY CALL start_mission() tool - mission runs persistently with automatic waypoint sequencing
+3. Convert altitude: 20ft = 6.1m, so Z = -6.1 (negative for altitude)
+4. Call upload_mission() with JSON: [{"x": 15.2, "y": 0, "z": -6.1, "yaw": 0}, ...]
+5. Call start_mission() - mission runs persistently
 
-🚨 CRITICAL: You MUST actually use the tools, not just describe what you would do!
-🚨 For patrol commands, you MUST call upload_mission() then start_mission()
-🚨 DO NOT just say you are doing it - ACTUALLY DO IT using the function tools!
+SPRINT EXAMPLE WITH AUTONOMOUS COMPLETION:
+For "sprint 1000 yard north at 500ft and return, then land and disarm":
+1. Calculate waypoints: 1000 yards = 914.4m north, 500ft = 152.4m altitude (Z = -152.4)
+   Waypoints: [{"x": 914.4, "y": 0, "z": -152.4, "yaw": 0.0, "radius": 5.0}, {"x": 0, "y": 0, "z": -152.4, "yaw": 0.0, "radius": 5.0}]
+2. Store completion actions: store_mission_completion_actions('[{"type": "land"}, {"type": "disarm"}]')
+3. Upload and start mission: upload_mission() then start_mission()
+4. Mission executes autonomously, system automatically lands and disarms when complete
 
-ALTITUDE CONVERSION REFERENCE:
+UNIT CONVERSIONS:
+- 1 yard = 0.9144 meters
+- 1 foot = 0.3048 meters
+- 1000 yards = 914.4 meters
+- 500 feet = 152.4 meters
+
+ALTITUDE CONVERSION (feet to NED Z):
 - 10ft = 3.05m → Z = -3.05
 - 20ft = 6.1m → Z = -6.1  
 - 30ft = 9.15m → Z = -9.15
-- 50ft = 15.25m → Z = -15.25
+- 500ft = 152.4m → Z = -152.4
 '''
     
     return instructions
@@ -193,11 +219,15 @@ def main():
         
         # Mission planning and execution
         drone_agent_tools.upload_mission,
-        drone_agent_tools.start_mission,
+        drone_agent_tools.start_mission_and_wait,  # Blocks until completion
         drone_agent_tools.pause_mission,
         drone_agent_tools.resume_mission,
         drone_agent_tools.stop_mission,
-        drone_agent_tools.get_mission_status
+        drone_agent_tools.get_mission_status,
+        
+        # Context-aware mission completion management
+        drone_agent_tools.check_mission_completion_and_execute_actions,
+        drone_agent_tools.store_mission_completion_actions
     ]
 
     # Create drone context for this session
@@ -227,6 +257,45 @@ def main():
         
     print("Make sure your ROS 2 environment is sourced and drone services are available.")
 
+    # Mission monitoring for autonomous completion
+    mission_monitor_timer = None
+    
+    def check_mission_completion_periodically():
+        """Periodic check for mission completion and execute stored actions"""
+        try:
+            if drone_context.mission_completion_actions:
+                # Use the completion checker tool function directly with proper context
+                from agents import RunContextWrapper
+                wrapper = RunContextWrapper(drone_context)
+                # Call the actual function directly
+                try:
+                    # Try to get the underlying function from the FunctionTool
+                    if hasattr(drone_agent_tools.check_mission_completion_and_execute_actions, '_func'):
+                        result = drone_agent_tools.check_mission_completion_and_execute_actions._func(wrapper)
+                    elif hasattr(drone_agent_tools.check_mission_completion_and_execute_actions, 'func'):
+                        result = drone_agent_tools.check_mission_completion_and_execute_actions.func(wrapper)
+                    else:
+                        # Fallback: just call the FunctionTool directly (might work)
+                        result = str(drone_agent_tools.check_mission_completion_and_execute_actions)
+                except Exception as e:
+                    print(f"DEBUG: Mission monitoring access error: {e}")
+                    result = "Mission monitoring temporarily unavailable"
+                if "Mission completed!" in result:
+                    print(f"AUTONOMOUS COMPLETION: {result}")
+        except Exception as e:
+            print(f"DEBUG: Mission monitoring error: {e}")
+    
+    # Start mission monitoring timer (check every 5 seconds)
+    import threading
+    def mission_monitor_loop():
+        while True:
+            time.sleep(5)
+            check_mission_completion_periodically()
+    
+    monitor_thread = threading.Thread(target=mission_monitor_loop, daemon=True)
+    monitor_thread.start()
+    print("DEBUG: Started autonomous mission completion monitoring")
+
     # Interactive CLI mode only
     print("Running in interactive CLI mode.")
     try:
@@ -254,17 +323,67 @@ def main():
             drone_context.last_api_call_time = time.time()
             
             # Use context in interactive mode too - but clear history for mission commands to avoid confusion
-            if user_input.lower().startswith('patrol') or 'mission' in user_input.lower():
+            mission_keywords = ['patrol', 'mission', 'sprint', 'and back', 'return to', 'fly to', 'then']
+            is_mission_command = any(keyword in user_input.lower() for keyword in mission_keywords)
+            
+            if is_mission_command:
                 # Clear conversation history for mission commands to avoid tool sequence confusion
                 input_list = user_input
                 drone_context.conversation_history = []
                 print("DEBUG: Cleared conversation history for mission command")
-            elif drone_context.conversation_history:
-                input_list = drone_context.conversation_history + [{"role": "user", "content": user_input}]
+                
+                # Temporarily remove drone_set_position from tools to force mission usage
+                mission_tools = [tool for tool in tools_list if tool != drone_agent_tools.drone_set_position]
+                temp_agent = Agent[DroneContext](
+                    name="MissionDroneAgent", 
+                    instructions=get_dynamic_instructions,
+                    tools=mission_tools,  # Without drone_set_position
+                    model="gpt-4o",
+                    model_settings=ModelSettings(tool_choice="required")
+                )
+                
+                # Store mission context
+                drone_context.mission_type = user_input.lower()
+                print(f"DEBUG: Set mission type in context: {drone_context.mission_type}")
+                mission_tool_names = [getattr(tool, 'name', str(tool)) for tool in mission_tools]
+                print(f"DEBUG: Created temporary agent without drone_set_position. Available tools: {mission_tool_names}")
+                
+                # Use the mission-specific agent with streaming to debug tool sequence
+                print("DEBUG: Starting mission agent with streaming debug...")
+                
+                async def run_mission_with_debug():
+                    result = Runner.run_streamed(temp_agent, input_list, context=drone_context)
+                    tool_sequence = []
+                    
+                    async for event in result.stream_events():
+                        if event.type == "run_item_stream_event":
+                            if event.item.type == "tool_call_item":
+                                # Try multiple ways to get tool name
+                                tool_name = getattr(event.item, 'tool_name', None) or \
+                                           getattr(event.item, 'name', None) or \
+                                           getattr(getattr(event.item, 'raw', {}), 'function', {}).get('name', 'unknown')
+                                tool_sequence.append(f"CALLING: {tool_name}")
+                                print(f"DEBUG: Tool called: {tool_name}")
+                            elif event.item.type == "tool_call_output_item":
+                                output = event.item.output[:100] + "..." if len(event.item.output) > 100 else event.item.output
+                                tool_sequence.append(f"OUTPUT: {output}")
+                                print(f"DEBUG: Tool output: {output}")
+                    
+                    print(f"DEBUG: Complete tool sequence: {tool_sequence}")
+                    return result
+                
+                # Run the async streaming function
+                import asyncio
+                result = asyncio.run(run_mission_with_debug())
+                ai_drone_agent.model_settings.tool_choice = "required"  # Reset main agent
             else:
-                input_list = user_input
-            
-            result = Runner.run_sync(ai_drone_agent, input_list, context=drone_context)
+                # Normal execution for non-mission commands
+                if drone_context.conversation_history:
+                    input_list = drone_context.conversation_history + [{"role": "user", "content": user_input}]
+                else:
+                    input_list = user_input
+                
+                result = Runner.run_sync(ai_drone_agent, input_list, context=drone_context)
             
             if result:
                 # Update conversation history

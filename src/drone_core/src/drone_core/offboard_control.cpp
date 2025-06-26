@@ -42,13 +42,28 @@ OffboardControl::~OffboardControl() {
  * and begins the state machine for transitioning to offboard mode.
  */
 void OffboardControl::start() {
+    RCLCPP_INFO(node_->get_logger(), "[OffboardControl] start() called - checking timer status...");
+    
     if (!offboard_control_loop_timer_) {
-        // Set timer to 100ms (10 Hz) as recommended for offboard control
-        offboard_control_loop_timer_ = node_->create_wall_timer(
-            100ms,
-            [this]() { offboard_control_loop_timer_callback(); }
-        );
-        RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Started offboard control mode publisher at 10 Hz");
+        RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Timer not exists, creating new 10Hz timer...");
+        
+        try {
+            // Set timer to 100ms (10 Hz) as recommended for offboard control
+            offboard_control_loop_timer_ = node_->create_wall_timer(
+                100ms,
+                [this]() { offboard_control_loop_timer_callback(); }
+            );
+            
+            if (offboard_control_loop_timer_) {
+                RCLCPP_INFO(node_->get_logger(), "[OffboardControl] ✅ Started offboard control mode publisher at 10 Hz");
+            } else {
+                RCLCPP_ERROR(node_->get_logger(), "[OffboardControl] ❌ Failed to create timer - returned null");
+            }
+        } catch (const std::exception& e) {
+            RCLCPP_ERROR(node_->get_logger(), "[OffboardControl] ❌ Exception creating timer: %s", e.what());
+        }
+    } else {
+        RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Timer already exists, not creating new one");
     }
 }
 
@@ -77,6 +92,18 @@ void OffboardControl::offboard_control_loop_timer_callback() {
 
     // Determine current control type
     OffboardSetpointType current_type = current_setpoint_type_.load(std::memory_order_relaxed);
+
+    // Debug: Log every 50 calls (every 5 seconds at 10Hz) to verify timer is running
+    static int call_count = 0;
+    call_count++;
+    if (call_count % 50 == 1) {  // Log on first call and then every 5 seconds
+        RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Timer callback #%d - Publishing %s setpoints", 
+                   call_count, (current_type == OffboardSetpointType::POSITION) ? "POSITION" : "VELOCITY");
+        if (current_type == OffboardSetpointType::POSITION) {
+            RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Current target: X=%.2f, Y=%.2f, Z=%.2f, Yaw=%.2f", 
+                       target_x_, target_y_, target_z_, target_yaw_);
+        }
+    }
 
     // Publish offboard control mode, setting appropriate flags
     px4_msgs::msg::OffboardControlMode mode_msg{};

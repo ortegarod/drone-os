@@ -4,8 +4,12 @@ from rclpy.executors import SingleThreadedExecutor
 from std_srvs.srv import Trigger
 from drone_interfaces.srv import SetPosition, GetState, UploadMission, MissionControl, GetMissionStatus  # Drone interfaces
 from drone_interfaces.msg import Waypoint
-from agents import function_tool # For OpenAI Agents SDK
+from agents import function_tool, RunContextWrapper # For OpenAI Agents SDK
+from typing import TYPE_CHECKING, Any
 import time
+
+if TYPE_CHECKING:
+    from run_basic_agent import DroneContext
 
 # Global instance of DroneROS2Commander
 # This is a simplification for now. In a more complex app, consider dependency injection.
@@ -436,8 +440,16 @@ def drone_set_position(x: float, y: float, z: float, yaw: float) -> str:
     """
     Sets the target position and yaw for SINGLE WAYPOINT movements only.
     
-    WARNING: For patterns, patrols, or multiple waypoints, use upload_mission() + start_mission() instead!
-    This tool is only for simple single-point navigation.
+    ⚠️ WARNING: DO NOT use this for multi-waypoint sequences!
+    
+    FORBIDDEN USES:
+    - "Sprint to X and back" (use mission instead!)
+    - "Fly to A then B" (use mission instead!)
+    - Any sequence with multiple destinations
+    
+    ALLOWED USES:
+    - "Move to position X,Y,Z" (single destination only)
+    - Simple one-time position changes
     
     COORDINATE SYSTEM: NED (North-East-Down) frame relative to takeoff position
     - X: North direction in meters (positive = north, negative = south)
@@ -547,6 +559,7 @@ def upload_mission(waypoints_data: str) -> str:
         
         # Parse waypoint data
         waypoint_list = json.loads(waypoints_data)
+        print(f"DEBUG: Uploading mission with waypoints: {waypoint_list}")
         
         # Convert to ROS Waypoint messages
         waypoints = []
@@ -556,7 +569,7 @@ def upload_mission(waypoints_data: str) -> str:
             waypoint.latitude = 0.0  # Using local frame
             waypoint.longitude = 0.0
             waypoint.altitude = wp.get('z', -10.0)
-            waypoint.yaw = wp.get('yaw', 0.0)
+            waypoint.yaw = float(wp.get('yaw', 0.0))
             waypoint.acceptance_radius = wp.get('radius', 2.0)
             waypoint.hold_time = wp.get('hold_time', 0.0)
             waypoint.autocontinue = True
@@ -582,21 +595,38 @@ def upload_mission(waypoints_data: str) -> str:
         return f"Error in upload_mission: {e}"
 
 @function_tool
-def start_mission() -> str:
+def start_mission_and_wait() -> str:
     """
-    Start executing the currently uploaded mission.
+    Start executing the currently uploaded mission and wait for completion.
     
-    ⚠️  CRITICAL: This function WILL FAIL if upload_mission() was not called first!
-    
-    PREREQUISITE SEQUENCE:
-    1. MUST call upload_mission() with waypoint JSON first
-    2. THEN call this function to start execution
-    
-    DO NOT call this function unless you have already uploaded a mission!
+    This function blocks until the mission is finished, then returns.
+    Use this for missions that need to complete before other actions (like landing).
     
     Returns:
-        str: Mission start result - will include error if no mission uploaded
+        str: Mission completion result
     """
+    try:
+        commander = _get_commander()
+        
+        # Start the mission
+        success, message = commander._call_mission_control_service("START")
+        if not success:
+            return f"Failed to start mission: {message}"
+        
+        # Wait for completion by polling status
+        import time
+        while True:
+            success, status_msg, status = commander._call_get_mission_status_service()
+            if success and status:
+                if status.mission_finished:
+                    return f"Mission completed successfully: {status.mission_progress*100:.1f}% done"
+                elif not status.mission_running:
+                    return "Mission stopped or failed"
+            
+            time.sleep(1)  # Poll every second
+            
+    except Exception as e:
+        return f"Error in start_mission_and_wait: {e}"
     try:
         commander = _get_commander()
         success, message = commander._call_mission_control_service("START")
@@ -680,6 +710,125 @@ def get_mission_status() -> str:
         
     except Exception as e:
         return f"Error in get_mission_status: {e}"
+
+@function_tool
+def check_mission_completion_and_execute_actions(wrapper: RunContextWrapper[Any]) -> str:
+    """
+    Check if current mission is complete and execute any stored completion actions.
+    
+    This function should be called periodically or at the end of missions to handle
+    autonomous completion actions like landing, returning to base, or starting next mission.
+    
+    Returns:
+        str: Status of completion check and any actions taken
+    """
+    try:
+        # Get mission status
+        commander = _get_commander()
+        success, message, status = commander._call_get_mission_status_service()
+        
+        if not success or status is None:
+            return f"Failed to check mission completion: {message}"
+        
+        # Access the context from wrapper
+        context = wrapper.context
+        
+        # Check if mission is complete and we have completion actions
+        if status.mission_finished and context.mission_completion_actions:
+            actions_taken = []
+            
+            # Execute stored completion actions
+            for action in context.mission_completion_actions:
+                action_type = action.get('type', '')
+                
+                if action_type == 'land':
+                    result = drone_land()
+                    actions_taken.append(f"Landing: {result}")
+                
+                elif action_type == 'disarm':
+                    result = drone_disarm()
+                    actions_taken.append(f"Disarming: {result}")
+                
+                elif action_type == 'return_to_base':
+                    base_pos = action.get('position', {'x': 0, 'y': 0, 'z': -10, 'yaw': 0})
+                    result = drone_set_position(base_pos['x'], base_pos['y'], base_pos['z'], base_pos['yaw'])
+                    actions_taken.append(f"Return to base: {result}")
+                
+                elif action_type == 'next_mission':
+                    next_mission_data = action.get('waypoints', [])
+                    if next_mission_data:
+                        import json
+                        result = upload_mission(json.dumps(next_mission_data))
+                        actions_taken.append(f"Next mission uploaded: {result}")
+            
+            # Clear completion actions after execution
+            context.mission_completion_actions = []
+            context.current_mission_id = None
+            context.mission_type = None
+            
+            return f"Mission completed! Executed actions: {'; '.join(actions_taken)}"
+        
+        elif status.mission_finished:
+            # Clear mission context even if no actions
+            context.current_mission_id = None
+            context.mission_type = None
+            return "Mission completed successfully - no completion actions configured"
+        
+        elif status.mission_running:
+            return f"Mission in progress: {status.mission_progress*100:.1f}% complete"
+        
+        else:
+            return "No active mission to check"
+            
+    except Exception as e:
+        return f"Error in check_mission_completion_and_execute_actions: {e}"
+
+@function_tool  
+def store_mission_completion_actions(wrapper: RunContextWrapper[Any], actions_data: str) -> str:
+    """
+    Store actions to be executed when the current mission completes.
+    
+    This allows the AI to plan mission completion behavior in advance, then have
+    the autonomous system execute those actions when the mission finishes.
+    
+    Args:
+        actions_data: JSON string with completion actions. Format:
+        '[{"type": "land"}, {"type": "disarm"}, {"type": "return_to_base", "position": {"x": 0, "y": 0, "z": -10, "yaw": 0}}]'
+        
+        Supported action types:
+        - "land": Execute landing sequence
+        - "disarm": Disarm the drone
+        - "return_to_base": Fly to specified position
+        - "next_mission": Upload and start next mission with waypoints
+    
+    Returns:
+        str: Status of storing completion actions
+    """
+    try:
+        import json
+        
+        # Parse actions data
+        actions = json.loads(actions_data)
+        
+        # Access context to store actions
+        context = wrapper.context
+        context.mission_completion_actions = actions
+        
+        action_descriptions = []
+        for action in actions:
+            action_type = action.get('type', 'unknown')
+            if action_type == 'return_to_base':
+                pos = action.get('position', {})
+                action_descriptions.append(f"return to ({pos.get('x', 0)}, {pos.get('y', 0)}, {pos.get('z', -10)})")
+            else:
+                action_descriptions.append(action_type)
+        
+        return f"Stored {len(actions)} completion actions: {', '.join(action_descriptions)}"
+        
+    except json.JSONDecodeError:
+        return "Error: Invalid JSON format for completion actions"
+    except Exception as e:
+        return f"Error in store_mission_completion_actions: {e}"
 
 # Example of how to initialize and use (intended for the main agent script)
 if __name__ == '__main__':

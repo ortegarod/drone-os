@@ -58,6 +58,14 @@ bool MissionManager::upload_mission(const std::vector<drone_interfaces::msg::Way
     // Assign mission ID
     mission_id = next_mission_id_++;
     
+    // Debug: Log incoming waypoints before storage
+    RCLCPP_INFO(node_->get_logger(), "📥 Uploading mission with %zu waypoints:", waypoints.size());
+    for (size_t i = 0; i < waypoints.size(); ++i) {
+        const auto& wp = waypoints[i];
+        RCLCPP_INFO(node_->get_logger(), "  Waypoint %zu: lat=%.6f, lon=%.6f, alt=%.6f, yaw=%.6f, radius=%.2f", 
+                   i, wp.latitude, wp.longitude, wp.altitude, wp.yaw, wp.acceptance_radius);
+    }
+    
     // Store mission locally
     current_mission_ = waypoints;
     mission_status_.mission_id = mission_id;
@@ -67,6 +75,14 @@ bool MissionManager::upload_mission(const std::vector<drone_interfaces::msg::Way
     mission_status_.mission_finished = false;
     mission_status_.current_item = 0;
     mission_status_.mission_progress = 0.0f;
+    
+    // Debug: Verify storage by reading back
+    RCLCPP_INFO(node_->get_logger(), "💾 Mission stored locally - verifying storage:");
+    for (size_t i = 0; i < current_mission_.size(); ++i) {
+        const auto& wp = current_mission_[i];
+        RCLCPP_INFO(node_->get_logger(), "  Stored waypoint %zu: lat=%.6f, lon=%.6f, alt=%.6f, yaw=%.6f, radius=%.2f", 
+                   i, wp.latitude, wp.longitude, wp.altitude, wp.yaw, wp.acceptance_radius);
+    }
     
     // Upload to PX4
     bool success = upload_mission_to_px4(waypoints);
@@ -319,10 +335,16 @@ void MissionManager::update_mission_progress() {
 void MissionManager::execute_current_waypoint() {
     if (!offboard_control_ || current_mission_.empty() || 
         mission_status_.current_item >= current_mission_.size()) {
+        RCLCPP_WARN(node_->get_logger(), "execute_current_waypoint() aborted: offboard=%p, mission_size=%zu, current_item=%u", 
+                   offboard_control_, current_mission_.size(), mission_status_.current_item);
         return;
     }
     
     const auto& waypoint = current_mission_[mission_status_.current_item];
+    
+    // Debug: Log raw waypoint data from storage
+    RCLCPP_INFO(node_->get_logger(), "🔍 Raw waypoint %u from storage: lat=%.6f, lon=%.6f, alt=%.6f, yaw=%.6f, radius=%.2f", 
+               mission_status_.current_item, waypoint.latitude, waypoint.longitude, waypoint.altitude, waypoint.yaw, waypoint.acceptance_radius);
     
     // Convert waypoint to position command
     float x = waypoint.latitude;   // Using latitude field for local X
@@ -330,11 +352,14 @@ void MissionManager::execute_current_waypoint() {
     float z = waypoint.altitude;   // Altitude field for local Z
     float yaw = waypoint.yaw;
     
+    // Debug: Log converted coordinates before sending to offboard control
+    RCLCPP_INFO(node_->get_logger(), "🚀 Converted coordinates: X=%.6f, Y=%.6f, Z=%.6f, Yaw=%.6f", x, y, z, yaw);
+    
     // Send position command via offboard control
     offboard_control_->set_target_position(x, y, z, yaw);
     waypoint_start_time_ = std::chrono::steady_clock::now();
     
-    RCLCPP_INFO(node_->get_logger(), "Executing waypoint %u: X=%.2f, Y=%.2f, Z=%.2f, Yaw=%.2f", 
+    RCLCPP_INFO(node_->get_logger(), "✅ Executing waypoint %u: X=%.2f, Y=%.2f, Z=%.2f, Yaw=%.2f", 
                 mission_status_.current_item, x, y, z, yaw);
 }
 
@@ -393,9 +418,17 @@ void MissionManager::check_waypoint_completion() {
                 RCLCPP_INFO(node_->get_logger(), "Waypoint %u reached (distance: %.2f m, acceptance: %.2f m)", 
                            mission_status_.current_item, distance, acceptance_radius);
             } else {
-                // Log progress for debugging
-                RCLCPP_DEBUG(node_->get_logger(), "Waypoint %u progress: distance %.2f m (target: %.2f m)", 
-                            mission_status_.current_item, distance, acceptance_radius);
+                // Log progress for debugging every 5 seconds
+                static auto last_log_time = std::chrono::steady_clock::now();
+                auto now = std::chrono::steady_clock::now();
+                auto time_since_log = std::chrono::duration_cast<std::chrono::seconds>(now - last_log_time).count();
+                
+                if (time_since_log >= 5) {
+                    RCLCPP_INFO(node_->get_logger(), "Waypoint %u progress: distance %.2f m (target: %.2f m) - Current: (%.2f, %.2f, %.2f), Target: (%.2f, %.2f, %.2f)", 
+                                mission_status_.current_item, distance, acceptance_radius,
+                                current_x, current_y, current_z, target_x, target_y, target_z);
+                    last_log_time = now;
+                }
             }
         } else {
             RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, 
@@ -424,7 +457,7 @@ void MissionManager::check_waypoint_completion() {
                 float typical_speed = 3.0f; // m/s - conservative estimate
                 expected_time = (distance / typical_speed) + 3.0f; // 3s buffer
                 expected_time = std::max(expected_time, 5.0f); // Minimum 5s
-                expected_time = std::min(expected_time, 30.0f); // Maximum 30s
+                expected_time = std::min(expected_time, 300.0f); // Maximum 5 minutes for very long missions
             }
         }
         
