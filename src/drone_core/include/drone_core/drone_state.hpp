@@ -11,6 +11,11 @@
 #include <px4_msgs/msg/vehicle_land_detected.hpp>
 #include <px4_msgs/msg/vehicle_global_position.hpp>
 #include <px4_msgs/msg/vehicle_local_position.hpp>
+#include <px4_msgs/msg/battery_status.hpp>
+#include <px4_msgs/msg/sensor_gps.hpp>
+#include <px4_msgs/msg/failsafe_flags.hpp>
+#include <px4_msgs/msg/telemetry_status.hpp>
+#include <px4_msgs/msg/wind.hpp>
 
 // Include shared state enums
 #include "drone_core/utils/state_enums.hpp"
@@ -86,7 +91,69 @@ public:
      */
     float get_latest_local_yaw() const;
 
-    // Add other getters as needed (e.g., for specific flags, raw messages)
+    // Telemetry data structures
+    struct BatteryData {
+        float voltage = 0.0f;
+        float current = 0.0f;
+        float remaining = 0.0f;
+        float time_remaining = 0.0f;
+        float temperature = 0.0f;
+        std::string warning = "UNKNOWN";
+        bool valid = false;
+        rclcpp::Time timestamp;
+    };
+
+    struct GpsData {
+        std::string fix_type = "UNKNOWN";
+        uint8_t satellites_used = 0;
+        float hdop = 0.0f;
+        float vdop = 0.0f;
+        float accuracy_horizontal = 0.0f;
+        float accuracy_vertical = 0.0f;
+        bool jamming_detected = false;
+        bool spoofing_detected = false;
+        bool valid = false;
+        rclcpp::Time timestamp;
+    };
+
+    struct FailsafeData {
+        bool manual_control_lost = false;
+        bool gcs_connection_lost = false;
+        bool geofence_breached = false;
+        bool battery_warning = false;
+        bool battery_unhealthy = false;
+        bool wind_limit_exceeded = false;
+        bool flight_time_limit_exceeded = false;
+        float system_health_score = 0.0f;
+        std::vector<std::string> active_warnings;
+        std::vector<std::string> critical_failures;
+        bool valid = false;
+        rclcpp::Time timestamp;
+    };
+
+    struct TelemetryData {
+        float rc_signal_strength = 0.0f;
+        bool rc_signal_valid = false;
+        float telemetry_link_quality = 0.0f;
+        float packet_loss_rate = 0.0f;
+        bool valid = false;
+        rclcpp::Time timestamp;
+    };
+
+    struct WindData {
+        float speed = 0.0f;
+        float direction = 0.0f;
+        bool valid = false;
+        rclcpp::Time timestamp;
+    };
+
+    // Telemetry getters
+    bool get_battery_data(BatteryData& data) const;
+    bool get_gps_data(GpsData& data) const;
+    bool get_failsafe_data(FailsafeData& data) const;
+    bool get_telemetry_data(TelemetryData& data) const;
+    bool get_wind_data(WindData& data) const;
+    uint32_t get_flight_time_elapsed() const;
 
 private:
     // --- ROS Communication --- 
@@ -99,6 +166,11 @@ private:
     rclcpp::Subscription<px4_msgs::msg::VehicleLandDetected>::SharedPtr land_detected_sub_;
     rclcpp::Subscription<px4_msgs::msg::VehicleGlobalPosition>::SharedPtr global_pos_sub_;
     rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr local_pos_sub_;
+    rclcpp::Subscription<px4_msgs::msg::BatteryStatus>::SharedPtr battery_sub_;
+    rclcpp::Subscription<px4_msgs::msg::SensorGps>::SharedPtr gps_sub_;
+    rclcpp::Subscription<px4_msgs::msg::FailsafeFlags>::SharedPtr failsafe_sub_;
+    rclcpp::Subscription<px4_msgs::msg::TelemetryStatus>::SharedPtr telemetry_sub_;
+    rclcpp::Subscription<px4_msgs::msg::Wind>::SharedPtr wind_sub_;
 
     // --- State Variables (Atomic for thread safety) ---
     std::atomic<NavState> current_nav_state_{NavState::UNKNOWN};
@@ -127,11 +199,31 @@ private:
     float latest_local_vz_{0.0f};
     float latest_local_yaw_{NAN}; // Added member for yaw (heading)
 
+    // --- Telemetry Data ---
+    mutable std::mutex battery_mutex_;
+    mutable std::mutex gps_mutex_;
+    mutable std::mutex failsafe_mutex_;
+    mutable std::mutex telemetry_mutex_;
+    mutable std::mutex wind_mutex_;
+    
+    BatteryData battery_data_;
+    GpsData gps_data_;
+    FailsafeData failsafe_data_;
+    TelemetryData telemetry_data_;
+    WindData wind_data_;
+    
+    std::chrono::steady_clock::time_point flight_start_time_;
+
     // --- Private Callbacks ---
     void vehicle_status_callback(const px4_msgs::msg::VehicleStatus::SharedPtr msg);
     void vehicle_land_detected_callback(const px4_msgs::msg::VehicleLandDetected::SharedPtr msg);
     void vehicle_global_position_callback(const px4_msgs::msg::VehicleGlobalPosition::SharedPtr msg);
     void vehicle_local_position_callback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg);
+    void battery_status_callback(const px4_msgs::msg::BatteryStatus::SharedPtr msg);
+    void sensor_gps_callback(const px4_msgs::msg::SensorGps::SharedPtr msg);
+    void failsafe_flags_callback(const px4_msgs::msg::FailsafeFlags::SharedPtr msg);
+    void telemetry_status_callback(const px4_msgs::msg::TelemetryStatus::SharedPtr msg);
+    void wind_callback(const px4_msgs::msg::Wind::SharedPtr msg);
 
     // --- Private Helper Functions (State Conversion) ---
     // (Definitions will be in drone_state.cpp)

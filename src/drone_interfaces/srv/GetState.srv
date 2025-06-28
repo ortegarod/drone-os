@@ -29,3 +29,47 @@ float64 latitude           # Latitude (degrees)
 float64 longitude          # Longitude (degrees)  
 float32 altitude           # Altitude (meters, AMSL)
 bool global_position_valid # True if GPS data is valid
+
+# Battery & Power (from battery_status topic)
+float32 battery_voltage          # Battery voltage (V)
+float32 battery_current          # Current draw (A)
+float32 battery_remaining        # Battery remaining (0.0-1.0)
+float32 battery_time_remaining   # Estimated flight time (seconds)
+float32 battery_temperature      # Battery temperature (C)
+string battery_warning           # Battery warning level (NONE/LOW/CRITICAL/EMERGENCY)
+bool battery_valid               # True if battery data is valid
+
+# GPS detailed info (from sensor_gps topic)
+string gps_fix_type             # GPS fix type (NONE/2D/3D/RTK_FLOAT/RTK_FIXED)
+uint8 gps_satellites_used       # Number of satellites used
+float32 gps_hdop                # Horizontal dilution of precision
+float32 gps_vdop                # Vertical dilution of precision
+float32 gps_accuracy_horizontal # Horizontal position accuracy (m)
+float32 gps_accuracy_vertical   # Vertical position accuracy (m)
+bool gps_jamming_detected       # GPS jamming detected
+bool gps_spoofing_detected      # GPS spoofing detected
+
+# System health (from various health topics)
+float32 system_health_score     # Overall system health (0-100)
+string[] active_warnings        # List of active warning messages
+string[] critical_failures      # List of critical failure messages
+bool can_arm                    # True if vehicle can be armed
+bool manual_control_lost        # True if manual control signal lost
+bool gcs_connection_lost        # True if GCS connection lost
+bool geofence_breached          # True if geofence is breached
+
+# Communication status (from telemetry_status topic)
+float32 rc_signal_strength      # RC signal strength (0-100)
+bool rc_signal_valid            # True if RC signal is valid
+float32 telemetry_link_quality  # Telemetry link quality (0-100)
+float32 packet_loss_rate        # Packet loss rate (0.0-1.0)
+
+# Flight performance
+float32 wind_speed              # Wind speed (m/s)
+float32 wind_direction          # Wind direction (degrees)
+float32 altitude_rate           # Altitude change rate (m/s)
+
+# Safety status
+string geofence_status          # Geofence status (INSIDE/OUTSIDE/UNKNOWN)
+uint32 flight_time_elapsed      # Flight time elapsed (seconds)
+uint32 flight_time_limit        # Flight time limit (seconds)

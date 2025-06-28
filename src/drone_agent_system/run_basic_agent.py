@@ -257,6 +257,41 @@ def main():
         
     print("Make sure your ROS 2 environment is sourced and drone services are available.")
 
+    # Create AI orchestrator service server for web interface communication
+    web_command_queue = []  # Simple queue for commands from web interface
+    
+    def handle_web_command(request, response):
+        """Handle command from web interface"""
+        try:
+            # Add command to queue for processing
+            # For now, we'll process immediately in the main loop
+            print(f"🌐 Web command received via ROS2 service")
+            
+            # We'll use a simple flag system for this demo
+            # The actual command will come through a different mechanism
+            response.success = True
+            response.message = "Command received by AI orchestrator"
+            
+            return response
+        except Exception as e:
+            print(f"Error handling web command: {e}")
+            response.success = False
+            response.message = f"Error: {str(e)}"
+            return response
+    
+    # Create service server for web interface
+    if drone_agent_tools.drone_commander_instance:
+        try:
+            from std_srvs.srv import Trigger
+            web_service = drone_agent_tools.drone_commander_instance.create_service(
+                Trigger,
+                '/ai_agent/process_command',
+                handle_web_command
+            )
+            print("🌐 AI Orchestrator service server created: /ai_agent/process_command")
+        except Exception as e:
+            print(f"Warning: Could not create web service: {e}")
+
     # Mission monitoring for autonomous completion
     mission_monitor_timer = None
     

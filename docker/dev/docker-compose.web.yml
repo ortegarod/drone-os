@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  web_interface:
+    build:
+      context: ../../web_interface
+      dockerfile: Dockerfile
+    container_name: web_interface_node
+    networks:
+      - ros_network
+    ports:
+      - "8000:8000"
+      - "3000:3000"
+    volumes:
+      - ../../:/root/ws_droneOS
+    working_dir: /root/ws_droneOS/web_interface
+    environment:
+      - ROS_DOMAIN_ID=0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    command: >
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        source /root/ws_droneOS/install/setup.bash &&
+        cd backend &&
+        python3 ros2_web_bridge.py
+      "
+    depends_on:
+      - drone_core
+    stdin_open: true
+    tty: true
+
+networks:
+  ros_network:
+    external: true

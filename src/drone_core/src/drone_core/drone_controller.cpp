@@ -660,6 +660,62 @@ void DroneController::get_state_callback(
         response->altitude = altitude;
         response->global_position_valid = global_position_valid;
 
+        // Get battery data
+        DroneState::BatteryData battery_data;
+        bool battery_valid = drone_state_->get_battery_data(battery_data);
+        response->battery_voltage = battery_data.voltage;
+        response->battery_current = battery_data.current;
+        response->battery_remaining = battery_data.remaining;
+        response->battery_time_remaining = battery_data.time_remaining;
+        response->battery_temperature = battery_data.temperature;
+        response->battery_warning = battery_data.warning;
+        response->battery_valid = battery_valid;
+
+        // Get GPS data
+        DroneState::GpsData gps_data;
+        bool gps_valid = drone_state_->get_gps_data(gps_data);
+        response->gps_fix_type = gps_data.fix_type;
+        response->gps_satellites_used = gps_data.satellites_used;
+        response->gps_hdop = gps_data.hdop;
+        response->gps_vdop = gps_data.vdop;
+        response->gps_accuracy_horizontal = gps_data.accuracy_horizontal;
+        response->gps_accuracy_vertical = gps_data.accuracy_vertical;
+        response->gps_jamming_detected = gps_data.jamming_detected;
+        response->gps_spoofing_detected = gps_data.spoofing_detected;
+
+        // Get failsafe/health data
+        DroneState::FailsafeData failsafe_data;
+        bool failsafe_valid = drone_state_->get_failsafe_data(failsafe_data);
+        response->system_health_score = failsafe_data.system_health_score;
+        response->active_warnings = failsafe_data.active_warnings;
+        response->critical_failures = failsafe_data.critical_failures;
+        response->can_arm = !failsafe_data.battery_unhealthy && !failsafe_data.manual_control_lost;
+        response->manual_control_lost = failsafe_data.manual_control_lost;
+        response->gcs_connection_lost = failsafe_data.gcs_connection_lost;
+        response->geofence_breached = failsafe_data.geofence_breached;
+
+        // Get telemetry data
+        DroneState::TelemetryData telemetry_data;
+        bool telemetry_valid = drone_state_->get_telemetry_data(telemetry_data);
+        response->rc_signal_strength = telemetry_data.rc_signal_strength;
+        response->rc_signal_valid = telemetry_data.rc_signal_valid;
+        response->telemetry_link_quality = telemetry_data.telemetry_link_quality;
+        response->packet_loss_rate = telemetry_data.packet_loss_rate;
+
+        // Get wind data
+        DroneState::WindData wind_data;
+        bool wind_valid = drone_state_->get_wind_data(wind_data);
+        response->wind_speed = wind_data.speed;
+        response->wind_direction = wind_data.direction;
+
+        // Get flight performance data
+        response->altitude_rate = velocity_z; // Use velocity_z as altitude rate
+        
+        // Get safety status
+        response->geofence_status = failsafe_data.geofence_breached ? "OUTSIDE" : "INSIDE";
+        response->flight_time_elapsed = drone_state_->get_flight_time_elapsed();
+        response->flight_time_limit = 1800; // 30 minutes default limit
+
         // Set success
         response->success = true;
         response->message = "State data retrieved successfully";

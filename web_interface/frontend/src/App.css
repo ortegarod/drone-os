@@ -1,0 +1,421 @@
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
+.app-header {
+  background-color: #2d2d2d;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #444;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #00ff88;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-indicator {
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-indicator.connected {
+  background-color: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+}
+
+.status-indicator.disconnected {
+  background-color: rgba(255, 0, 0, 0.2);
+  color: #ff4444;
+}
+
+/* Navigation buttons */
+.nav-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background-color: #3d3d3d;
+  color: #ccc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+}
+
+.nav-btn:hover {
+  background-color: #555;
+  color: #fff;
+}
+
+.nav-btn.active {
+  background-color: #00ff88;
+  color: #1a1a1a;
+  border-color: #00ff88;
+}
+
+.app-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 300px 1fr 300px;
+  gap: 1rem;
+  padding: 1rem;
+  padding-bottom: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.left-panel,
+.center-panel,
+.right-panel {
+  background-color: #2d2d2d;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.left-panel {
+  border-left: 3px solid #00ff88;
+}
+
+.center-panel {
+  border-top: 3px solid #0088ff;
+}
+
+.right-panel {
+  border-right: 3px solid #ff8800;
+  margin-top: 220px; /* Space for minimap in RuneScape style */
+}
+
+/* Button styles */
+.btn {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn.primary {
+  background-color: #00ff88;
+  color: #1a1a1a;
+}
+
+.btn.primary:hover {
+  background-color: #00cc6a;
+}
+
+.btn.danger {
+  background-color: #ff4444;
+  color: #ffffff;
+}
+
+.btn.danger:hover {
+  background-color: #cc3333;
+}
+
+.btn.secondary {
+  background-color: #444;
+  color: #ffffff;
+  border: 1px solid #666;
+}
+
+.btn.secondary:hover {
+  background-color: #555;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Form styles */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #ccc;
+  font-size: 0.875rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background-color: #3d3d3d;
+  color: #ffffff;
+  font-size: 0.875rem;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #00ff88;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+/* Status display styles */
+.status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.status-card {
+  background-color: #3d3d3d;
+  padding: 1rem;
+  border-radius: 4px;
+  border-left: 3px solid #00ff88;
+}
+
+.status-card h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: #ccc;
+  text-transform: uppercase;
+}
+
+.status-card .value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.status-card.armed .value {
+  color: #ff4444;
+}
+
+.status-card.connected .value {
+  color: #00ff88;
+}
+
+/* AI Interface styles */
+.ai-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background-color: #3d3d3d;
+  border-radius: 4px;
+  min-height: 200px;
+}
+
+.ai-message {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border-radius: 4px;
+}
+
+.ai-message.user {
+  background-color: #0088ff;
+  color: #ffffff;
+  margin-left: 2rem;
+}
+
+.ai-message.assistant {
+  background-color: #444;
+  color: #ffffff;
+  margin-right: 2rem;
+}
+
+.ai-input-area {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ai-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background-color: #3d3d3d;
+  color: #ffffff;
+  resize: vertical;
+  min-height: 2.5rem;
+}
+
+.ai-input:focus {
+  outline: none;
+  border-color: #ff8800;
+}
+
+@media (max-width: 1200px) {
+  .app-main {
+    grid-template-columns: 250px 1fr 250px;
+  }
+}
+
+/* Top Status Bar */
+.top-status-bar {
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #444;
+  padding: 0.5rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  min-height: 40px;
+}
+
+/* Bottom Status Bar */
+.bottom-status-bar {
+  background-color: #2d2d2d;
+  border-top: 1px solid #444;
+  padding: 0.5rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  min-height: 40px;
+}
+
+.status-bar-left {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.status-bar-right {
+  display: flex;
+  align-items: center;
+}
+
+.status-item {
+  color: #ccc;
+  font-weight: 500;
+}
+
+.status-item.battery {
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.status-item.armed-status {
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.status-item.armed-status.armed {
+  background-color: rgba(255, 68, 68, 0.2);
+  color: #ff4444;
+  border: 1px solid #ff4444;
+}
+
+.status-item.armed-status.disarmed {
+  background-color: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+  border: 1px solid #00ff88;
+}
+
+@media (max-width: 900px) {
+  .app-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  
+  .left-panel,
+  .right-panel {
+    height: 300px;
+  }
+
+  .status-bar-left {
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  
+  .status-item {
+    font-size: 0.75rem;
+  }
+}
+
+/* Telemetry Page Styles */
+.telemetry-section {
+  background-color: #2d2d2d;
+  border-radius: 8px;
+  padding: 1rem;
+  border-left: 3px solid #0088ff;
+}
+
+.telemetry-section h3 {
+  margin: 0 0 1rem 0;
+  color: #00ff88;
+  font-size: 1.1rem;
+}
+
+.telemetry-section h4 {
+  margin: 0 0 0.5rem 0;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.telemetry-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #444;
+}
+
+.telemetry-item:last-child {
+  border-bottom: none;
+}
+
+.telemetry-item .label {
+  color: #ccc;
+  font-size: 0.875rem;
+}
+
+.telemetry-item .value {
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+}

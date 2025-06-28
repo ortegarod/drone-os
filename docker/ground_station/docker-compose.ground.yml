@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # ROS2 Bridge - Provides WebSocket/JSON interface to ROS2 network
+  rosbridge:
+    image: ros:humble
+    container_name: rosbridge_server
+    ports:
+      - "9090:9090"  # WebSocket port for web frontend
+    network_mode: host  # Required for ROS2 DDS discovery
+    environment:
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/fastdds_config.xml
+      - FASTRTPS_WHITELIST_INTERFACES=all
+    volumes:
+      - ../../fastdds_config.xml:/root/fastdds_config.xml:ro
+      - ../../install:/root/ws_droneOS/install:ro  # Mount built packages
+    command: >
+      bash -c "
+        apt-get update && 
+        apt-get install -y ros-humble-rosbridge-suite &&
+        source /opt/ros/humble/setup.bash &&
+        source /root/ws_droneOS/install/setup.bash &&
+        echo 'Starting rosbridge on port 9090 with DroneOS interfaces...' &&
+        ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090
+      "
+    restart: unless-stopped

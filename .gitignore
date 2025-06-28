@@ -14,3 +14,10 @@ Micro-XRCE-DDS-Agent/build/*
 .cursor
 .vscode
 .env
+node_modules
+venv
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class

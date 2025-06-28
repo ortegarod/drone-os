@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test rosbridge Connection</title>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+</head>
+<body>
+    <h1>rosbridge Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="services"></div>
+    <button onclick="testDroneServices()">Test Drone Services</button>
+    <div id="results"></div>
+
+    <script>
+        // Connect to rosbridge
+        const ros = new ROSLIB.Ros({
+            url: 'ws://localhost:9090'
+        });
+
+        const statusDiv = document.getElementById('status');
+        const servicesDiv = document.getElementById('services');
+        const resultsDiv = document.getElementById('results');
+
+        ros.on('connection', function() {
+            statusDiv.innerHTML = '✅ Connected to rosbridge!';
+            listServices();
+        });
+
+        ros.on('error', function(error) {
+            statusDiv.innerHTML = '❌ Error: ' + error;
+        });
+
+        ros.on('close', function() {
+            statusDiv.innerHTML = '🔴 Connection closed';
+        });
+
+        function listServices() {
+            // Get list of services
+            const getServicesClient = new ROSLIB.Service({
+                ros: ros,
+                name: '/rosapi/services',
+                serviceType: 'rosapi_msgs/srv/Services'
+            });
+
+            const request = new ROSLIB.ServiceRequest({});
+            
+            getServicesClient.callService(request, function(result) {
+                const droneServices = result.services.filter(s => s.includes('/drone'));
+                servicesDiv.innerHTML = '<h3>Discovered Drone Services:</h3><ul>' + 
+                    droneServices.map(s => '<li>' + s + '</li>').join('') + '</ul>';
+            });
+        }
+
+        function testDroneServices() {
+            resultsDiv.innerHTML = '<h3>Testing drone services...</h3>';
+            
+            // Test get_state service
+            const getStateService = new ROSLIB.Service({
+                ros: ros,
+                name: '/drone1/get_state',
+                serviceType: 'drone_interfaces/srv/GetState'
+            });
+
+            const request = new ROSLIB.ServiceRequest({});
+            
+            getStateService.callService(request, function(result) {
+                resultsDiv.innerHTML += '<p>✅ /drone1/get_state: ' + JSON.stringify(result, null, 2) + '</p>';
+            }, function(error) {
+                resultsDiv.innerHTML += '<p>❌ /drone1/get_state failed: ' + error + '</p>';
+            });
+
+            // Test simple arm service
+            const armService = new ROSLIB.Service({
+                ros: ros,
+                name: '/drone1/arm',
+                serviceType: 'std_srvs/srv/Trigger'
+            });
+
+            armService.callService(new ROSLIB.ServiceRequest({}), function(result) {
+                resultsDiv.innerHTML += '<p>✅ /drone1/arm: ' + JSON.stringify(result) + '</p>';
+            }, function(error) {
+                resultsDiv.innerHTML += '<p>❌ /drone1/arm failed: ' + error + '</p>';
+            });
+        }
+    </script>
+</body>
+</html>
