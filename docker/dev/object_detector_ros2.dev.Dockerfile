@@ -1,5 +1,5 @@
 # Edge TPU Object Detector with ROS 2 Integration
-# Based on our successful manual setup in edge_tpu_test container
+# Fixed: Ubuntu 20.04 + ROS 2 Galactic + Edge TPU + PyCoral
 FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -17,11 +17,12 @@ RUN apt-get update && apt-get install -y \
     libusb-1.0-0 \
     software-properties-common \
     lsb-release \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Add ROS 2 Galactic repository (compatible with Ubuntu 20.04)
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-RUN echo "deb [arch=arm64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu focal main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu focal main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
 
 # Add Edge TPU repository
 RUN echo "deb https://packages.cloud.google.com/apt coral-edgetpu-stable main" | tee /etc/apt/sources.list.d/coral-edgetpu.list
@@ -33,19 +34,21 @@ RUN apt-get update && apt-get install -y \
     ros-galactic-sensor-msgs \
     ros-galactic-geometry-msgs \
     ros-galactic-visualization-msgs \
+    ros-galactic-cv-bridge \
+    ros-galactic-rmw-fastrtps-cpp \
     python3-rosdep \
     libedgetpu1-std \
     python3-pycoral \
     python3-opencv \
+    python3-colcon-common-extensions \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python packages
+# Install Python packages for cv_bridge compatibility
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install \
     opencv-python \
     numpy \
-    Pillow \
-    cv-bridge
+    Pillow
 
 # Create workspace
 WORKDIR /workspace
@@ -84,7 +87,7 @@ echo "  ROS 2 Integration Test:"\n\
 echo "    python3 /workspace/src/simple_ros_test.py"\n\
 echo ""\n\
 echo "  Camera Object Detector:"\n\
-echo "    python3 /workspace/src/camera_object_detector.py --ros-args -p drone_name:=drone1 -p camera_topic:=/image_raw -p threshold:=0.5"\n\
+echo "    python3 /workspace/src/camera_object_detector.py --ros-args -p drone_name:=drone1 -p camera_topic:=/camera/image_raw -p threshold:=0.5"\n\
 echo ""\n\
 echo "================================================"\n\
 exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh
