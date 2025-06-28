@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+// @ts-ignore
+import ROSLIB from 'roslib';
 import { DroneStatus } from '../App';
 
 // Fix for default markers in webpack
@@ -33,6 +35,28 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
 
+  // Get drone's GPS position for map centering
+  const getDroneGPSPosition = async () => {
+    if (!droneAPI.ros) {
+      return null;
+    }
+
+    try {
+      const state = await droneAPI.getState();
+      
+      if (state.success && state.state && state.state.global_position_valid) {
+        const lat = state.state.latitude;
+        const lng = state.state.longitude;
+        return [lat, lng] as [number, number];
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error('DroneMap: Failed to get drone position:', error);
+      return null;
+    }
+  };
+
   // Initialize map
   useEffect(() => {
     console.log('DroneMap: Initializing map...');
@@ -41,34 +65,53 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
       return;
     }
     if (mapInstanceRef.current) {
-      console.log('DroneMap: Map already initialized');
+      console.log('DroneMap: Map already initialized, skipping');
       return;
     }
-
-    try {
-      console.log('DroneMap: Creating Leaflet map...');
-      // Create map centered on a default location (San Francisco)
-      const map = L.map(mapRef.current).setView([37.7749, -122.4194], 13);
-      console.log('DroneMap: Map created successfully');
-
-      // Add OpenStreetMap tile layer
-      console.log('DroneMap: Adding tile layer...');
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(map);
-      console.log('DroneMap: Tile layer added');
-
-      // Handle map clicks for move commands
-      map.on('click', (e) => {
-        console.log('DroneMap: Map clicked at', e.latlng);
-        handleMapClick(e.latlng);
-      });
-
-      mapInstanceRef.current = map;
-      console.log('DroneMap: Map initialization complete');
-    } catch (error) {
-      console.error('DroneMap: Failed to initialize map:', error);
+    
+    const container = mapRef.current;
+    
+    // Clear any existing Leaflet state on the container
+    if ('_leaflet_id' in container) {
+      delete (container as any)._leaflet_id;
     }
+
+    const initializeMap = async () => {
+      try {
+        console.log('DroneMap: Creating Leaflet map...');
+        // Try to get drone's actual position first
+        const dronePos = await getDroneGPSPosition();
+        const center = dronePos || [37.7749, -122.4194]; // Default to SF
+        
+        // Create map centered on drone or default location
+        const map = L.map(mapRef.current!).setView(center, 15);
+        console.log('DroneMap: Map created successfully');
+
+        // Add OpenStreetMap tile layer
+        console.log('DroneMap: Adding tile layer...');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        console.log('DroneMap: Tile layer added');
+
+        // Store map click handler
+        const clickHandler = (e: L.LeafletMouseEvent) => {
+          console.log('DroneMap: Map clicked at', e.latlng);
+          if (e.latlng) {
+            handleMapClick(e.latlng);
+          }
+        };
+        
+        map.on('click', clickHandler);
+
+        mapInstanceRef.current = map;
+        console.log('DroneMap: Map initialization complete');
+      } catch (error) {
+        console.error('DroneMap: Failed to initialize map:', error);
+      }
+    };
+
+    initializeMap();
 
     return () => {
       console.log('DroneMap: Cleaning up map...');
@@ -80,7 +123,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
   }, []);
 
   // Fetch drone positions
-  const fetchDronePositions = async () => {
+  const fetchDronePositions = React.useCallback(async () => {
     console.log('DroneMap: Fetching drone positions...');
     if (!droneAPI.ros) {
       console.warn('DroneMap: No ROS connection, skipping position fetch');
@@ -99,18 +142,15 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
         const state = await droneAPI.getState();
         
         if (state.success && state.state) {
-          const hasValidCoords = 
-            typeof state.state.latitude === 'number' && 
-            typeof state.state.longitude === 'number' &&
-            Math.abs(state.state.latitude) <= 90 && 
-            Math.abs(state.state.longitude) <= 180 &&
-            !(state.state.latitude === 0 && state.state.longitude === 0);
-
-          if (hasValidCoords) {
+          // Check if we have reasonable GPS coordinates (even if marked invalid)
+          const hasReasonableCoords = state.state.latitude !== 0 && state.state.longitude !== 0 &&
+                                    Math.abs(state.state.latitude) <= 90 && Math.abs(state.state.longitude) <= 180;
+          
+          if (state.state.global_position_valid || hasReasonableCoords) {
             newPositions.set(droneName, {
               lat: state.state.latitude,
               lng: state.state.longitude,
-              alt: state.state.altitude || 0,
+              alt: state.state.altitude,
               valid: true
             });
           }
@@ -126,7 +166,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
     }
 
     setDronePositions(newPositions);
-  };
+  }, [droneAPI, availableDrones, droneStatus.drone_name]);
 
   // Update drone markers on map
   useEffect(() => {
@@ -143,26 +183,32 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
     // Add markers for each drone
     dronePositions.forEach((position, droneName) => {
       if (position.valid) {
-        // Create custom icon for drone
+        // Create custom icon for drone (OSRS-style but larger for full map)
         const isCurrentTarget = droneName === droneStatus.drone_name;
+        const size = 20;
+        const fontSize = '10px';
+        
         const icon = L.divIcon({
           html: `<div style="
-            background: ${isCurrentTarget ? '#ff4444' : '#0088ff'};
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            border: 2px solid white;
+            background: ${isCurrentTarget ? 'linear-gradient(145deg, #FF0000, #CC0000)' : 'linear-gradient(145deg, #0088FF, #0066CC)'};
+            width: ${size}px;
+            height: ${size}px;
+            border-radius: 0px;
+            border: 1px solid ${isCurrentTarget ? '#FFFF00' : '#FFFFFF'};
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
-            color: white;
+            font-size: ${fontSize};
+            color: #FFFF00;
             font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            font-family: monospace;
+            text-shadow: 1px 1px 0 #000000;
+            box-shadow: 0 0 3px rgba(0,0,0,0.8);
+            image-rendering: pixelated;
           ">${droneName.replace('drone', '')}</div>`,
-          className: 'custom-drone-marker',
-          iconSize: [24, 24],
-          iconAnchor: [12, 12]
+          className: 'osrs-drone-marker',
+          iconSize: [size + 2, size + 2],
+          iconAnchor: [size/2 + 1, size/2 + 1]
         });
 
         const marker = L.marker([position.lat, position.lng], { icon })
@@ -201,7 +247,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
   };
 
   // Handle map clicks for navigation
-  const handleMapClick = async (latlng: L.LatLng) => {
+  const handleMapClick = React.useCallback(async (latlng: L.LatLng) => {
     const currentDronePos = dronePositions.get(droneStatus.drone_name);
     
     if (!currentDronePos || !currentDronePos.valid) {
@@ -243,7 +289,27 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [dronePositions, droneStatus.drone_name, droneAPI]);
+
+  // Update click handler when dependencies change
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    
+    const map = mapInstanceRef.current;
+    
+    // Remove existing click handlers
+    map.off('click');
+    
+    // Add updated click handler
+    const clickHandler = (e: L.LeafletMouseEvent) => {
+      console.log('DroneMap: Map clicked at', e.latlng);
+      if (e.latlng) {
+        handleMapClick(e.latlng);
+      }
+    };
+    
+    map.on('click', clickHandler);
+  }, [handleMapClick]);
 
   // Refresh drone positions periodically
   useEffect(() => {
@@ -252,7 +318,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
       const interval = setInterval(fetchDronePositions, 3000); // Every 3 seconds
       return () => clearInterval(interval);
     }
-  }, [availableDrones.length, droneAPI.ros]);
+  }, [availableDrones.length, droneAPI.ros, fetchDronePositions]);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

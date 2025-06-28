@@ -6,6 +6,7 @@ import AIInterface from './components/AIInterface';
 import SimpleCameraFeed from './components/SimpleCameraFeed';
 import TelemetryPage from './components/TelemetryPage';
 import MiniMap from './components/MiniMap';
+import DroneMap from './components/DroneMap';
 import './App.css';
 
 // rosbridge WebSocket URL
@@ -27,7 +28,7 @@ export interface DroneStatus {
 }
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'main' | 'telemetry'>('main');
+  const [currentPage, setCurrentPage] = useState<'main' | 'telemetry' | 'map'>('main');
   const [droneStatus, setDroneStatus] = useState<DroneStatus>({
     drone_name: 'drone1',
     connected: false,
@@ -368,6 +369,12 @@ const App: React.FC = () => {
             >
               Telemetry & Health
             </button>
+            <button 
+              className={`nav-btn ${currentPage === 'map' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('map')}
+            >
+              Drone Map
+            </button>
           </nav>
         </div>
         <div className="connection-status">
@@ -429,11 +436,19 @@ const App: React.FC = () => {
             availableDrones={availableDrones}
           />
         </main>
-      ) : (
+      ) : currentPage === 'telemetry' ? (
         <main style={{ flex: 1, overflow: 'hidden' }}>
           <TelemetryPage 
             droneAPI={droneAPI}
             droneStatus={droneStatus}
+          />
+        </main>
+      ) : (
+        <main style={{ flex: 1, overflow: 'hidden' }}>
+          <DroneMap 
+            droneAPI={droneAPI}
+            droneStatus={droneStatus}
+            availableDrones={availableDrones}
           />
         </main>
       )}

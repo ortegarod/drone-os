@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+// @ts-ignore
+import ROSLIB from 'roslib';
 import { DroneStatus } from '../App';
 
 // Fix for default markers in webpack
@@ -29,8 +31,6 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
   const mapInstanceRef = useRef<L.Map | null>(null);
   const droneMarkersRef = useRef<Map<string, L.Marker>>(new Map());
   const [dronePositions, setDronePositions] = useState<Map<string, DronePosition>>(new Map());
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [mapCenter, setMapCenter] = useState<[number, number]>([37.7749, -122.4194]); // Default to SF
 
@@ -62,14 +62,10 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     
     const container = mapRef.current;
     
-    // Clean up any existing map first
+    // Only initialize if not already initialized
     if (mapInstanceRef.current) {
-      try {
-        mapInstanceRef.current.remove();
-      } catch (error) {
-        console.warn('MiniMap: Error removing existing map:', error);
-      }
-      mapInstanceRef.current = null;
+      console.log('MiniMap: Map already initialized, skipping');
+      return;
     }
     
     // Clear any existing Leaflet state on the container
@@ -90,9 +86,9 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
           dragging: true,
           scrollWheelZoom: true,
           doubleClickZoom: true,
-          boxZoom: isExpanded,
-          keyboard: isExpanded
-        }).setView(center, isExpanded ? 15 : 13);
+          boxZoom: false,
+          keyboard: false
+        }).setView(center, 13);
 
         console.log('MiniMap: Map created successfully');
 
@@ -101,13 +97,15 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
           attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Handle map clicks for move commands
-        map.on('click', (e) => {
+        // Store map click handler
+        const clickHandler = (e: L.LeafletMouseEvent) => {
           console.log('MiniMap: Map clicked at:', e.latlng);
           if (e.latlng) {
             handleMapClick(e.latlng);
           }
-        });
+        };
+        
+        map.on('click', clickHandler);
 
         mapInstanceRef.current = map;
         setMapCenter(center);
@@ -133,20 +131,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         delete (container as any)._leaflet_id;
       }
     };
-  }, [isExpanded]); // Re-initialize when expand state changes
-
-  // Handle expand/collapse state changes
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
-    
-    const map = mapInstanceRef.current;
-    
-    // Invalidate size after state change
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 100);
-    
-  }, [isExpanded]);
+  }, []); // Only initialize once
 
   // Fetch drone positions
   const fetchDronePositions = React.useCallback(async () => {
@@ -208,8 +193,8 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       if (position.valid) {
         // Create custom icon for drone (smaller for minimap)
         const isCurrentTarget = droneName === droneStatus.drone_name;
-        const size = isExpanded ? 20 : 12;
-        const fontSize = isExpanded ? '10px' : '8px';
+        const size = 12;
+        const fontSize = '8px';
         
         // OSRS-style drone marker
         const icon = L.divIcon({
@@ -238,18 +223,6 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         const marker = L.marker([position.lat, position.lng], { icon })
           .addTo(map);
 
-        if (isExpanded) {
-          marker.bindPopup(`
-            <div>
-              <strong>${droneName}</strong><br/>
-              Lat: ${position.lat.toFixed(6)}<br/>
-              Lng: ${position.lng.toFixed(6)}<br/>
-              Alt: ${position.alt.toFixed(1)}m<br/>
-              ${isCurrentTarget ? '<em>Current Target</em>' : ''}
-            </div>
-          `);
-        }
-
         droneMarkersRef.current.set(droneName, marker);
       }
     });
@@ -257,11 +230,10 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     // Center map on current target drone if available
     const currentDronePos = dronePositions.get(droneStatus.drone_name);
     if (currentDronePos && currentDronePos.valid) {
-      const zoom = isExpanded ? Math.max(map.getZoom(), 15) : 13;
-      map.setView([currentDronePos.lat, currentDronePos.lng], zoom);
+      map.setView([currentDronePos.lat, currentDronePos.lng], 13);
       setMapCenter([currentDronePos.lat, currentDronePos.lng]);
     }
-  }, [dronePositions, droneStatus.drone_name, isExpanded]);
+  }, [dronePositions, droneStatus.drone_name]);
 
   // Simple GPS to local coordinate conversion (approximate)
   const gpsToLocal = (targetLat: number, targetLng: number, currentLat: number, currentLng: number) => {
@@ -289,7 +261,6 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       return;
     }
 
-    setIsLoading(true);
     setMessage(`Moving ${droneStatus.drone_name} to clicked location...`);
 
     try {
@@ -321,10 +292,28 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       console.error('MiniMap: Move command failed:', error);
       setMessage(`Failed to move drone: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setTimeout(() => setMessage(''), 3000);
-    } finally {
-      setIsLoading(false);
     }
   }, [dronePositions, droneStatus.drone_name, droneAPI]);
+
+  // Update click handler when dependencies change
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    
+    const map = mapInstanceRef.current;
+    
+    // Remove existing click handlers
+    map.off('click');
+    
+    // Add updated click handler
+    const clickHandler = (e: L.LeafletMouseEvent) => {
+      console.log('MiniMap: Map clicked at:', e.latlng);
+      if (e.latlng) {
+        handleMapClick(e.latlng);
+      }
+    };
+    
+    map.on('click', clickHandler);
+  }, [handleMapClick]);
 
   // Refresh drone positions periodically
   useEffect(() => {
@@ -339,222 +328,80 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     position: 'absolute',
     top: '10px',
     right: '10px',
-    width: isExpanded ? '90vw' : '200px',
-    height: isExpanded ? '80vh' : '200px',
+    width: '200px',
+    height: '200px',
     zIndex: 1000,
     border: '3px solid #8B4513',
     borderRadius: '8px',
     backgroundColor: '#2F1B14',
     boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-    transition: 'all 0.3s ease-in-out',
     cursor: 'default'
   };
 
-  const overlayStyle: React.CSSProperties = isExpanded ? {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100vw',
-    height: '100vh',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 999,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  } : {};
-
   return (
-    <>
-      {isExpanded && (
-        <div style={overlayStyle} onClick={() => setIsExpanded(false)}>
-          <div onClick={(e) => e.stopPropagation()}>
-            <div style={miniMapStyle}>
-              {/* Header for expanded view */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '50px',
-                backgroundColor: '#8B4513',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0 1rem',
-                borderRadius: '5px 5px 0 0',
-                zIndex: 1001
-              }}>
-                <span style={{ color: 'white', fontWeight: 'bold' }}>
-                  🗺️ Drone Map - {dronePositions.size} drone(s) • Click to move • Scroll to zoom
-                </span>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button 
-                    onClick={fetchDronePositions}
-                    disabled={isLoading}
-                    style={{
-                      background: '#654321',
-                      border: 'none',
-                      color: 'white',
-                      padding: '6px 12px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '0.875rem'
-                    }}
-                  >
-                    🔄 Refresh
-                  </button>
-                  <button 
-                    onClick={() => setIsExpanded(false)}
-                    style={{
-                      background: '#654321',
-                      border: 'none',
-                      color: 'white',
-                      padding: '6px 12px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '0.875rem'
-                    }}
-                  >
-                    ✕ Close
-                  </button>
-                </div>
-              </div>
-              
-              <div 
-                ref={mapRef} 
-                style={{ 
-                  height: '100%', 
-                  width: '100%',
-                  borderRadius: '5px',
-                  paddingTop: isExpanded ? '50px' : '0'
-                }} 
-              />
-              
-              {isLoading && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '10px',
-                  left: '10px',
-                  background: 'rgba(0,0,0,0.8)',
-                  color: 'white',
-                  padding: '0.5rem 1rem',
-                  borderRadius: '4px',
-                  fontSize: '0.875rem'
-                }}>
-                  Processing...
-                </div>
-              )}
-              
-              {message && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '10px',
-                  right: '10px',
-                  background: message.includes('Failed') ? '#442222' : '#224422',
-                  color: message.includes('Failed') ? '#ff8888' : '#88ff88',
-                  padding: '0.5rem 1rem',
-                  borderRadius: '4px',
-                  fontSize: '0.875rem',
-                  maxWidth: '300px'
-                }}>
-                  {message}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+    <div style={miniMapStyle}>
+      {/* OSRS-style minimap frame */}
+      <div style={{
+        position: 'absolute',
+        top: '-6px',
+        left: '-6px',
+        right: '-6px',
+        bottom: '-6px',
+        border: '2px solid #A0956B',
+        borderRadius: '3px',
+        pointerEvents: 'none',
+        background: 'linear-gradient(135deg, #8B7355 0%, #6B5A43 50%, #4A3729 100%)',
+        boxShadow: 'inset 0 0 0 1px #D4C4A0, inset 0 0 0 2px #8B7355'
+      }} />
       
-      {!isExpanded && (
-        <div style={miniMapStyle}>
-          {/* OSRS-style minimap frame */}
-          <div style={{
-            position: 'absolute',
-            top: '-6px',
-            left: '-6px',
-            right: '-6px',
-            bottom: '-6px',
-            border: '2px solid #A0956B',
-            borderRadius: '3px',
-            pointerEvents: 'none',
-            background: 'linear-gradient(135deg, #8B7355 0%, #6B5A43 50%, #4A3729 100%)',
-            boxShadow: 'inset 0 0 0 1px #D4C4A0, inset 0 0 0 2px #8B7355'
-          }} />
-          
-          {/* OSRS-style expand button */}
-          <button
-            onClick={() => setIsExpanded(true)}
-            style={{
-              position: 'absolute',
-              top: '3px',
-              right: '3px',
-              background: 'linear-gradient(145deg, #8B7355, #6B5A43)',
-              border: '1px outset #A0956B',
-              color: '#E6D7B8',
-              padding: '2px 6px',
-              borderRadius: '0px',
-              cursor: 'pointer',
-              fontSize: '10px',
-              fontWeight: 'bold',
-              zIndex: 1001,
-              fontFamily: 'monospace',
-              textShadow: '1px 1px 0 #2C1810',
-              boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.2)'
-            }}
-          >
-            ◯
-          </button>
-          
-          <div 
-            ref={mapRef} 
-            style={{ 
-              height: '100%', 
-              width: '100%',
-              borderRadius: '5px'
-            }} 
-          />
-          
-          {/* OSRS-style minimap text */}
-          <div style={{
-            position: 'absolute',
-            bottom: '2px',
-            left: '2px',
-            right: '2px',
-            textAlign: 'center',
-            color: '#FFFF00', // Classic OSRS yellow text
-            fontSize: '8px',
-            fontWeight: 'bold',
-            fontFamily: 'monospace',
-            textShadow: '1px 1px 0 #000000',
-            pointerEvents: 'none',
-            background: 'rgba(0,0,0,0.7)',
-            padding: '1px',
-            borderRadius: '0px'
-          }}>
-            {dronePositions.size} DRONE{dronePositions.size !== 1 ? 'S' : ''}
-          </div>
-          
-          {/* Status indicator for minimap */}
-          {message && (
-            <div style={{
-              position: 'absolute',
-              bottom: '20px',
-              left: '5px',
-              right: '5px',
-              background: message.includes('Failed') ? 'rgba(255, 68, 68, 0.9)' : 'rgba(34, 68, 34, 0.9)',
-              color: 'white',
-              padding: '2px 4px',
-              borderRadius: '3px',
-              fontSize: '8px',
-              textAlign: 'center',
-              pointerEvents: 'none'
-            }}>
-              {message.length > 40 ? message.substring(0, 40) + '...' : message}
-            </div>
-          )}
+      <div 
+        ref={mapRef} 
+        style={{ 
+          height: '100%', 
+          width: '100%',
+          borderRadius: '5px'
+        }} 
+      />
+      
+      {/* OSRS-style minimap text */}
+      <div style={{
+        position: 'absolute',
+        bottom: '2px',
+        left: '2px',
+        right: '2px',
+        textAlign: 'center',
+        color: '#FFFF00', // Classic OSRS yellow text
+        fontSize: '8px',
+        fontWeight: 'bold',
+        fontFamily: 'monospace',
+        textShadow: '1px 1px 0 #000000',
+        pointerEvents: 'none',
+        background: 'rgba(0,0,0,0.7)',
+        padding: '1px',
+        borderRadius: '0px'
+      }}>
+        {dronePositions.size} DRONE{dronePositions.size !== 1 ? 'S' : ''}
+      </div>
+      
+      {/* Status indicator for minimap */}
+      {message && (
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '5px',
+          right: '5px',
+          background: message.includes('Failed') ? 'rgba(255, 68, 68, 0.9)' : 'rgba(34, 68, 34, 0.9)',
+          color: 'white',
+          padding: '2px 4px',
+          borderRadius: '3px',
+          fontSize: '8px',
+          textAlign: 'center',
+          pointerEvents: 'none'
+        }}>
+          {message.length > 40 ? message.substring(0, 40) + '...' : message}
         </div>
       )}
-    </>
+    </div>
   );
 };
 
