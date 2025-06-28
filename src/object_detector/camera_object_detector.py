@@ -14,6 +14,7 @@ from PIL import Image
 # ROS 2 imports
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from sensor_msgs.msg import Image as ImageMsg
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import Header
@@ -69,12 +70,19 @@ class CameraObjectDetector(Node):
         # Initialize CV Bridge
         self.bridge = CvBridge()
         
-        # Create subscribers
+        # Create subscribers with compatible QoS
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10,
+            durability=DurabilityPolicy.VOLATILE
+        )
+        
         self.image_sub = self.create_subscription(
             ImageMsg,
             self.camera_topic,
             self.image_callback,
-            10
+            qos_profile
         )
         
         # Create publishers
@@ -107,15 +115,21 @@ class CameraObjectDetector(Node):
     
     def image_callback(self, msg):
         """Process incoming camera images"""
+        self.get_logger().info("🔥 Image callback triggered")
         current_time = time.time()
         
         # Rate limiting
         if current_time - self.last_detection_time < self.min_detection_interval:
             return
         
+        self.get_logger().info(f"Received image {self.frame_count} - Processing...")
+        
         try:
             # Convert ROS image to OpenCV format
-            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='rgb8')
+            # Camera publishes XRGB8888, convert to RGB for processing
+            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+            if cv_image.shape[2] == 4:  # RGBA/XRGB
+                cv_image = cv_image[:, :, 1:4]  # Skip alpha/X channel, take RGB
             
             # Run detection
             detections, inference_time = self.detect_objects(cv_image)
