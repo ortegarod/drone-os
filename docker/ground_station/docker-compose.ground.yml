@@ -18,10 +18,38 @@ services:
     command: >
       bash -c "
         apt-get update && 
-        apt-get install -y ros-humble-rosbridge-suite &&
+        apt-get install -y ros-humble-rosbridge-suite python3-pymongo &&
         source /opt/ros/humble/setup.bash &&
         source /root/ws_droneOS/install/setup.bash &&
         echo 'Starting rosbridge on port 9090 with DroneOS interfaces...' &&
         ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090
       "
+    restart: unless-stopped
+
+  # Telemetry Publisher - Publishes drone state for web frontend consumption
+  telemetry_publisher:
+    image: ros:humble
+    container_name: telemetry_publisher
+    network_mode: host  # Required for ROS2 DDS discovery
+    environment:
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/fastdds_config.xml
+      - FASTRTPS_WHITELIST_INTERFACES=all
+    volumes:
+      - ../../fastdds_config.xml:/root/fastdds_config.xml:ro
+      - ../../install:/root/ws_droneOS/install:ro  # Mount built packages
+    command: >
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        source /root/ws_droneOS/install/setup.bash &&
+        echo 'Starting telemetry publisher for drone state...' &&
+        ros2 run drone_core telemetry_publisher \
+          --ros-args \
+          -p drone_namespaces:=['px4_1'] \
+          -p publish_rate_hz:=10 \
+          -p enable_rosbridge_topics:=true \
+          -p enable_get_state_services:=true
+      "
+    depends_on:
+      - rosbridge
     restart: unless-stopped
