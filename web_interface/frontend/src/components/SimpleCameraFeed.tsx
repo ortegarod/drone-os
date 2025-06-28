@@ -1,6 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
-// @ts-ignore
-import ROSLIB from 'roslib';
+import React, { useRef, useState, useEffect } from 'react';
 
 interface SimpleCameraFeedProps {
   droneAPI: any;
@@ -10,70 +8,33 @@ interface SimpleCameraFeedProps {
 const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnected }) => {
   const imgRef = useRef<HTMLImageElement>(null);
   const [status, setStatus] = useState<string>('Connecting...');
-  const [frameCount, setFrameCount] = useState<number>(0);
+  const [streamUrl] = useState<string>('http://<tailscale-ip>:8080/stream?topic=/camera/image_raw&type=mjpeg&quality=75&qos_profile=sensor_data');
 
   useEffect(() => {
-    if (!isConnected || !droneAPI.ros) {
-      setStatus('Not connected to ROS');
-      return;
-    }
+    if (!imgRef.current) return;
 
-    console.log('SimpleCameraFeed: Setting up subscription');
+    const img = imgRef.current;
     
-    // Subscribe to compressed images - this is what works with showimage
-    const imageSubscriber = new (ROSLIB as any).Topic({
-      ros: droneAPI.ros,
-      name: '/camera/image_raw/compressed',
-      messageType: 'sensor_msgs/CompressedImage'
-    });
-
-    const handleImage = (message: any) => {
-      console.log('SimpleCameraFeed: Got image:', {
-        format: message.format,
-        dataSize: message.data?.length,
-        dataType: typeof message.data
-      });
-
-      if (!imgRef.current || !message.data) return;
-
-      try {
-        // Create blob from base64 data and set as image source
-        const binaryString = atob(message.data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        const blob = new Blob([bytes], { type: `image/${message.format}` });
-        const url = URL.createObjectURL(blob);
-        
-        imgRef.current.onload = () => {
-          setFrameCount(prev => prev + 1);
-          setStatus(`Live • ${frameCount} frames`);
-          URL.revokeObjectURL(url); // Clean up
-        };
-        
-        imgRef.current.onerror = () => {
-          console.error('SimpleCameraFeed: Failed to load image');
-          setStatus('Image load error');
-        };
-        
-        imgRef.current.src = url;
-        
-      } catch (error) {
-        console.error('SimpleCameraFeed: Error processing image:', error);
-        setStatus('Processing error');
-      }
+    const handleLoad = () => {
+      setStatus('Live • Native video stream');
     };
 
-    imageSubscriber.subscribe(handleImage);
-    setStatus('Subscribed, waiting for images...');
+    const handleError = () => {
+      setStatus('Stream error - check camera service');
+    };
+
+    img.addEventListener('load', handleLoad);
+    img.addEventListener('error', handleError);
+    
+    // Set the stream URL
+    img.src = streamUrl;
+    setStatus('Loading video stream...');
 
     return () => {
-      console.log('SimpleCameraFeed: Cleaning up');
-      imageSubscriber.unsubscribe();
+      img.removeEventListener('load', handleLoad);
+      img.removeEventListener('error', handleError);
     };
-  }, [isConnected, droneAPI.ros, frameCount]);
+  }, [streamUrl]);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
