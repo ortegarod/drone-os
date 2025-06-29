@@ -14,7 +14,8 @@ services:
       - FASTRTPS_WHITELIST_INTERFACES=all
     volumes:
       - ../../fastdds_config.xml:/root/fastdds_config.xml:ro
-      - ../../install:/root/ws_droneOS/install:ro  # Mount built packages
+      - ../../install:/root/ws_droneOS/install:rw  # Mount built packages with write access
+      - ../../src:/root/ws_droneOS/src:ro  # Mount source for message definitions
     command: >
       bash -c "
         apt-get update && 
@@ -37,7 +38,8 @@ services:
       - FASTRTPS_WHITELIST_INTERFACES=all
     volumes:
       - ../../fastdds_config.xml:/root/fastdds_config.xml:ro
-      - ../../install:/root/ws_droneOS/install:ro  # Mount built packages
+      - ../../install:/root/ws_droneOS/install:rw  # Mount built packages with write access
+      - ../../src:/root/ws_droneOS/src:ro  # Mount source for message definitions
     command: >
       bash -c "
         source /opt/ros/humble/setup.bash &&

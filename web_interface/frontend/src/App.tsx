@@ -42,6 +42,7 @@ const App: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [ros, setRos] = useState<any>(null);
   const [availableDrones, setAvailableDrones] = useState<string[]>([]);
+  const [droneStateSub, setDroneStateSub] = useState<any>(null);
 
   // Initialize rosbridge connection
   useEffect(() => {
@@ -51,24 +52,26 @@ const App: React.FC = () => {
       });
 
       rosInstance.on('connection', () => {
-        console.log('Connected to rosbridge!');
+        console.log('[DEBUG] Connected to rosbridge WebSocket at', ROSBRIDGE_URL);
         setIsConnected(true);
         setRos(rosInstance);
         
-        // Get initial drone state
-        refreshDroneState(rosInstance);
+        // Start real-time drone state subscription
+        console.log('[DEBUG] Starting drone state subscription...');
+        startDroneStateSubscription(rosInstance);
         
         // Discover available drones
+        console.log('[DEBUG] Discovering available drones...');
         discoverAvailableDrones(rosInstance);
       });
 
       rosInstance.on('error', (error: any) => {
-        console.error('rosbridge connection error:', error);
+        console.error('[DEBUG] rosbridge connection error:', error);
         setIsConnected(false);
       });
 
       rosInstance.on('close', () => {
-        console.log('rosbridge connection closed');
+        console.log('[DEBUG] rosbridge connection closed - attempting reconnect in 3s');
         setIsConnected(false);
         setRos(null);
         // Attempt to reconnect after 3 seconds
@@ -80,13 +83,16 @@ const App: React.FC = () => {
 
     // Cleanup on unmount
     return () => {
+      if (droneStateSub) {
+        clearInterval(droneStateSub);
+      }
       if (ros) {
         ros.close();
       }
     };
   }, []);
   
-  // Function to refresh drone state
+  // Function to refresh drone state using drone_core service (one-time fetch)
   const refreshDroneState = (rosInstance: any) => {
     const getStateService = new ROSLIB.Service({
       ros: rosInstance,
@@ -97,7 +103,7 @@ const App: React.FC = () => {
     const request = new ROSLIB.ServiceRequest({});
     
     getStateService.callService(request, (result: any) => {
-      if (result.success && result) {
+      if (result.success) {
         setDroneStatus(prev => ({
           ...prev,
           armed: result.arming_state === 'ARMED',
@@ -108,11 +114,12 @@ const App: React.FC = () => {
             z: result.local_z || 0,
             yaw: result.local_yaw || 0
           },
+          battery: Math.round((result.battery_remaining || 0) * 100),
           timestamp: Date.now()
         }));
       }
     }, (error: any) => {
-      console.warn('Failed to get drone state:', error);
+      console.error('[DEBUG] Refresh state error:', error);
     });
   };
 
@@ -161,14 +168,75 @@ const App: React.FC = () => {
     }
   };
   
-  // Periodic state refresh
+  // Start periodic polling of drone_core get_state service
+  const startDroneStateSubscription = (rosInstance: any) => {
+    // Clear any existing polling interval
+    if (droneStateSub) {
+      console.log('[DEBUG] Clearing previous state polling interval');
+      clearInterval(droneStateSub);
+    }
+    
+    console.log('[DEBUG] Starting periodic state polling for', droneStatus.drone_name);
+    
+    // Function to poll state via service
+    const pollDroneState = async () => {
+      try {
+        const getStateService = new ROSLIB.Service({
+          ros: rosInstance,
+          name: `/${droneStatus.drone_name}/get_state`,
+          serviceType: 'drone_interfaces/srv/GetState'
+        });
+
+        const request = new ROSLIB.ServiceRequest({});
+        
+        getStateService.callService(request, (result: any) => {
+          console.log('[DEBUG] State service response:', {
+            success: result.success,
+            armed: result.arming_state,
+            mode: result.nav_state,
+            position: [result.local_x, result.local_y, result.local_z],
+            battery: result.battery_remaining,
+            timestamp: new Date().toLocaleTimeString()
+          });
+          
+          if (result.success) {
+            setDroneStatus(prev => ({
+              ...prev,
+              connected: true,
+              armed: result.arming_state === 'ARMED',
+              flight_mode: result.nav_state || 'UNKNOWN',
+              position: {
+                x: result.local_x || 0,
+                y: result.local_y || 0,
+                z: result.local_z || 0,
+                yaw: result.local_yaw || 0
+              },
+              battery: Math.round((result.battery_remaining || 0) * 100),
+              timestamp: Date.now()
+            }));
+          }
+        }, (error: any) => {
+          console.error('[DEBUG] State service error:', error);
+        });
+      } catch (error) {
+        console.error('[DEBUG] State polling error:', error);
+      }
+    };
+
+    // Initial poll
+    pollDroneState();
+    
+    // Set up periodic polling every 2 seconds
+    const pollInterval = setInterval(pollDroneState, 2000);
+    setDroneStateSub(pollInterval);
+    
+    console.log('[DEBUG] State polling established for', droneStatus.drone_name, '(2 second interval)');
+  };
+  
+  // Handle drone name changes - restart subscription for new drone
   useEffect(() => {
     if (ros && isConnected) {
-      const interval = setInterval(() => {
-        refreshDroneState(ros);
-      }, 2000); // Refresh every 2 seconds
-      
-      return () => clearInterval(interval);
+      startDroneStateSubscription(ros);
     }
   }, [ros, isConnected, droneStatus.drone_name]);
 
@@ -189,26 +257,31 @@ const App: React.FC = () => {
         return Promise.reject(new Error('Not connected to rosbridge'));
       }
       
+      console.log('[DEBUG] Sending setPosition command:', { x, y, z, yaw, drone: droneStatus.drone_name });
+      
       return new Promise((resolve, reject) => {
+        const serviceName = `/${droneStatus.drone_name}/set_position`;
         const setPositionService = new ROSLIB.Service({
           ros: ros,
-          name: `/${droneStatus.drone_name}/set_position`,
+          name: serviceName,
           serviceType: 'drone_interfaces/srv/SetPosition'
         });
 
         const request = new ROSLIB.ServiceRequest({ x, y, z, yaw });
         
         setPositionService.callService(request, (result: any) => {
+          console.log('[DEBUG] setPosition response:', { success: result.success, message: result.message });
           resolve({ success: result.success, message: result.message });
           // Refresh state after command
           setTimeout(() => refreshDroneState(ros), 1000);
         }, (error: any) => {
+          console.error('[DEBUG] setPosition failed:', error);
           reject(new Error(`SetPosition failed: ${error}`));
         });
       });
     },
 
-    // Get drone state
+    // Get drone state using drone_core service
     getState: () => {
       if (!ros) {
         return Promise.reject(new Error('Not connected to rosbridge'));
@@ -224,9 +297,13 @@ const App: React.FC = () => {
         const request = new ROSLIB.ServiceRequest({});
         
         getStateService.callService(request, (result: any) => {
-          resolve({ success: result.success, message: result.message, state: result });
+          resolve({ 
+            success: result.success, 
+            message: result.success ? 'State retrieved from drone_core' : 'Failed to get state', 
+            state: result
+          });
         }, (error: any) => {
-          reject(new Error(`GetState failed: ${error}`));
+          reject(new Error(`GetState service failed: ${error}`));
         });
       });
     },
@@ -332,20 +409,25 @@ const App: React.FC = () => {
       return Promise.reject(new Error('Not connected to rosbridge'));
     }
     
+    console.log('[DEBUG] Calling trigger service:', serviceName, 'for drone:', droneStatus.drone_name);
+    
     return new Promise((resolve, reject) => {
+      const fullServiceName = `/${droneStatus.drone_name}/${serviceName}`;
       const service = new ROSLIB.Service({
         ros: ros,
-        name: `/${droneStatus.drone_name}/${serviceName}`,
+        name: fullServiceName,
         serviceType: 'std_srvs/srv/Trigger'
       });
 
       const request = new ROSLIB.ServiceRequest({});
       
       service.callService(request, (result: any) => {
+        console.log('[DEBUG]', serviceName, 'response:', { success: result.success, message: result.message });
         resolve({ success: result.success, message: result.message });
         // Refresh state after command
         setTimeout(() => refreshDroneState(ros), 1000);
       }, (error: any) => {
+        console.error('[DEBUG]', serviceName, 'failed:', error);
         reject(new Error(`${serviceName} failed: ${error}`));
       });
     });
