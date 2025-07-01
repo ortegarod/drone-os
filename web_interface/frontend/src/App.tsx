@@ -7,6 +7,7 @@ import SimpleCameraFeed from './components/SimpleCameraFeed';
 import TelemetryPage from './components/TelemetryPage';
 import MiniMap from './components/MiniMap';
 import DroneMap from './components/DroneMap';
+import DevPage from './components/DevPage';
 import './App.css';
 
 // rosbridge WebSocket URL
@@ -27,8 +28,42 @@ export interface DroneStatus {
   timestamp: number;
 }
 
+export type UnitSystem = 'metric' | 'imperial';
+
+export interface UnitPreferences {
+  system: UnitSystem;
+  distance: string; // 'm' or 'ft'
+  speed: string;    // 'm/s' or 'ft/s'
+  temperature: string; // 'C' or 'F'
+}
+
+// Unit conversion utilities
+export const convertDistance = (meters: number, system: UnitSystem): number => {
+  return system === 'imperial' ? meters * 3.28084 : meters;
+};
+
+export const convertSpeed = (mps: number, system: UnitSystem): number => {
+  return system === 'imperial' ? mps * 3.28084 : mps;
+};
+
+export const convertTemperature = (celsius: number, system: UnitSystem): number => {
+  return system === 'imperial' ? (celsius * 9/5) + 32 : celsius;
+};
+
+export const getDistanceUnit = (system: UnitSystem): string => {
+  return system === 'imperial' ? 'ft' : 'm';
+};
+
+export const getSpeedUnit = (system: UnitSystem): string => {
+  return system === 'imperial' ? 'ft/s' : 'm/s';
+};
+
+export const getTemperatureUnit = (system: UnitSystem): string => {
+  return system === 'imperial' ? '°F' : '°C';
+};
+
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'main' | 'telemetry' | 'map'>('main');
+  const [currentPage, setCurrentPage] = useState<'main' | 'telemetry' | 'map' | 'dev'>('main');
   const [droneStatus, setDroneStatus] = useState<DroneStatus>({
     drone_name: 'drone1',
     connected: false,
@@ -43,6 +78,18 @@ const App: React.FC = () => {
   const [ros, setRos] = useState<any>(null);
   const [availableDrones, setAvailableDrones] = useState<string[]>([]);
   const [droneStateSub, setDroneStateSub] = useState<any>(null);
+  
+  // Unit preferences with localStorage persistence
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>(() => {
+    const saved = localStorage.getItem('droneOS_units');
+    return (saved as UnitSystem) || 'metric';
+  });
+
+  // Save unit preference to localStorage
+  const changeUnitSystem = (system: UnitSystem) => {
+    setUnitSystem(system);
+    localStorage.setItem('droneOS_units', system);
+  };
 
   // Initialize rosbridge connection
   useEffect(() => {
@@ -457,9 +504,35 @@ const App: React.FC = () => {
             >
               Drone Map
             </button>
+            <button 
+              className={`nav-btn ${currentPage === 'dev' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('dev')}
+            >
+              Dev
+            </button>
           </nav>
         </div>
-        <div className="connection-status">
+        <div className="connection-status" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {/* Unit System Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.875rem', color: '#ccc' }}>Units:</label>
+            <select 
+              value={unitSystem} 
+              onChange={(e) => changeUnitSystem(e.target.value as UnitSystem)}
+              style={{
+                padding: '0.25rem 0.5rem',
+                backgroundColor: '#2d2d2d',
+                color: '#fff',
+                border: '1px solid #555',
+                borderRadius: '4px',
+                fontSize: '0.875rem'
+              }}
+            >
+              <option value="metric">Metric (m)</option>
+              <option value="imperial">Imperial (ft)</option>
+            </select>
+          </div>
+          
           <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
             {isConnected ? '🟢 Connected to rosbridge' : '🔴 Disconnected from rosbridge'}
           </span>
@@ -476,7 +549,7 @@ const App: React.FC = () => {
             Mode: {droneStatus.flight_mode}
           </span>
           <span className="status-item">
-            Alt: {(-droneStatus.position.z).toFixed(1)}m
+            Alt: {convertDistance(-droneStatus.position.z, unitSystem).toFixed(1)}{getDistanceUnit(unitSystem)}
           </span>
         </div>
         
@@ -494,6 +567,7 @@ const App: React.FC = () => {
               droneAPI={droneAPI}
               droneStatus={droneStatus}
               availableDrones={availableDrones}
+              unitSystem={unitSystem}
             />
           </div>
 
@@ -516,6 +590,7 @@ const App: React.FC = () => {
             droneAPI={droneAPI}
             droneStatus={droneStatus}
             availableDrones={availableDrones}
+            unitSystem={unitSystem}
           />
         </main>
       ) : currentPage === 'telemetry' ? (
@@ -523,14 +598,23 @@ const App: React.FC = () => {
           <TelemetryPage 
             droneAPI={droneAPI}
             droneStatus={droneStatus}
+            unitSystem={unitSystem}
           />
         </main>
-      ) : (
+      ) : currentPage === 'map' ? (
         <main style={{ flex: 1, overflow: 'hidden' }}>
           <DroneMap 
             droneAPI={droneAPI}
             droneStatus={droneStatus}
             availableDrones={availableDrones}
+            unitSystem={unitSystem}
+          />
+        </main>
+      ) : (
+        <main style={{ flex: 1, overflow: 'hidden' }}>
+          <DevPage 
+            ros={ros}
+            isConnected={isConnected}
           />
         </main>
       )}
@@ -545,7 +629,7 @@ const App: React.FC = () => {
             Mode: {droneStatus.flight_mode}
           </span>
           <span className="status-item">
-            Pos: ({droneStatus.position.x.toFixed(1)}, {droneStatus.position.y.toFixed(1)}, {droneStatus.position.z.toFixed(1)})
+            Pos: ({convertDistance(droneStatus.position.x, unitSystem).toFixed(1)}, {convertDistance(droneStatus.position.y, unitSystem).toFixed(1)}, {convertDistance(droneStatus.position.z, unitSystem).toFixed(1)}){getDistanceUnit(unitSystem)}
           </span>
         </div>
         

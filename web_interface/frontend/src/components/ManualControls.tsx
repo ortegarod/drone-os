@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { DroneStatus } from '../App';
+import { DroneStatus, UnitSystem, convertDistance, getDistanceUnit } from '../App';
 
 interface ManualControlsProps {
   droneAPI: any;
   droneStatus: DroneStatus;
   availableDrones: string[];
+  unitSystem: UnitSystem;
 }
 
-const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, availableDrones }) => {
+const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, availableDrones, unitSystem }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [droneState, setDroneState] = useState<any>(null);
@@ -131,7 +132,7 @@ const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, 
             <div><strong>Armed:</strong> {droneState.state.arming_state}</div>
             <div><strong>Flight Mode:</strong> {droneState.state.nav_state}</div>
             <div><strong>Landing State:</strong> {droneState.state.landing_state}</div>
-            <div><strong>Position:</strong> ({(droneState.state.local_x || 0).toFixed(2)}, {(droneState.state.local_y || 0).toFixed(2)}, {(droneState.state.local_z || 0).toFixed(2)})</div>
+            <div><strong>Position:</strong> ({convertDistance(droneState.state.local_x || 0, unitSystem).toFixed(2)}, {convertDistance(droneState.state.local_y || 0, unitSystem).toFixed(2)}, {convertDistance(droneState.state.local_z || 0, unitSystem).toFixed(2)}) {getDistanceUnit(unitSystem)}</div>
             <div><strong>Yaw:</strong> {(droneState.state.local_yaw || 0).toFixed(2)} rad</div>
           </div>
         </div>
@@ -183,7 +184,7 @@ const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, 
         <form onSubmit={handlePositionSubmit}>
           <div className="input-row">
             <div className="form-group">
-              <label>X (North, m)</label>
+              <label>X (North, {getDistanceUnit(unitSystem)})</label>
               <input
                 type="number"
                 step="0.1"
@@ -192,7 +193,7 @@ const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, 
               />
             </div>
             <div className="form-group">
-              <label>Y (East, m)</label>
+              <label>Y (East, {getDistanceUnit(unitSystem)})</label>
               <input
                 type="number"
                 step="0.1"
@@ -204,7 +205,7 @@ const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, 
           
           <div className="input-row">
             <div className="form-group">
-              <label>Z (Down, m)</label>
+              <label>Z (Down, {getDistanceUnit(unitSystem)})</label>
               <input
                 type="number"
                 step="0.1"
@@ -241,23 +242,23 @@ const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, 
         <button
           className="btn secondary"
           onClick={() => executeCommand(
-            () => droneAPI.setPosition(droneStatus.position.x, droneStatus.position.y, -5, droneStatus.position.yaw),
-            'Go to 5m altitude'
+            () => droneAPI.setPosition(droneStatus.position.x, droneStatus.position.y, unitSystem === 'imperial' ? -16.4 : -5, droneStatus.position.yaw),
+            `Go to ${unitSystem === 'imperial' ? '16ft' : '5m'} altitude`
           )}
           disabled={isLoading}
         >
-          5m Altitude
+          {unitSystem === 'imperial' ? '16ft' : '5m'} Altitude
         </button>
 
         <button
           className="btn secondary"
           onClick={() => executeCommand(
-            () => droneAPI.setPosition(droneStatus.position.x, droneStatus.position.y, -10, droneStatus.position.yaw),
-            'Go to 10m altitude'
+            () => droneAPI.setPosition(droneStatus.position.x, droneStatus.position.y, unitSystem === 'imperial' ? -32.8 : -10, droneStatus.position.yaw),
+            `Go to ${unitSystem === 'imperial' ? '33ft' : '10m'} altitude`
           )}
           disabled={isLoading}
         >
-          10m Altitude
+          {unitSystem === 'imperial' ? '33ft' : '10m'} Altitude
         </button>
 
         <button
