@@ -328,6 +328,27 @@ const App: React.FC = () => {
       });
     },
 
+    // Position control with automatic yaw calculation
+    setPositionAutoYaw: (x: number, y: number, z: number) => {
+      if (!ros) {
+        return Promise.reject(new Error('Not connected to rosbridge'));
+      }
+      
+      // Calculate yaw to point towards target
+      const current_x = droneStatus.position.x;
+      const current_y = droneStatus.position.y;
+      const yaw_to_target = Math.atan2(y - current_y, x - current_x);
+      
+      console.log('[DEBUG] Auto-calculated yaw:', { 
+        from: [current_x, current_y], 
+        to: [x, y], 
+        yaw_radians: yaw_to_target,
+        yaw_degrees: yaw_to_target * 180 / Math.PI
+      });
+      
+      return droneAPI.setPosition(x, y, z, yaw_to_target);
+    },
+
     // Get drone state using drone_core service
     getState: () => {
       if (!ros) {
@@ -548,15 +569,7 @@ const App: React.FC = () => {
       {/* Top Status Bar */}
       <div className="top-status-bar">
         <div className="status-bar-left">
-          <span className={`status-item armed-status ${droneStatus.armed ? 'armed' : 'disarmed'}`}>
-            {droneStatus.armed ? '🔴 ARMED' : '🟢 DISARMED'}
-          </span>
-          <span className="status-item">
-            Mode: {droneStatus.flight_mode}
-          </span>
-          <span className="status-item">
-            Alt: {convertDistance(-droneStatus.position.z, unitSystem).toFixed(1)}{getDistanceUnit(unitSystem)}
-          </span>
+          {/* Status moved to instrument panel above camera */}
         </div>
         
         <div className="status-bar-right">
@@ -581,6 +594,8 @@ const App: React.FC = () => {
             <SimpleCameraFeed 
               droneAPI={droneAPI}
               isConnected={isConnected}
+              droneStatus={droneStatus}
+              unitSystem={unitSystem}
             />
           </div>
 

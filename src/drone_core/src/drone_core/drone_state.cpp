@@ -51,6 +51,8 @@ DroneState::DroneState(rclcpp::Node* node, const std::string& ns, const std::str
         [this](const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg) { this->vehicle_local_position_callback(msg); });
     RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %s", name_.c_str(), local_pos_topic.c_str());
 
+    // VehicleAttitude subscription removed - using heading from VehicleLocalPosition instead
+
     // Additional telemetry subscriptions
     std::string battery_topic = ns_ + "out/battery_status";
     battery_sub_ = node_->create_subscription<px4_msgs::msg::BatteryStatus>(
@@ -315,6 +317,13 @@ void DroneState::vehicle_local_position_callback(const px4_msgs::msg::VehicleLoc
         latest_local_vy_ = msg->vy;
         latest_local_vz_ = msg->vz;
         latest_local_yaw_ = msg->heading; // Store heading
+        
+        // Calculate compass heading from NED heading
+        float compass_heading_deg = msg->heading * 180.0f / M_PI;
+        if (compass_heading_deg < 0.0f) {
+            compass_heading_deg += 360.0f;
+        }
+        latest_compass_heading_ = compass_heading_deg;
 
         // Optional: Log position update
         // RCLCPP_DEBUG(node_->get_logger(), "[%s] Local Pos: x=%.2f, y=%.2f, z=%.2f, vx=%.2f, vy=%.2f, vz=%.2f, hdg=%.2f", 
@@ -322,6 +331,8 @@ void DroneState::vehicle_local_position_callback(const px4_msgs::msg::VehicleLoc
         //             latest_local_vx_, latest_local_vy_, latest_local_vz_, latest_local_yaw_);
     // }
 }
+
+// VehicleAttitude callback removed - using heading from VehicleLocalPosition instead
 
 // --- Getters ---
 
@@ -384,7 +395,20 @@ float DroneState::get_latest_local_yaw() const {
         return NAN;
     }
 }
-// --- End Added Yaw Getter ---
+
+/**
+ * @brief Get the latest compass heading.
+ * @return The latest compass heading in degrees (0-360, 0=North). Returns NAN if not available/valid.
+ */
+float DroneState::get_latest_compass_heading() const {
+    // Compass heading is valid if xy position is valid
+    if (xy_valid_.load()) {
+        return latest_compass_heading_;
+    } else {
+        return NAN;
+    }
+}
+// --- End Added Yaw/Compass Getters ---
 
 // --- Private Helper Functions (State Conversion) ---
 // (Implementations copied from drone_controller.cpp)

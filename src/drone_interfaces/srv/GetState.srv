@@ -11,6 +11,7 @@ float32 local_x            # Local X position (meters)
 float32 local_y            # Local Y position (meters) 
 float32 local_z            # Local Z position (meters, positive down)
 float32 local_yaw          # Local yaw angle (radians)
+float32 compass_heading    # Compass heading in degrees (0-360, 0=North)
 bool position_valid        # True if position data is valid
 
 # Velocity data (NED frame)

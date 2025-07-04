@@ -24,6 +24,7 @@ interface DronePosition {
   lat: number;
   lng: number;
   alt: number;
+  yaw: number;
   valid: boolean;
   droneName: string;
 }
@@ -170,12 +171,13 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
               lat: message.latitude,
               lng: message.longitude,
               alt: message.altitude,
+              yaw: message.compass_heading || 0,
               valid: true,
               droneName: droneName
             });
             return updated;
           });
-          console.log(`DroneMap: Real-time position update for ${droneName}: lat=${message.latitude}, lng=${message.longitude}`);
+          console.log(`DroneMap: Real-time position update for ${droneName}: lat=${message.latitude}, lng=${message.longitude}, yaw=${message.local_yaw}`);
         } else {
           console.log(`DroneMap: Skipping invalid GPS data for ${droneName}`);
         }
@@ -208,32 +210,81 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
     // Add markers for each drone
     dronePositions.forEach((position, droneName) => {
       if (position.valid) {
-        // Create custom icon for drone (OSRS-style but larger for full map)
+        // Create triangular drone icon pointing in yaw direction
         const isCurrentTarget = droneName === droneStatus.drone_name;
-        const size = 20;
+        const size = 24;
         const fontSize = '10px';
+        // Triangle with border-bottom points UP (North) by default
+        // Compass: 0°=North, 90°=East, 180°=South, 270°=West
+        // So CSS rotation should match compass heading directly
+        const yawDegrees = position.yaw;
         
         const icon = L.divIcon({
           html: `<div style="
-            background: ${isCurrentTarget ? 'linear-gradient(145deg, #FF0000, #CC0000)' : 'linear-gradient(145deg, #0088FF, #0066CC)'};
             width: ${size}px;
             height: ${size}px;
-            border-radius: 0px;
-            border: 1px solid ${isCurrentTarget ? '#FFFF00' : '#FFFFFF'};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: ${fontSize};
-            color: #FFFF00;
-            font-weight: bold;
-            font-family: monospace;
-            text-shadow: 1px 1px 0 #000000;
-            box-shadow: 0 0 3px rgba(0,0,0,0.8);
-            image-rendering: pixelated;
-          ">${droneName.replace('drone', '')}</div>`,
-          className: 'osrs-drone-marker',
-          iconSize: [size + 2, size + 2],
-          iconAnchor: [size/2 + 1, size/2 + 1]
+            position: relative;
+            transform: rotate(${yawDegrees}deg);
+          ">
+            <div style="
+              width: 0;
+              height: 0;
+              border-left: ${size/2}px solid transparent;
+              border-right: ${size/2}px solid transparent;
+              border-bottom: ${size}px solid ${isCurrentTarget ? '#FF0000' : '#0088FF'};
+              position: absolute;
+              top: 0;
+              left: 0;
+              filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+            "></div>
+            <div style="
+              width: 0;
+              height: 0;
+              border-left: ${size/2 - 2}px solid transparent;
+              border-right: ${size/2 - 2}px solid transparent;
+              border-bottom: ${size - 4}px solid ${isCurrentTarget ? '#FFFF00' : '#FFFFFF'};
+              position: absolute;
+              top: 2px;
+              left: 2px;
+            "></div>
+            <div style="
+              position: absolute;
+              top: ${size - 14}px;
+              left: 50%;
+              transform: translateX(-50%) rotate(${-yawDegrees}deg);
+              font-size: ${fontSize};
+              color: #000000;
+              font-weight: bold;
+              font-family: monospace;
+              text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+              pointer-events: none;
+            ">
+              ${droneName.replace('drone', '')}
+            </div>
+            ${isCurrentTarget ? `
+            <div style="
+              position: absolute;
+              top: -3px;
+              right: -3px;
+              width: 8px;
+              height: 8px;
+              background: #FFFF00;
+              border-radius: 50%;
+              border: 1px solid #FF0000;
+              animation: pulse 1.5s infinite;
+              transform: rotate(${-yawDegrees}deg);
+            "></div>
+            ` : ''}
+          </div>
+          <style>
+            @keyframes pulse {
+              0%, 100% { opacity: 1; transform: scale(1); }
+              50% { opacity: 0.6; transform: scale(1.2); }
+            }
+          </style>`,
+          className: 'tactical-drone-triangle-large',
+          iconSize: [size, size],
+          iconAnchor: [size/2, size/2]
         });
 
         const marker = L.marker([position.lat, position.lng], { icon })
@@ -244,6 +295,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
               Lat: ${position.lat.toFixed(6)}<br/>
               Lng: ${position.lng.toFixed(6)}<br/>
               Alt: ${position.alt.toFixed(1)}m<br/>
+              Heading: ${position.yaw.toFixed(1)}°<br/>
               ${isCurrentTarget ? '<em>Current Target</em>' : ''}
             </div>
           `);
@@ -299,7 +351,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
 
       console.log('DroneMap: Moving to local coordinates:', { x: targetX, y: targetY, z: targetZ, yaw: targetYaw });
 
-      const result = await droneAPI.setPosition(targetX, targetY, targetZ, targetYaw);
+      const result = await droneAPI.setPositionAutoYaw(targetX, targetY, targetZ);
       
       if (result.success) {
         setMessage(`✓ Move command sent to ${droneStatus.drone_name}`);

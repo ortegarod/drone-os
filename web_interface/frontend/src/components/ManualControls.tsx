@@ -75,6 +75,14 @@ const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, 
       `Set Position (${position.x}, ${position.y}, ${position.z}, ${position.yaw})`
     );
   };
+
+  const handleAutoYawPositionSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeCommand(
+      () => droneAPI.setPositionAutoYaw(position.x, position.y, position.z),
+      `Go to (${position.x}, ${position.y}, ${position.z}) with auto-yaw`
+    );
+  };
   
   const changeTargetDrone = async (drone_name: string) => {
     setIsLoading(true);
@@ -95,20 +103,64 @@ const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, 
       {/* Target Drone Selection */}
       <div style={{ marginBottom: '2rem' }}>
         <h3>Target Drone</h3>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div style={{ 
+          backgroundColor: '#2d2d2d', 
+          borderRadius: '4px',
+          border: '1px solid #444',
+          overflow: 'hidden'
+        }}>
           {availableDrones.length > 0 ? (
-            availableDrones.map(droneName => (
-              <button
+            availableDrones.map((droneName, index) => (
+              <div
                 key={droneName}
-                className={`btn ${droneStatus.drone_name === droneName ? 'primary' : 'secondary'}`}
                 onClick={() => changeTargetDrone(droneName)}
-                disabled={isLoading}
+                style={{
+                  padding: '0.75rem 1rem',
+                  borderBottom: index < availableDrones.length - 1 ? '1px solid #444' : 'none',
+                  backgroundColor: droneStatus.drone_name === droneName ? '#1a4a1a' : 'transparent',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.875rem',
+                  transition: 'background-color 0.2s',
+                  opacity: isLoading ? 0.5 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLoading && droneStatus.drone_name !== droneName) {
+                    e.currentTarget.style.backgroundColor = '#3d3d3d';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isLoading && droneStatus.drone_name !== droneName) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }
+                }}
               >
-                {droneName}
-              </button>
+                <span style={{ 
+                  fontWeight: droneStatus.drone_name === droneName ? '600' : '400',
+                  color: droneStatus.drone_name === droneName ? '#00ff88' : '#ccc'
+                }}>
+                  {droneName}
+                </span>
+                {droneStatus.drone_name === droneName && (
+                  <span style={{ 
+                    fontSize: '0.75rem', 
+                    color: '#00ff88',
+                    fontWeight: '500'
+                  }}>
+                    ✓ Active
+                  </span>
+                )}
+              </div>
             ))
           ) : (
-            <div style={{ color: '#888', fontStyle: 'italic' }}>
+            <div style={{ 
+              padding: '1rem',
+              color: '#888', 
+              fontStyle: 'italic',
+              textAlign: 'center'
+            }}>
               No drones discovered yet...
             </div>
           )}
@@ -225,13 +277,24 @@ const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, 
             </div>
           </div>
           
-          <button
-            type="submit"
-            className="btn primary"
-            disabled={isLoading}
-          >
-            Set Position
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              type="submit"
+              className="btn primary"
+              disabled={isLoading}
+            >
+              Set Position
+            </button>
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={handleAutoYawPositionSubmit}
+              disabled={isLoading}
+              title="Automatically calculate yaw to point towards target"
+            >
+              Go with Auto-Yaw
+            </button>
+          </div>
         </form>
       </div>
 
@@ -264,8 +327,8 @@ const ManualControls: React.FC<ManualControlsProps> = ({ droneAPI, droneStatus, 
         <button
           className="btn secondary"
           onClick={() => executeCommand(
-            () => droneAPI.setPosition(0, 0, droneStatus.position.z, 0),
-            'Return to origin'
+            () => droneAPI.setPositionAutoYaw(0, 0, droneStatus.position.z),
+            'Return to origin with auto-yaw'
           )}
           disabled={isLoading}
         >

@@ -7,6 +7,7 @@ float32 local_x
 float32 local_y
 float32 local_z
 float32 local_yaw
+float32 compass_heading        # Compass heading in degrees (0-360, 0=North)
 bool position_valid
 
 # Velocity data (NED frame)

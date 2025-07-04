@@ -24,6 +24,7 @@ interface DronePosition {
   lat: number;
   lng: number;
   alt: number;
+  yaw: number;
   valid: boolean;
   droneName: string;
 }
@@ -170,12 +171,23 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
                                   Math.abs(message.latitude) <= 90 && Math.abs(message.longitude) <= 180;
         
         if (message.global_position_valid || hasReasonableCoords) {
+          console.log(`[MiniMap DEBUG] ${droneName} received data:`, {
+            lat: message.latitude,
+            lng: message.longitude,
+            alt: message.altitude,
+            compass_heading: message.compass_heading,
+            local_yaw: message.local_yaw,
+            has_compass_heading: 'compass_heading' in message,
+            compass_heading_type: typeof message.compass_heading
+          });
+          
           setDronePositions(prev => {
             const updated = new Map(prev);
             updated.set(droneName, {
               lat: message.latitude,
               lng: message.longitude,
               alt: message.altitude,
+              yaw: message.compass_heading || message.local_yaw || 0,
               valid: true,
               droneName: droneName
             });
@@ -211,42 +223,81 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     // Add markers for each drone
     dronePositions.forEach((position, droneName) => {
       if (position.valid) {
-        // Create military-style drone icon for defense operations
+        // Create triangular drone icon pointing in yaw direction
         const isCurrentTarget = droneName === droneStatus.drone_name;
-        const size = 18;
-        const fontSize = '11px';
+        const size = 20;
+        const fontSize = '9px';
+        // Triangle with border-bottom points UP (North) by default
+        // Compass: 0°=North, 90°=East, 180°=South, 270°=West
+        // So CSS rotation should match compass heading directly
+        const yawDegrees = position.yaw;
         
-        // Military/ISR-style drone marker
+        console.log(`[MiniMap DEBUG] Triangle rotation for ${droneName}:`, {
+          compass_heading: position.yaw,
+          css_rotation: yawDegrees,
+          should_point: position.yaw === 0 ? 'North' : 
+                       position.yaw === 90 ? 'East' : 
+                       position.yaw === 180 ? 'South' : 
+                       position.yaw === 270 ? 'West' : `${position.yaw}°`
+        });
+        
+        // Triangular drone marker that points in yaw direction
         const icon = L.divIcon({
           html: `<div style="
-            background: ${isCurrentTarget ? 'linear-gradient(135deg, #00ff41, #00cc33)' : 'linear-gradient(135deg, #1e90ff, #0066cc)'};
             width: ${size}px;
             height: ${size}px;
-            border-radius: 50%;
-            border: 2px solid ${isCurrentTarget ? '#ffffff' : '#cccccc'};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: ${fontSize};
-            color: #000000;
-            font-weight: 600;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            text-shadow: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.3);
             position: relative;
+            transform: rotate(${yawDegrees}deg);
           ">
             <div style="
+              width: 0;
+              height: 0;
+              border-left: ${size/2}px solid transparent;
+              border-right: ${size/2}px solid transparent;
+              border-bottom: ${size}px solid ${isCurrentTarget ? '#00ff41' : '#1e90ff'};
               position: absolute;
-              top: -1px;
-              right: -1px;
+              top: 0;
+              left: 0;
+              filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+            "></div>
+            <div style="
+              width: 0;
+              height: 0;
+              border-left: ${size/2 - 2}px solid transparent;
+              border-right: ${size/2 - 2}px solid transparent;
+              border-bottom: ${size - 4}px solid ${isCurrentTarget ? '#ffffff' : '#ffffff'};
+              position: absolute;
+              top: 2px;
+              left: 2px;
+            "></div>
+            <div style="
+              position: absolute;
+              top: ${size - 12}px;
+              left: 50%;
+              transform: translateX(-50%) rotate(${-yawDegrees}deg);
+              font-size: ${fontSize};
+              color: #000000;
+              font-weight: 600;
+              font-family: 'Segoe UI', system-ui, sans-serif;
+              text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+              pointer-events: none;
+            ">
+              ${droneName.replace('drone', '')}
+            </div>
+            ${isCurrentTarget ? `
+            <div style="
+              position: absolute;
+              top: -2px;
+              right: -2px;
               width: 6px;
               height: 6px;
-              background: ${isCurrentTarget ? '#00ff41' : '#1e90ff'};
+              background: #00ff41;
               border-radius: 50%;
               border: 1px solid #ffffff;
-              ${isCurrentTarget ? 'animation: pulse 1.5s infinite;' : ''}
+              animation: pulse 1.5s infinite;
+              transform: rotate(${-yawDegrees}deg);
             "></div>
-            ${droneName.replace('drone', '')}
+            ` : ''}
           </div>
           <style>
             @keyframes pulse {
@@ -254,9 +305,9 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
               50% { opacity: 0.6; transform: scale(1.2); }
             }
           </style>`,
-          className: 'tactical-drone-marker',
-          iconSize: [size + 4, size + 4],
-          iconAnchor: [size/2 + 2, size/2 + 2]
+          className: 'tactical-drone-triangle',
+          iconSize: [size, size],
+          iconAnchor: [size/2, size/2]
         });
 
         const marker = L.marker([position.lat, position.lng], { icon })
@@ -329,9 +380,9 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         
       console.log('MiniMap: Moving to local coordinates:', { x: targetX, y: targetY, z: targetZ, yaw: targetYaw });
         
-      // Use the same pattern as ManualControls
-      const result = await droneAPI.setPosition(targetX, targetY, targetZ, targetYaw);
-      setMessage(`Move command: ${result.message}`);
+      // Use auto-yaw to point towards destination
+      const result = await droneAPI.setPositionAutoYaw(targetX, targetY, targetZ);
+      setMessage(`Moving with auto-yaw: ${result.message}`);
       
       // Clear message after 2 seconds like ManualControls
       setTimeout(() => setMessage(''), 2000);
@@ -423,6 +474,151 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         {dronePositions.size} ASSET{dronePositions.size !== 1 ? 'S' : ''} • LIVE
       </div>
       
+      {/* Compass overlay */}
+      <div style={{
+        position: 'absolute',
+        top: '8px',
+        right: '8px',
+        width: '60px',
+        height: '60px',
+        backgroundColor: 'rgba(255,0,0,0.8)', // Debug: red background
+        borderRadius: '50%',
+        border: '2px solid #00ff00', // Debug: green border
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        pointerEvents: 'none',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        zIndex: 9999 // Debug: ensure it's on top
+      }}>
+        {/* Compass ring */}
+        <div style={{
+          position: 'relative',
+          width: '50px',
+          height: '50px',
+          borderRadius: '50%',
+          border: '1px solid #555'
+        }}>
+          {/* Cardinal directions */}
+          <div style={{
+            position: 'absolute',
+            top: '-2px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontSize: '8px',
+            fontWeight: 'bold',
+            color: '#00ff41',
+            fontFamily: 'monospace'
+          }}>N</div>
+          <div style={{
+            position: 'absolute',
+            right: '-2px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            fontSize: '8px',
+            fontWeight: 'bold',
+            color: '#888',
+            fontFamily: 'monospace'
+          }}>E</div>
+          <div style={{
+            position: 'absolute',
+            bottom: '-2px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontSize: '8px',
+            fontWeight: 'bold',
+            color: '#888',
+            fontFamily: 'monospace'
+          }}>S</div>
+          <div style={{
+            position: 'absolute',
+            left: '-2px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            fontSize: '8px',
+            fontWeight: 'bold',
+            color: '#888',
+            fontFamily: 'monospace'
+          }}>W</div>
+          
+          {/* Compass needle pointing north */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '2px',
+            height: '20px',
+            background: 'linear-gradient(to top, #888 0%, #00ff41 100%)',
+            transformOrigin: 'bottom center',
+            borderRadius: '1px'
+          }} />
+          
+          {/* Center dot */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '4px',
+            height: '4px',
+            backgroundColor: '#00ff41',
+            borderRadius: '50%',
+            border: '1px solid #000'
+          }} />
+          
+          {/* Current drone heading number */}
+          {(() => {
+            const currentDronePos = dronePositions.get(droneStatus.drone_name);
+            console.log('[MiniMap DEBUG] Compass rendering:', {
+              droneStatus_drone_name: droneStatus.drone_name,
+              dronePositions_size: dronePositions.size,
+              dronePositions_keys: Array.from(dronePositions.keys()),
+              currentDronePos: currentDronePos,
+              currentDronePos_valid: currentDronePos?.valid,
+              currentDronePos_yaw: currentDronePos?.yaw
+            });
+            
+            if (currentDronePos && currentDronePos.valid) {
+              return (
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: '10px', // Debug: larger font
+                  fontWeight: 'bold',
+                  color: '#ffffff', // Debug: white text
+                  fontFamily: 'monospace',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                  marginTop: '8px',
+                  backgroundColor: 'rgba(0,0,0,0.8)', // Debug: background
+                  padding: '2px 4px',
+                  borderRadius: '2px'
+                }}>
+                  {Math.round(currentDronePos.yaw)}°
+                </div>
+              );
+            }
+            return (
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                fontSize: '8px',
+                fontWeight: 'bold',
+                color: '#ff0000', // Debug: red text
+                fontFamily: 'monospace',
+                marginTop: '8px'
+              }}>
+                NO DATA
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
       {/* Command status indicator */}
       {message && (
         <div style={{

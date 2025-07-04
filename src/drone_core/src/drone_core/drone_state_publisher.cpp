@@ -85,6 +85,7 @@ drone_interfaces::msg::DroneState DroneStatePublisher::create_drone_state_messag
     msg.local_y = y;
     msg.local_z = z;
     msg.local_yaw = drone_state_->get_latest_local_yaw();
+    msg.compass_heading = drone_state_->get_latest_compass_heading();
     msg.position_valid = pos_valid;
     
     // Get current velocity
@@ -195,6 +196,7 @@ void DroneStatePublisher::populate_get_state_response(
     response->local_y = y;
     response->local_z = z;
     response->local_yaw = drone_state_->get_latest_local_yaw();
+    response->compass_heading = drone_state_->get_latest_compass_heading();
     response->position_valid = pos_valid;
     
     // Get current velocity

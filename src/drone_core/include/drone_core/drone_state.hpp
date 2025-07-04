@@ -91,6 +91,12 @@ public:
      */
     float get_latest_local_yaw() const;
 
+    /** 
+     * @brief Get the latest compass heading.
+     * @return The latest compass heading in degrees (0-360, 0=North). Returns NAN if not available/valid.
+     */
+    float get_latest_compass_heading() const;
+
     // Telemetry data structures
     struct BatteryData {
         float voltage = 0.0f;
@@ -166,6 +172,7 @@ private:
     rclcpp::Subscription<px4_msgs::msg::VehicleLandDetected>::SharedPtr land_detected_sub_;
     rclcpp::Subscription<px4_msgs::msg::VehicleGlobalPosition>::SharedPtr global_pos_sub_;
     rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr local_pos_sub_;
+    // VehicleAttitude subscription removed - using heading from VehicleLocalPosition
     rclcpp::Subscription<px4_msgs::msg::BatteryStatus>::SharedPtr battery_sub_;
     rclcpp::Subscription<px4_msgs::msg::SensorGps>::SharedPtr gps_sub_;
     rclcpp::Subscription<px4_msgs::msg::FailsafeFlags>::SharedPtr failsafe_sub_;
@@ -198,6 +205,7 @@ private:
     float latest_local_vy_{0.0f};
     float latest_local_vz_{0.0f};
     float latest_local_yaw_{NAN}; // Added member for yaw (heading)
+    float latest_compass_heading_{NAN}; // Compass heading in degrees (0-360, 0=North)
 
     // --- Telemetry Data ---
     mutable std::mutex battery_mutex_;
@@ -219,6 +227,7 @@ private:
     void vehicle_land_detected_callback(const px4_msgs::msg::VehicleLandDetected::SharedPtr msg);
     void vehicle_global_position_callback(const px4_msgs::msg::VehicleGlobalPosition::SharedPtr msg);
     void vehicle_local_position_callback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg);
+    // vehicle_attitude_callback removed - using heading from VehicleLocalPosition
     void battery_status_callback(const px4_msgs::msg::BatteryStatus::SharedPtr msg);
     void sensor_gps_callback(const px4_msgs::msg::SensorGps::SharedPtr msg);
     void failsafe_flags_callback(const px4_msgs::msg::FailsafeFlags::SharedPtr msg);
