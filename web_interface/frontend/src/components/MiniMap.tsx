@@ -25,6 +25,7 @@ interface DronePosition {
   lng: number;
   alt: number;
   valid: boolean;
+  droneName: string;
 }
 
 const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrones, unitSystem }) => {
@@ -34,6 +35,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
   const [dronePositions, setDronePositions] = useState<Map<string, DronePosition>>(new Map());
   const [message, setMessage] = useState('');
   const [mapCenter, setMapCenter] = useState<[number, number]>([37.7749, -122.4194]); // Default to SF
+  const topicSubscriptionsRef = useRef<Map<string, any>>(new Map());
 
   // Get drone's GPS position for map centering
   const getDroneGPSPosition = async () => {
@@ -134,48 +136,65 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     };
   }, []); // Only initialize once
 
-  // Fetch drone positions
-  const fetchDronePositions = React.useCallback(async () => {
-    if (!droneAPI.ros || availableDrones.length === 0) {
-      return;
-    }
+  // Subscribe to real-time drone state topics via rosbridge (same as DroneMap but for minimap)
+  useEffect(() => {
+    if (!droneAPI.ros) return;
 
-    const newPositions = new Map<string, DronePosition>();
-    
-    for (const droneName of availableDrones) {
-      try {
-        // Temporarily switch to this drone to get its state
-        const originalTarget = droneStatus.drone_name;
-        await droneAPI.setTargetDrone(droneName);
+    console.log('MiniMap: Setting up real-time subscriptions for drones:', availableDrones);
+
+    // Clean up existing subscriptions
+    topicSubscriptionsRef.current.forEach((topic, droneName) => {
+      console.log(`MiniMap: Unsubscribing from ${droneName}`);
+      topic.unsubscribe();
+    });
+    topicSubscriptionsRef.current.clear();
+
+    // Subscribe to each drone's state topic
+    availableDrones.forEach(droneName => {
+      const namespace = droneName === 'drone1' ? 'px4_1' : `px4_${droneName.replace('drone', '')}`;
+      const topicName = `/${namespace}/drone_state`;
+      
+      console.log(`MiniMap: Subscribing to ${topicName} for ${droneName}`);
+      
+      const topic = new ROSLIB.Topic({
+        ros: droneAPI.ros,
+        name: topicName,
+        messageType: 'drone_interfaces/DroneState',
+        throttle_rate: 200, // 5Hz updates for minimap (less frequent)
+        queue_length: 1     // Only keep latest message
+      });
+
+      topic.subscribe((message: any) => {
+        // Check if we have reasonable GPS coordinates
+        const hasReasonableCoords = message.latitude !== 0 && message.longitude !== 0 &&
+                                  Math.abs(message.latitude) <= 90 && Math.abs(message.longitude) <= 180;
         
-        const state = await droneAPI.getState();
-        
-        if (state.success && state.state) {
-          // Check if we have reasonable GPS coordinates (even if marked invalid)
-          const hasReasonableCoords = state.state.latitude !== 0 && state.state.longitude !== 0 &&
-                                    Math.abs(state.state.latitude) <= 90 && Math.abs(state.state.longitude) <= 180;
-          
-          if (state.state.global_position_valid || hasReasonableCoords) {
-            newPositions.set(droneName, {
-              lat: state.state.latitude,
-              lng: state.state.longitude,
-              alt: state.state.altitude,
-              valid: true
+        if (message.global_position_valid || hasReasonableCoords) {
+          setDronePositions(prev => {
+            const updated = new Map(prev);
+            updated.set(droneName, {
+              lat: message.latitude,
+              lng: message.longitude,
+              alt: message.altitude,
+              valid: true,
+              droneName: droneName
             });
-          }
+            return updated;
+          });
         }
-        
-        // Switch back to original target
-        if (originalTarget !== droneName) {
-          await droneAPI.setTargetDrone(originalTarget);
-        }
-      } catch (error) {
-        console.warn(`MiniMap: Failed to get position for ${droneName}:`, error);
-      }
-    }
+      });
 
-    setDronePositions(newPositions);
-  }, [droneAPI, availableDrones, droneStatus.drone_name]);
+      topicSubscriptionsRef.current.set(droneName, topic);
+    });
+
+    // Cleanup function
+    return () => {
+      topicSubscriptionsRef.current.forEach((topic) => {
+        topic.unsubscribe();
+      });
+      topicSubscriptionsRef.current.clear();
+    };
+  }, [droneAPI.ros, availableDrones]);
 
   // Update drone markers on map
   useEffect(() => {
@@ -316,14 +335,14 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     map.on('click', clickHandler);
   }, [handleMapClick]);
 
-  // Refresh drone positions periodically
-  useEffect(() => {
-    if (availableDrones.length > 0 && droneAPI.ros) {
-      fetchDronePositions();
-      const interval = setInterval(fetchDronePositions, 3000); // Every 3 seconds
-      return () => clearInterval(interval);
+  // Get current drone position from drone positions map
+  const getCurrentDronePosition = () => {
+    const currentPos = dronePositions.get(droneStatus.drone_name);
+    if (currentPos && currentPos.valid) {
+      return [currentPos.lat, currentPos.lng] as [number, number];
     }
-  }, [availableDrones.length, droneAPI.ros, fetchDronePositions]);
+    return null;
+  };
 
   const miniMapStyle: React.CSSProperties = {
     position: 'absolute',
@@ -381,7 +400,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         padding: '1px',
         borderRadius: '0px'
       }}>
-        {dronePositions.size} DRONE{dronePositions.size !== 1 ? 'S' : ''}
+{dronePositions.size} DRONE{dronePositions.size !== 1 ? 'S' : ''} • REAL-TIME
       </div>
       
       {/* Status indicator for minimap */}

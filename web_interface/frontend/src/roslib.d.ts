@@ -9,6 +9,14 @@ declare module 'roslib' {
     serviceType: string;
   }
 
+  export interface TopicOptions {
+    ros: Ros;
+    name: string;
+    messageType: string;
+    throttle_rate?: number;
+    queue_length?: number;
+  }
+
   export class Ros {
     constructor(options: RosOptions);
     on(event: 'connection' | 'error' | 'close', callback: (data?: any) => void): void;
@@ -28,9 +36,17 @@ declare module 'roslib' {
     constructor(data?: any);
   }
 
+  export class Topic {
+    constructor(options: TopicOptions);
+    subscribe(callback: (message: any) => void): void;
+    unsubscribe(): void;
+    publish(message: any): void;
+  }
+
   export default {
     Ros,
     Service,
-    ServiceRequest
+    ServiceRequest,
+    Topic
   };
 }

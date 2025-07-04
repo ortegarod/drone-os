@@ -10,7 +10,10 @@ DroneStatePublisher::DroneStatePublisher(rclcpp::Node* node, const std::string& 
     : node_(node), namespace_(drone_namespace) {
     
     // Initialize DroneState manager
-    drone_state_ = std::make_unique<DroneState>(node_, "/" + namespace_ + "/fmu", "DroneStatePublisher");
+    // For px4_1 (drone1), use /fmu directly since PX4 SITL publishes there
+    // For other drones, use the namespaced version
+    std::string px4_namespace = (namespace_ == "px4_1") ? "/fmu/" : "/" + namespace_ + "/fmu/";
+    drone_state_ = std::make_unique<DroneState>(node_, px4_namespace, "DroneStatePublisher");
     
     // Create publisher for DroneState message
     state_pub_ = node_->create_publisher<drone_interfaces::msg::DroneState>(
