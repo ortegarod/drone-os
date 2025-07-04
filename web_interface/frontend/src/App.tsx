@@ -496,7 +496,7 @@ const App: React.FC = () => {
               className={`nav-btn ${currentPage === 'telemetry' ? 'active' : ''}`}
               onClick={() => setCurrentPage('telemetry')}
             >
-              Telemetry & Health
+              Status
             </button>
             <button 
               className={`nav-btn ${currentPage === 'map' ? 'active' : ''}`}
