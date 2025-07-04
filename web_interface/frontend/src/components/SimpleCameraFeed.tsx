@@ -10,8 +10,9 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
   const [status, setStatus] = useState<string>('Connecting...');
   const [streamUrl] = useState<string>('http://<tailscale-ip>:8080/stream?topic=/camera/image_raw&type=mjpeg&quality=75&qos_profile=sensor_data');
   
-  // Yaw control state
+  // Control state
   const [currentYaw, setCurrentYaw] = useState<number>(0);
+  const [currentAltitude, setCurrentAltitude] = useState<number>(0);
   const [isControlling, setIsControlling] = useState<boolean>(false);
   const [controlMessage, setControlMessage] = useState<string>('');
 
@@ -41,7 +42,7 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
     };
   }, [streamUrl]);
 
-  // Get current drone state to initialize yaw
+  // Get current drone state to initialize yaw and altitude
   useEffect(() => {
     const getCurrentState = async () => {
       if (!droneAPI.ros) return;
@@ -50,9 +51,10 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
         const state = await droneAPI.getState();
         if (state.success && state.state) {
           setCurrentYaw(state.state.local_yaw || 0);
+          setCurrentAltitude(-state.state.local_z || 0); // Convert NED to altitude
         }
       } catch (error) {
-        console.warn('Failed to get current yaw:', error);
+        console.warn('Failed to get current state:', error);
       }
     };
     
@@ -101,6 +103,47 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
     }
   };
 
+  // Altitude control functions
+  const adjustAltitude = async (deltaAltitudeMeters: number) => {
+    if (!droneAPI.ros || isControlling) return;
+    
+    setIsControlling(true);
+    setControlMessage('Adjusting altitude...');
+    
+    try {
+      // Get current position
+      const state = await droneAPI.getState();
+      if (!state.success || !state.state) {
+        setControlMessage('Failed to get current position');
+        return;
+      }
+      
+      // Calculate new altitude (convert to NED: negative Z = up)
+      const newAltitudeNED = state.state.local_z - deltaAltitudeMeters;
+      
+      // Send position command with new altitude, keeping current position and yaw
+      const result = await droneAPI.setPosition(
+        state.state.local_x,
+        state.state.local_y, 
+        newAltitudeNED,
+        state.state.local_yaw
+      );
+      
+      if (result.success) {
+        setCurrentAltitude(currentAltitude + deltaAltitudeMeters);
+        setControlMessage(`Altitude adjusted ${deltaAltitudeMeters > 0 ? 'up' : 'down'} ${Math.abs(deltaAltitudeMeters)}m`);
+      } else {
+        setControlMessage(`Altitude control failed: ${result.message}`);
+      }
+    } catch (error) {
+      setControlMessage(`Altitude control error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsControlling(false);
+      // Clear message after 2 seconds
+      setTimeout(() => setControlMessage(''), 2000);
+    }
+  };
+
   const handleKeyPress = (event: KeyboardEvent) => {
     if (!isConnected) return;
     
@@ -123,6 +166,24 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
         event.preventDefault();
         adjustYaw(45); // 45 degrees right
         break;
+      case 'w':
+      case 'arrowup':
+        event.preventDefault();
+        adjustAltitude(2); // 2 meters up
+        break;
+      case 's':
+      case 'arrowdown':
+        event.preventDefault();
+        adjustAltitude(-2); // 2 meters down
+        break;
+      case 'r':
+        event.preventDefault();
+        adjustAltitude(5); // 5 meters up
+        break;
+      case 'f':
+        event.preventDefault();
+        adjustAltitude(-5); // 5 meters down
+        break;
     }
   };
 
@@ -130,7 +191,7 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isConnected, currentYaw, isControlling]);
+  }, [isConnected, currentYaw, currentAltitude, isControlling]);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -176,32 +237,168 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '8px'
+          gap: '12px'
         }}>
-          <span style={{
-            fontSize: '12px',
-            fontWeight: '600',
-            color: '#00ff41',
-            fontFamily: 'Segoe UI, system-ui, sans-serif'
-          }}>
-            YAW CONTROL
-          </span>
           <div style={{
-            fontSize: '11px',
-            color: '#888',
-            fontFamily: 'monospace'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}>
-            {(currentYaw * 180 / Math.PI).toFixed(1)}°
+            <span style={{
+              fontSize: '12px',
+              fontWeight: '600',
+              color: '#00ff41',
+              fontFamily: 'Segoe UI, system-ui, sans-serif'
+            }}>
+              YAW
+            </span>
+            <div style={{
+              fontSize: '11px',
+              color: '#888',
+              fontFamily: 'monospace'
+            }}>
+              {(currentYaw * 180 / Math.PI).toFixed(1)}°
+            </div>
+          </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <span style={{
+              fontSize: '12px',
+              fontWeight: '600',
+              color: '#1e90ff',
+              fontFamily: 'Segoe UI, system-ui, sans-serif'
+            }}>
+              ALT
+            </span>
+            <div style={{
+              fontSize: '11px',
+              color: '#888',
+              fontFamily: 'monospace'
+            }}>
+              {currentAltitude.toFixed(1)}m
+            </div>
           </div>
         </div>
         
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '6px'
+          gap: '8px'
         }}>
-          {/* Large left rotation */}
-          <button
+          {/* Altitude Controls */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            {/* Large altitude up */}
+            <button
+              onClick={() => adjustAltitude(5)}
+              disabled={isControlling || !isConnected}
+              style={{
+                background: 'linear-gradient(135deg, #27ae60, #229954)',
+                border: '1px solid #2c3e50',
+                borderRadius: '4px',
+                color: '#ffffff',
+                padding: '6px 8px',
+                fontSize: '11px',
+                fontWeight: '600',
+                cursor: isControlling || !isConnected ? 'not-allowed' : 'pointer',
+                opacity: isControlling || !isConnected ? 0.5 : 1,
+                minWidth: '32px',
+                fontFamily: 'Segoe UI, system-ui, sans-serif'
+              }}
+              title="Climb 5m (R key)"
+            >
+              ↑↑
+            </button>
+            
+            {/* Small altitude up */}
+            <button
+              onClick={() => adjustAltitude(2)}
+              disabled={isControlling || !isConnected}
+              style={{
+                background: 'linear-gradient(135deg, #3498db, #2980b9)',
+                border: '1px solid #2c3e50',
+                borderRadius: '4px',
+                color: '#ffffff',
+                padding: '6px 8px',
+                fontSize: '11px',
+                fontWeight: '600',
+                cursor: isControlling || !isConnected ? 'not-allowed' : 'pointer',
+                opacity: isControlling || !isConnected ? 0.5 : 1,
+                minWidth: '32px',
+                fontFamily: 'Segoe UI, system-ui, sans-serif'
+              }}
+              title="Climb 2m (W key or ↑ arrow)"
+            >
+              ↑
+            </button>
+            
+            {/* Small altitude down */}
+            <button
+              onClick={() => adjustAltitude(-2)}
+              disabled={isControlling || !isConnected}
+              style={{
+                background: 'linear-gradient(135deg, #3498db, #2980b9)',
+                border: '1px solid #2c3e50',
+                borderRadius: '4px',
+                color: '#ffffff',
+                padding: '6px 8px',
+                fontSize: '11px',
+                fontWeight: '600',
+                cursor: isControlling || !isConnected ? 'not-allowed' : 'pointer',
+                opacity: isControlling || !isConnected ? 0.5 : 1,
+                minWidth: '32px',
+                fontFamily: 'Segoe UI, system-ui, sans-serif'
+              }}
+              title="Descend 2m (S key or ↓ arrow)"
+            >
+              ↓
+            </button>
+            
+            {/* Large altitude down */}
+            <button
+              onClick={() => adjustAltitude(-5)}
+              disabled={isControlling || !isConnected}
+              style={{
+                background: 'linear-gradient(135deg, #e67e22, #d35400)',
+                border: '1px solid #2c3e50',
+                borderRadius: '4px',
+                color: '#ffffff',
+                padding: '6px 8px',
+                fontSize: '11px',
+                fontWeight: '600',
+                cursor: isControlling || !isConnected ? 'not-allowed' : 'pointer',
+                opacity: isControlling || !isConnected ? 0.5 : 1,
+                minWidth: '32px',
+                fontFamily: 'Segoe UI, system-ui, sans-serif'
+              }}
+              title="Descend 5m (F key)"
+            >
+              ↓↓
+            </button>
+          </div>
+          
+          {/* Separator */}
+          <div style={{
+            width: '1px',
+            height: '24px',
+            background: '#444',
+            margin: '0 4px'
+          }} />
+          
+          {/* Yaw Controls */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            {/* Large left rotation */}
+            <button
             onClick={() => adjustYaw(-45)}
             disabled={isControlling || !isConnected}
             style={{
@@ -287,6 +484,7 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
           >
             ⤻
           </button>
+          </div>
         </div>
         
         <div style={{
@@ -345,7 +543,7 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
         fontFamily: 'Segoe UI, system-ui, sans-serif',
         textAlign: 'center'
       }}>
-        Keyboard: Q(-45°) A(-15°) D(+15°) E(+45°) | Arrow keys: ← → | Real-time yaw control
+        Keyboard: Q(-45°) A(-15°) D(+15°) E(+45°) | W/R(+2m/+5m) S/F(-2m/-5m) | Arrow keys: ← → ↑ ↓ | Real-time control
       </div>
     </div>
   );
