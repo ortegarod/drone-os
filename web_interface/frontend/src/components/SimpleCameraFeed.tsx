@@ -60,7 +60,7 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
   }, [droneAPI]);
 
   // Yaw control functions
-  const adjustYaw = async (deltaYaw: number) => {
+  const adjustYaw = async (deltaYawDegrees: number) => {
     if (!droneAPI.ros || isControlling) return;
     
     setIsControlling(true);
@@ -74,7 +74,9 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
         return;
       }
       
-      const newYaw = currentYaw + deltaYaw;
+      // Convert degrees to radians for the API call
+      const deltaYawRadians = deltaYawDegrees * (Math.PI / 180);
+      const newYaw = currentYaw + deltaYawRadians;
       
       // Send position command with new yaw, keeping current position
       const result = await droneAPI.setPosition(
@@ -86,7 +88,7 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
       
       if (result.success) {
         setCurrentYaw(newYaw);
-        setControlMessage(`Yaw adjusted ${deltaYaw > 0 ? 'right' : 'left'} ${Math.abs(deltaYaw)}°`);
+        setControlMessage(`Yaw adjusted ${deltaYawDegrees > 0 ? 'right' : 'left'} ${Math.abs(deltaYawDegrees)}°`);
       } else {
         setControlMessage(`Yaw control failed: ${result.message}`);
       }
@@ -189,7 +191,7 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
             color: '#888',
             fontFamily: 'monospace'
           }}>
-            {currentYaw.toFixed(1)}°
+            {(currentYaw * 180 / Math.PI).toFixed(1)}°
           </div>
         </div>
         
