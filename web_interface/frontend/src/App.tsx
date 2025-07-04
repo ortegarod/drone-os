@@ -63,7 +63,7 @@ export const getTemperatureUnit = (system: UnitSystem): string => {
 };
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'main' | 'telemetry' | 'map' | 'dev'>('main');
+  const [currentPage, setCurrentPage] = useState<'main' | 'telemetry' | 'map' | 'ai' | 'dev'>('main');
   const [droneStatus, setDroneStatus] = useState<DroneStatus>({
     drone_name: 'drone1',
     connected: false,
@@ -505,6 +505,12 @@ const App: React.FC = () => {
               Drone Map
             </button>
             <button 
+              className={`nav-btn ${currentPage === 'ai' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('ai')}
+            >
+              AI Assistant <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(BETA)</span>
+            </button>
+            <button 
               className={`nav-btn ${currentPage === 'dev' ? 'active' : ''}`}
               onClick={() => setCurrentPage('dev')}
             >
@@ -579,10 +585,26 @@ const App: React.FC = () => {
           </div>
 
           <div className="right-panel">
-            <AIInterface 
-              droneAPI={droneAPI}
-              droneStatus={droneStatus}
-            />
+            {/* Right panel now available for additional controls or status displays */}
+            <div style={{ 
+              padding: '1rem',
+              backgroundColor: '#2d2d2d',
+              borderRadius: '4px',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#888'
+            }}>
+              <h3>Additional Controls</h3>
+              <p style={{ textAlign: 'center', fontSize: '0.875rem' }}>
+                Future expansion area for tactical controls and mission planning.
+              </p>
+              <p style={{ textAlign: 'center', fontSize: '0.75rem', marginTop: '1rem' }}>
+                AI Assistant moved to dedicated tab
+              </p>
+            </div>
           </div>
           
           {/* MiniMap overlay in top-right corner */}
@@ -609,6 +631,45 @@ const App: React.FC = () => {
             availableDrones={availableDrones}
             unitSystem={unitSystem}
           />
+        </main>
+      ) : currentPage === 'ai' ? (
+        <main style={{ flex: 1, overflow: 'hidden' }}>
+          <div style={{ 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column',
+            backgroundColor: '#1a1a1a'
+          }}>
+            <div style={{ 
+              padding: '1rem', 
+              borderBottom: '1px solid #444',
+              backgroundColor: '#2d2d2d',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <h2>🤖 AI Assistant</h2>
+              <span style={{ 
+                fontSize: '0.75rem', 
+                backgroundColor: '#f39c12',
+                color: '#000',
+                padding: '2px 6px',
+                borderRadius: '3px',
+                fontWeight: 'bold'
+              }}>
+                BETA
+              </span>
+              <div style={{ fontSize: '0.875rem', color: '#888', marginLeft: 'auto' }}>
+                Natural language drone control and mission planning
+              </div>
+            </div>
+            <div style={{ flex: 1, padding: '1rem' }}>
+              <AIInterface 
+                droneAPI={droneAPI}
+                droneStatus={droneStatus}
+              />
+            </div>
+          </div>
         </main>
       ) : (
         <main style={{ flex: 1, overflow: 'hidden' }}>
