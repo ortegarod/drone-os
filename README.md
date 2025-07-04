@@ -1,16 +1,11 @@
 # DroneOS
 
-DroneOS is a modular framework for autonomous drone control, built on ROS 2 and PX4 Autopilot. It includes:
+DroneOS is a framework for autonomous drone control, built on open-source ROS 2 and PX4 Autopilot. It includes:
 
-- **Drone Core SDK**: A C++ library for drone state tracking, command execution, and offboard control
-- **PX4 Integration**: Seamless communication with PX4 flight controllers via Micro XRCE-DDS
-- **CLI Control**: A command-line interface for managing individual drones and fleets (GUI coming soon; use QGroundControl for live telemetry)
-- **Multi-Drone Architecture**: Native support for simultaneous control of multiple drones, with swarm intelligence in active development
-
-##  Core Components
+- **Drone Core SDK**: A C++ library that provides a high-level abstraction layer for controlling PX4 drones with drone state tracking, command execution, and offboard control
+- Seamless communication with PX4 flight controllers via Micro XRCE-DDS
 
 ### `drone_core` (C++)
-
 
 The package is structured in two main parts:
 
@@ -18,7 +13,6 @@ The package is structured in two main parts:
 
 
 2. **`drone_core` Node**: A ROS 2 node that uses `drone_core_lib` to expose drone control capabilities as ROS 2 services:
-
 
 For detailed implementation specifications, API documentation, and usage guidelines, refer to `src/drone_core/README.md`.
 
