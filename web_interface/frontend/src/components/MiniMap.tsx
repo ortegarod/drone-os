@@ -211,33 +211,52 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     // Add markers for each drone
     dronePositions.forEach((position, droneName) => {
       if (position.valid) {
-        // Create custom icon for drone (smaller for minimap)
+        // Create military-style drone icon for defense operations
         const isCurrentTarget = droneName === droneStatus.drone_name;
-        const size = 12;
-        const fontSize = '8px';
+        const size = 18;
+        const fontSize = '11px';
         
-        // OSRS-style drone marker
+        // Military/ISR-style drone marker
         const icon = L.divIcon({
           html: `<div style="
-            background: ${isCurrentTarget ? 'linear-gradient(145deg, #FF0000, #CC0000)' : 'linear-gradient(145deg, #0088FF, #0066CC)'};
+            background: ${isCurrentTarget ? 'linear-gradient(135deg, #00ff41, #00cc33)' : 'linear-gradient(135deg, #1e90ff, #0066cc)'};
             width: ${size}px;
             height: ${size}px;
-            border-radius: 0px;
-            border: 1px solid ${isCurrentTarget ? '#FFFF00' : '#FFFFFF'};
+            border-radius: 50%;
+            border: 2px solid ${isCurrentTarget ? '#ffffff' : '#cccccc'};
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: ${fontSize};
-            color: #FFFF00;
-            font-weight: bold;
-            font-family: monospace;
-            text-shadow: 1px 1px 0 #000000;
-            box-shadow: 0 0 3px rgba(0,0,0,0.8);
-            image-rendering: pixelated;
-          ">${droneName.replace('drone', '')}</div>`,
-          className: 'osrs-drone-marker',
-          iconSize: [size + 2, size + 2],
-          iconAnchor: [size/2 + 1, size/2 + 1]
+            color: #000000;
+            font-weight: 600;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            text-shadow: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.3);
+            position: relative;
+          ">
+            <div style="
+              position: absolute;
+              top: -1px;
+              right: -1px;
+              width: 6px;
+              height: 6px;
+              background: ${isCurrentTarget ? '#00ff41' : '#1e90ff'};
+              border-radius: 50%;
+              border: 1px solid #ffffff;
+              ${isCurrentTarget ? 'animation: pulse 1.5s infinite;' : ''}
+            "></div>
+            ${droneName.replace('drone', '')}
+          </div>
+          <style>
+            @keyframes pulse {
+              0%, 100% { opacity: 1; transform: scale(1); }
+              50% { opacity: 0.6; transform: scale(1.2); }
+            }
+          </style>`,
+          className: 'tactical-drone-marker',
+          iconSize: [size + 4, size + 4],
+          iconAnchor: [size/2 + 2, size/2 + 2]
         });
 
         const marker = L.marker([position.lat, position.lng], { icon })
@@ -247,11 +266,19 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       }
     });
 
-    // Center map on current target drone if available
+    // Only center map if drone position has changed significantly or if this is the first valid position
     const currentDronePos = dronePositions.get(droneStatus.drone_name);
     if (currentDronePos && currentDronePos.valid) {
-      map.setView([currentDronePos.lat, currentDronePos.lng], 13);
-      setMapCenter([currentDronePos.lat, currentDronePos.lng]);
+      const currentCenter = map.getCenter();
+      const distance = currentCenter.distanceTo([currentDronePos.lat, currentDronePos.lng]);
+      
+      // Only recenter if drone moved more than 100 meters or if map center is far from drone
+      if (distance > 100 || distance > 1000) {
+        // Preserve current zoom level instead of forcing zoom 13
+        const currentZoom = map.getZoom();
+        map.setView([currentDronePos.lat, currentDronePos.lng], currentZoom);
+        setMapCenter([currentDronePos.lat, currentDronePos.lng]);
+      }
     }
   }, [dronePositions, droneStatus.drone_name]);
 
@@ -335,43 +362,35 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     map.on('click', clickHandler);
   }, [handleMapClick]);
 
-  // Get current drone position from drone positions map
-  const getCurrentDronePosition = () => {
-    const currentPos = dronePositions.get(droneStatus.drone_name);
-    if (currentPos && currentPos.valid) {
-      return [currentPos.lat, currentPos.lng] as [number, number];
-    }
-    return null;
-  };
 
   const miniMapStyle: React.CSSProperties = {
     position: 'absolute',
     top: '10px',
     right: '10px',
-    width: '200px',
-    height: '200px',
+    width: '320px',
+    height: '320px',
     zIndex: 1000,
-    border: '3px solid #8B4513',
-    borderRadius: '8px',
-    backgroundColor: '#2F1B14',
-    boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+    border: '2px solid #2c3e50',
+    borderRadius: '4px',
+    backgroundColor: '#1a1a1a',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.1)',
     cursor: 'default'
   };
 
   return (
     <div style={miniMapStyle}>
-      {/* OSRS-style minimap frame */}
+      {/* Professional tactical frame */}
       <div style={{
         position: 'absolute',
-        top: '-6px',
-        left: '-6px',
-        right: '-6px',
-        bottom: '-6px',
-        border: '2px solid #A0956B',
-        borderRadius: '3px',
+        top: '-3px',
+        left: '-3px',
+        right: '-3px',
+        bottom: '-3px',
+        border: '1px solid #34495e',
+        borderRadius: '2px',
         pointerEvents: 'none',
-        background: 'linear-gradient(135deg, #8B7355 0%, #6B5A43 50%, #4A3729 100%)',
-        boxShadow: 'inset 0 0 0 1px #D4C4A0, inset 0 0 0 2px #8B7355'
+        background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%)',
+        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)'
       }} />
       
       <div 
@@ -383,42 +402,46 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         }} 
       />
       
-      {/* OSRS-style minimap text */}
+      {/* Professional status display */}
       <div style={{
         position: 'absolute',
-        bottom: '2px',
-        left: '2px',
-        right: '2px',
+        bottom: '4px',
+        left: '4px',
+        right: '4px',
         textAlign: 'center',
-        color: '#FFFF00', // Classic OSRS yellow text
-        fontSize: '8px',
-        fontWeight: 'bold',
-        fontFamily: 'monospace',
-        textShadow: '1px 1px 0 #000000',
+        color: '#00ff41',
+        fontSize: '10px',
+        fontWeight: '600',
+        fontFamily: 'Segoe UI, system-ui, sans-serif',
+        textShadow: '0 1px 2px rgba(0,0,0,0.8)',
         pointerEvents: 'none',
-        background: 'rgba(0,0,0,0.7)',
-        padding: '1px',
-        borderRadius: '0px'
+        background: 'linear-gradient(135deg, rgba(0,0,0,0.8), rgba(20,20,20,0.9))',
+        padding: '2px 4px',
+        borderRadius: '2px',
+        border: '1px solid rgba(0,255,65,0.3)'
       }}>
-{dronePositions.size} DRONE{dronePositions.size !== 1 ? 'S' : ''} • REAL-TIME
+        {dronePositions.size} ASSET{dronePositions.size !== 1 ? 'S' : ''} • LIVE
       </div>
       
-      {/* Status indicator for minimap */}
+      {/* Command status indicator */}
       {message && (
         <div style={{
           position: 'absolute',
-          bottom: '20px',
-          left: '5px',
-          right: '5px',
-          background: message.includes('Failed') ? 'rgba(255, 68, 68, 0.9)' : 'rgba(34, 68, 34, 0.9)',
-          color: 'white',
-          padding: '2px 4px',
-          borderRadius: '3px',
-          fontSize: '8px',
+          bottom: '24px',
+          left: '6px',
+          right: '6px',
+          background: message.includes('Failed') ? 'linear-gradient(135deg, #e74c3c, #c0392b)' : 'linear-gradient(135deg, #27ae60, #229954)',
+          color: '#ffffff',
+          padding: '3px 6px',
+          borderRadius: '2px',
+          fontSize: '9px',
+          fontWeight: '500',
           textAlign: 'center',
-          pointerEvents: 'none'
+          pointerEvents: 'none',
+          border: '1px solid rgba(255,255,255,0.2)',
+          textShadow: '0 1px 1px rgba(0,0,0,0.5)'
         }}>
-          {message.length > 40 ? message.substring(0, 40) + '...' : message}
+          {message.length > 35 ? message.substring(0, 35) + '...' : message}
         </div>
       )}
     </div>
