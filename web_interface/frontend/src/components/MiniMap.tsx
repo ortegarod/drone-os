@@ -35,7 +35,10 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
   const droneMarkersRef = useRef<Map<string, L.Marker>>(new Map());
   const [dronePositions, setDronePositions] = useState<Map<string, DronePosition>>(new Map());
   const [message, setMessage] = useState('');
+  const [targetPin, setTargetPin] = useState<L.Marker | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number]>([37.7749, -122.4194]); // Default to SF
+  const [userInteracted, setUserInteracted] = useState(false);
   const topicSubscriptionsRef = useRef<Map<string, any>>(new Map());
 
   // Get drone's GPS position for map centering
@@ -93,6 +96,9 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
           boxZoom: false,
           keyboard: false
         }).setView(center, 13);
+        
+        // Set crosshair cursor for the map
+        map.getContainer().style.cursor = 'crosshair';
 
         console.log('MiniMap: Map created successfully');
 
@@ -109,7 +115,17 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
           }
         };
         
+        // Track user interaction to prevent auto-centering
+        const userInteractionHandler = () => {
+          setUserInteracted(true);
+          // Reset after 10 seconds of no interaction
+          setTimeout(() => setUserInteracted(false), 10000);
+        };
+        
         map.on('click', clickHandler);
+        map.on('drag', userInteractionHandler);
+        map.on('zoom', userInteractionHandler);
+        map.on('mousedown', userInteractionHandler);
 
         mapInstanceRef.current = map;
         setMapCenter(center);
@@ -317,21 +333,21 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       }
     });
 
-    // Only center map if drone position has changed significantly or if this is the first valid position
+    // Only center map if user hasn't interacted recently and drone position has changed significantly
     const currentDronePos = dronePositions.get(droneStatus.drone_name);
-    if (currentDronePos && currentDronePos.valid) {
+    if (currentDronePos && currentDronePos.valid && !userInteracted) {
       const currentCenter = map.getCenter();
       const distance = currentCenter.distanceTo([currentDronePos.lat, currentDronePos.lng]);
       
-      // Only recenter if drone moved more than 100 meters or if map center is far from drone
-      if (distance > 100 || distance > 1000) {
+      // Only recenter if drone moved more than 500 meters (increased threshold)
+      if (distance > 500) {
         // Preserve current zoom level instead of forcing zoom 13
         const currentZoom = map.getZoom();
         map.setView([currentDronePos.lat, currentDronePos.lng], currentZoom);
         setMapCenter([currentDronePos.lat, currentDronePos.lng]);
       }
     }
-  }, [dronePositions, droneStatus.drone_name]);
+  }, [dronePositions, droneStatus.drone_name, userInteracted]);
 
   // Simple GPS to local coordinate conversion (approximate)
   const gpsToLocal = (targetLat: number, targetLng: number, currentLat: number, currentLng: number) => {
@@ -359,6 +375,48 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       return;
     }
 
+    // Remove previous target pin if exists
+    if (targetPin && mapInstanceRef.current) {
+      mapInstanceRef.current.removeLayer(targetPin);
+    }
+
+    // Create and add new target pin (smaller for mini-map)
+    if (mapInstanceRef.current) {
+      const pinIcon = L.divIcon({
+        html: `<div style="
+          width: 10px;
+          height: 10px;
+          background: #FF4444;
+          border: 1px solid #FFFFFF;
+          border-radius: 50%;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+          position: relative;
+        ">
+          <div style="
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-bottom: 8px solid #FF4444;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+          "></div>
+        </div>`,
+        className: 'mini-target-pin',
+        iconSize: [10, 10],
+        iconAnchor: [5, 10]
+      });
+      
+      const pin = L.marker([latlng.lat, latlng.lng], { icon: pinIcon })
+        .addTo(mapInstanceRef.current);
+      
+      setTargetPin(pin);
+    }
+
+    setIsLoading(true);
     setMessage(`Moving ${droneStatus.drone_name} to clicked location...`);
 
     try {
@@ -385,11 +443,20 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       setMessage(`Moving with auto-yaw: ${result.message}`);
       
       // Clear message after 2 seconds like ManualControls
-      setTimeout(() => setMessage(''), 2000);
+      setTimeout(() => {
+        setMessage('');
+        // Remove target pin after command
+        if (targetPin && mapInstanceRef.current) {
+          mapInstanceRef.current.removeLayer(targetPin);
+          setTargetPin(null);
+        }
+      }, 2000);
     } catch (error) {
       console.error('MiniMap: Move command failed:', error);
       setMessage(`Failed to move drone: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setTimeout(() => setMessage(''), 3000);
+    } finally {
+      setIsLoading(false);
     }
   }, [dronePositions, droneStatus.drone_name, droneAPI]);
 

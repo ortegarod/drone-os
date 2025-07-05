@@ -32,6 +32,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({ droneAPI, droneStatus, availableD
   const [dronePositions, setDronePositions] = useState<Map<string, DronePosition>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [targetPin, setTargetPin] = useState<L.Marker | null>(null);
 
   // Get drone's GPS position for map centering
   const getDroneGPSPosition = async () => {
@@ -81,6 +82,9 @@ const SimpleMap: React.FC<SimpleMapProps> = ({ droneAPI, droneStatus, availableD
           boxZoom: true,
           keyboard: true
         }).setView(center, 15);
+        
+        // Set crosshair cursor for the map
+        map.getContainer().style.cursor = 'crosshair';
 
         console.log('SimpleMap: Map created successfully');
 
@@ -223,6 +227,47 @@ const SimpleMap: React.FC<SimpleMapProps> = ({ droneAPI, droneStatus, availableD
       return;
     }
 
+    // Remove previous target pin if exists
+    if (targetPin && mapInstanceRef.current) {
+      mapInstanceRef.current.removeLayer(targetPin);
+    }
+
+    // Create and add new target pin
+    if (mapInstanceRef.current) {
+      const pinIcon = L.divIcon({
+        html: `<div style="
+          width: 16px;
+          height: 16px;
+          background: #FF4444;
+          border: 2px solid #FFFFFF;
+          border-radius: 50%;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+          position: relative;
+        ">
+          <div style="
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 12px solid #FF4444;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+          "></div>
+        </div>`,
+        className: 'target-pin',
+        iconSize: [16, 16],
+        iconAnchor: [8, 16]
+      });
+      
+      const pin = L.marker([latlng.lat, latlng.lng], { icon: pinIcon })
+        .addTo(mapInstanceRef.current);
+      
+      setTargetPin(pin);
+    }
+
     setIsLoading(true);
     setMessage(`Moving ${droneStatus.drone_name} to ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`);
 
@@ -231,6 +276,14 @@ const SimpleMap: React.FC<SimpleMapProps> = ({ droneAPI, droneStatus, availableD
       // This is a simplified approach - in reality you'd need to convert GPS to local NED coordinates
       const result = await droneAPI.setPosition(0, 0, -10, 0); // Placeholder - needs GPS conversion
       setMessage(`Click-to-move: ${result.message} (GPS conversion needed)`);
+      
+      // Remove target pin after command is sent
+      setTimeout(() => {
+        if (targetPin && mapInstanceRef.current) {
+          mapInstanceRef.current.removeLayer(targetPin);
+          setTargetPin(null);
+        }
+      }, 3000);
     } catch (error) {
       setMessage(`Failed to move drone: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
@@ -258,7 +311,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({ droneAPI, droneStatus, availableD
         <h3 style={{ margin: 0 }}>Map View</h3>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <span style={{ fontSize: '0.75rem', color: '#888' }}>
-            {dronePositions.size} drone(s) • Mouse wheel to zoom
+            {dronePositions.size} drone(s) • Click to drop waypoint pin • Mouse wheel to zoom
           </span>
           <button 
             className="btn secondary"

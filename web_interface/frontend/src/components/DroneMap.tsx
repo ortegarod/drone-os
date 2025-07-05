@@ -37,6 +37,8 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
   const [dronePositions, setDronePositions] = useState<Map<string, DronePosition>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [targetPin, setTargetPin] = useState<L.Marker | null>(null);
+  const [userInteracted, setUserInteracted] = useState(false);
   const topicSubscriptionsRef = useRef<Map<string, any>>(new Map());
 
   // Get drone's GPS position for map centering
@@ -89,6 +91,9 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
         
         // Create map centered on drone or default location
         const map = L.map(mapRef.current!).setView(center, 15);
+        
+        // Set crosshair cursor for the map
+        map.getContainer().style.cursor = 'crosshair';
         console.log('DroneMap: Map created successfully');
 
         // Add OpenStreetMap tile layer
@@ -106,7 +111,17 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
           }
         };
         
+        // Track user interaction to prevent auto-centering
+        const userInteractionHandler = () => {
+          setUserInteracted(true);
+          // Reset after 15 seconds of no interaction (longer for main map)
+          setTimeout(() => setUserInteracted(false), 15000);
+        };
+        
         map.on('click', clickHandler);
+        map.on('drag', userInteractionHandler);
+        map.on('zoom', userInteractionHandler);
+        map.on('mousedown', userInteractionHandler);
 
         mapInstanceRef.current = map;
         console.log('DroneMap: Map initialization complete');
@@ -304,12 +319,20 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
       }
     });
 
-    // Center map on current target drone if available
+    // Center map on current target drone if available and user hasn't interacted recently
     const currentDronePos = dronePositions.get(droneStatus.drone_name);
-    if (currentDronePos && currentDronePos.valid) {
-      map.setView([currentDronePos.lat, currentDronePos.lng], Math.max(map.getZoom(), 15));
+    if (currentDronePos && currentDronePos.valid && !userInteracted) {
+      const currentCenter = map.getCenter();
+      const distance = currentCenter.distanceTo([currentDronePos.lat, currentDronePos.lng]);
+      
+      // Only recenter if drone moved more than 1000 meters (1km threshold for main map)
+      if (distance > 1000) {
+        // Preserve current zoom level, but ensure minimum zoom for visibility
+        const currentZoom = map.getZoom();
+        map.setView([currentDronePos.lat, currentDronePos.lng], Math.max(currentZoom, 15));
+      }
     }
-  }, [dronePositions, droneStatus.drone_name]);
+  }, [dronePositions, droneStatus.drone_name, userInteracted]);
 
   // GPS to local coordinate conversion
   const gpsToLocal = (targetLat: number, targetLng: number, currentLat: number, currentLng: number) => {
@@ -330,6 +353,47 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
     if (!currentDronePos || !currentDronePos.valid) {
       setMessage('Cannot move: Current drone position unknown');
       return;
+    }
+
+    // Remove previous target pin if exists
+    if (targetPin && mapInstanceRef.current) {
+      mapInstanceRef.current.removeLayer(targetPin);
+    }
+
+    // Create and add new target pin
+    if (mapInstanceRef.current) {
+      const pinIcon = L.divIcon({
+        html: `<div style="
+          width: 16px;
+          height: 16px;
+          background: #FF4444;
+          border: 2px solid #FFFFFF;
+          border-radius: 50%;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+          position: relative;
+        ">
+          <div style="
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 12px solid #FF4444;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+          "></div>
+        </div>`,
+        className: 'target-pin',
+        iconSize: [16, 16],
+        iconAnchor: [8, 16]
+      });
+      
+      const pin = L.marker([latlng.lat, latlng.lng], { icon: pinIcon })
+        .addTo(mapInstanceRef.current);
+      
+      setTargetPin(pin);
     }
 
     setIsLoading(true);
@@ -355,7 +419,14 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
       
       if (result.success) {
         setMessage(`✓ Move command sent to ${droneStatus.drone_name}`);
-        setTimeout(() => setMessage(''), 2000);
+        setTimeout(() => {
+          setMessage('');
+          // Remove target pin after successful move
+          if (targetPin && mapInstanceRef.current) {
+            mapInstanceRef.current.removeLayer(targetPin);
+            setTargetPin(null);
+          }
+        }, 3000);
       } else {
         setMessage(`✗ Move failed: ${result.message}`);
         setTimeout(() => setMessage(''), 3000);
@@ -388,14 +459,6 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
     map.on('click', clickHandler);
   }, [handleMapClick]);
 
-  // Get current drone position from drone positions map
-  const getCurrentDronePosition = () => {
-    const currentPos = dronePositions.get(droneStatus.drone_name);
-    if (currentPos && currentPos.valid) {
-      return [currentPos.lat, currentPos.lng] as [number, number];
-    }
-    return null;
-  };
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -461,7 +524,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
         color: '#888',
         borderTop: '1px solid #444'
       }}>
-        Click on map to move {droneStatus.drone_name} • Red marker = current target • Blue markers = other drones • Real-time position updates at 10Hz
+        Click on map to drop a waypoint pin and move {droneStatus.drone_name} • Red marker = current target • Blue markers = other drones • Real-time position updates at 10Hz
       </div>
     </div>
   );
