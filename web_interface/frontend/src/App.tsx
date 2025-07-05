@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 // @ts-ignore
 import ROSLIB from 'roslib';
-import ManualControls from './components/ManualControls';
 import AIInterface from './components/AIInterface';
 import SimpleCameraFeed from './components/SimpleCameraFeed';
 import TelemetryPage from './components/TelemetryPage';
 import MiniMap from './components/MiniMap';
 import DroneMap from './components/DroneMap';
 import DevPage from './components/DevPage';
+import FlightControlsHotbar from './components/FlightControlsHotbar';
+import RuneScapeMenu from './components/RuneScapeMenu';
 import './App.css';
 
 // rosbridge WebSocket URL
@@ -566,23 +567,102 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Top Status Bar */}
+      {/* Top Status Bar - Single Row with Wrap */}
       <div className="top-status-bar">
-        <div className="status-bar-left">
-          {/* Status moved to instrument panel above camera */}
-        </div>
-        
-        <div className="status-bar-right">
-          <span className="status-item">
-            Last Update: {droneStatus.timestamp ? new Date(droneStatus.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Never'}
-          </span>
+        <div className="status-row">
+          <div className="status-section">
+            <span className="status-label">Last Update:</span>
+            <span className="status-value">
+              {droneStatus.timestamp ? new Date(droneStatus.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'NEVER'}
+            </span>
+          </div>
+          
+          <div className="status-section">
+            <span className="status-label">Target:</span>
+            <span className={`status-value ${droneStatus.connected ? 'status-connected' : 'status-disconnected'}`}>
+              {droneStatus.drone_name.toUpperCase()}{droneStatus.connected ? ' ✓' : ' ✗'}
+            </span>
+          </div>
+          
+          <div className="status-section">
+            <span className="status-label">Fleet:</span>
+            <span className="status-value">{availableDrones.length} UNIT{availableDrones.length !== 1 ? 'S' : ''}</span>
+          </div>
+          
+          <div className="status-section">
+            <span className="status-label">Connection:</span>
+            <span className={`status-value ${droneStatus.connected ? 'status-connected' : 'status-disconnected'}`}>
+              {droneStatus.connected ? 'ACTIVE' : 'INACTIVE'}
+            </span>
+          </div>
+          
+          <div className="status-section">
+            <span className="status-label">Armed:</span>
+            <span className={`status-value ${droneStatus.armed ? 'status-armed' : 'status-disarmed'}`}>
+              {droneStatus.armed ? 'ARMED' : 'DISARMED'}
+            </span>
+          </div>
+          
+          <div className="status-section">
+            <span className="status-label">Mode:</span>
+            <span className="status-value">{droneStatus.flight_mode}</span>
+          </div>
+          
+          <div className="status-section">
+            <span className="status-label">Position:</span>
+            <span className="status-value">
+              ({convertDistance(droneStatus.position.x, unitSystem).toFixed(2)}, {convertDistance(droneStatus.position.y, unitSystem).toFixed(2)}, {convertDistance(Math.abs(droneStatus.position.z), unitSystem).toFixed(2)}) {getDistanceUnit(unitSystem)}
+            </span>
+          </div>
+          
+          <div className="status-section">
+            <span className="status-label">Heading:</span>
+            <span className="status-value">{droneStatus.position.yaw.toFixed(2)} RAD</span>
+          </div>
         </div>
       </div>
 
       {currentPage === 'main' ? (
-        <main className="app-main">
-          <div className="left-panel">
-            <ManualControls 
+        <div className="app-main-new">
+          {/* Main content area */}
+          <div className="main-content">
+            {/* Center area for camera feed only */}
+            <div className="center-area">
+              <SimpleCameraFeed 
+                droneAPI={droneAPI}
+                isConnected={isConnected}
+                droneStatus={droneStatus}
+                unitSystem={unitSystem}
+              />
+            </div>
+
+            {/* Right panel container for both MiniMap and RuneScape menu */}
+            <div className="right-panel-container">
+              {/* MiniMap in its own container */}
+              <div className="minimap-container">
+                <MiniMap 
+                  droneAPI={droneAPI}
+                  droneStatus={droneStatus}
+                  availableDrones={availableDrones}
+                  unitSystem={unitSystem}
+                />
+              </div>
+              
+              {/* RuneScape-style menu */}
+              <div className="right-menu">
+                <RuneScapeMenu
+                  droneAPI={droneAPI}
+                  droneStatus={droneStatus}
+                  unitSystem={unitSystem}
+                  availableDrones={availableDrones}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Flight controls hotbar - separate component */}
+          <div className="hotbar-container">
+            <FlightControlsHotbar
               droneAPI={droneAPI}
               droneStatus={droneStatus}
               availableDrones={availableDrones}
@@ -590,46 +670,7 @@ const App: React.FC = () => {
             />
           </div>
 
-          <div className="center-panel">
-            <SimpleCameraFeed 
-              droneAPI={droneAPI}
-              isConnected={isConnected}
-              droneStatus={droneStatus}
-              unitSystem={unitSystem}
-            />
-          </div>
-
-          <div className="right-panel">
-            {/* Right panel now available for additional controls or status displays */}
-            <div style={{ 
-              padding: '1rem',
-              backgroundColor: '#2d2d2d',
-              borderRadius: '4px',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#888'
-            }}>
-              <h3>Additional Controls</h3>
-              <p style={{ textAlign: 'center', fontSize: '0.875rem' }}>
-                Future expansion area for tactical controls and mission planning.
-              </p>
-              <p style={{ textAlign: 'center', fontSize: '0.75rem', marginTop: '1rem' }}>
-                AI Assistant moved to dedicated tab
-              </p>
-            </div>
-          </div>
-          
-          {/* MiniMap overlay in top-right corner */}
-          <MiniMap 
-            droneAPI={droneAPI}
-            droneStatus={droneStatus}
-            availableDrones={availableDrones}
-            unitSystem={unitSystem}
-          />
-        </main>
+        </div>
       ) : currentPage === 'telemetry' ? (
         <main style={{ flex: 1, overflow: 'hidden' }}>
           <TelemetryPage 

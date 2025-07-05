@@ -130,10 +130,15 @@ const DevPage: React.FC<DevPageProps> = ({ ros, isConnected }) => {
       });
 
       const subscription = topic.subscribe((message: any) => {
-        setTopicMessages(prev => [...prev, {
-          timestamp: new Date().toLocaleTimeString(),
-          data: message
-        }]);
+        setTopicMessages(prev => {
+          const newMessage = {
+            timestamp: new Date().toLocaleTimeString(),
+            data: message
+          };
+          // Keep only the last 50 messages to prevent flooding
+          const updated = [...prev, newMessage];
+          return updated.length > 50 ? updated.slice(-50) : updated;
+        });
       });
 
       setSubscribedTopic(subscription);
@@ -336,10 +341,11 @@ const DevPage: React.FC<DevPageProps> = ({ ros, isConnected }) => {
                 {topicMessages.length > 0 ? (
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '0.5rem' }}>
-                      Messages received: {topicMessages.length}
+                      Messages received: {topicMessages.length} (last 50 shown)
                     </div>
                     <div style={{ maxHeight: '400px', overflow: 'auto' }}>
-                      {topicMessages.map((msg, index) => (
+                      {/* Show newest messages first */}
+                      {topicMessages.slice().reverse().map((msg, index) => (
                         <div key={index} style={{ marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid #444' }}>
                           {msg.error ? (
                             <div style={{ color: '#ff4444' }}>
@@ -348,7 +354,7 @@ const DevPage: React.FC<DevPageProps> = ({ ros, isConnected }) => {
                           ) : (
                             <div>
                               <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '0.5rem' }}>
-                                #{index + 1} - {msg.timestamp}
+                                #{topicMessages.length - index} - {msg.timestamp}
                               </div>
                               <pre style={{
                                 backgroundColor: '#1d1d1d',

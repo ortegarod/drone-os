@@ -72,76 +72,86 @@ const TelemetryPage: React.FC<TelemetryPageProps> = ({ droneAPI, droneStatus, un
   const [isLoading, setIsLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Fetch comprehensive telemetry data
+  // Fetch comprehensive telemetry data from real PX4 via GetState service
   const fetchTelemetryData = async () => {
     try {
       if (!droneAPI.ros) return;
       
-      // This would call an extended telemetry service
-      // For now, we'll simulate the data structure
-      const mockTelemetryData: TelemetryData = {
-        // Battery & Power (simulated - would come from battery_status topic)
-        battery_voltage: 12.6,
-        battery_current: 15.2,
-        battery_remaining: droneStatus.battery / 100,
-        battery_time_remaining: 1200, // seconds
-        battery_temperature: 35.2,
-        battery_warning: droneStatus.battery < 25 ? 'LOW' : 'NONE',
-        
-        // GPS & Navigation (simulated - would come from sensor_gps topic)
-        gps_fix_type: '3D_FIX',
-        gps_satellites_used: 12,
-        gps_hdop: 0.8,
-        gps_vdop: 1.2,
-        gps_accuracy_horizontal: 1.5,
-        gps_accuracy_vertical: 2.1,
-        
-        // System Health (simulated - would come from health monitoring service)
-        system_health_score: 95,
-        active_warnings: droneStatus.battery < 25 ? ['Low battery'] : [],
-        critical_failures: [],
-        component_status: {
-          'Flight Controller': 'OK',
-          'GPS': 'OK',
-          'IMU': 'OK',
-          'Magnetometer': 'OK',
-          'Barometer': 'OK',
-          'RC Receiver': 'OK',
-          'Telemetry': 'OK'
-        },
-        
-        // Communication (simulated - would come from telemetry_status topic)
-        rc_signal_strength: 85,
-        rc_signal_valid: true,
-        telemetry_link_quality: 92,
-        gcs_connected: true,
-        packet_loss_rate: 0.02,
-        
-        // Flight Performance (simulated - would come from vehicle_local_position topic)
-        velocity_ned: [0.5, -0.2, 0.1],
-        altitude_rate: 0.05,
-        wind_speed: 3.2,
-        wind_direction: 180,
-        
-        // Mission Status (already available from our system)
-        mission_progress: 0.65,
-        current_waypoint: 3,
-        total_waypoints: 8,
-        distance_to_target: 25.7,
-        eta_to_target: 45,
-        
-        // Safety Status (simulated - would come from various safety topics)
-        geofence_status: 'INSIDE',
-        flight_time_elapsed: 420,
-        flight_time_limit: 1800,
-        
-        timestamp: Date.now()
-      };
+      // Call the real GetState service to get PX4 telemetry data
+      const response = await droneAPI.getState();
       
-      setTelemetryData(mockTelemetryData);
-      
-      // Generate alerts based on telemetry data
-      generateAlerts(mockTelemetryData);
+      if (response.success && response.state) {
+        const state = response.state;
+        const telemetryData: TelemetryData = {
+          // Battery & Power (real data from PX4 battery_status topic)
+          battery_voltage: state.battery_voltage || 0,
+          battery_current: state.battery_current || 0,
+          battery_remaining: state.battery_remaining || 0,
+          battery_time_remaining: state.battery_time_remaining || 0,
+          battery_temperature: state.battery_temperature || 0,
+          battery_warning: state.battery_warning || 'UNKNOWN',
+          
+          // GPS & Navigation (real data from PX4 sensor_gps topic)
+          gps_fix_type: state.gps_fix_type || 'UNKNOWN',
+          gps_satellites_used: state.gps_satellites_used || 0,
+          gps_hdop: state.gps_hdop || 0,
+          gps_vdop: state.gps_vdop || 0,
+          gps_accuracy_horizontal: state.gps_accuracy_horizontal || 0,
+          gps_accuracy_vertical: state.gps_accuracy_vertical || 0,
+          
+          // System Health (real data from PX4 system health)
+          system_health_score: state.system_health_score || 0,
+          active_warnings: state.active_warnings || [],
+          critical_failures: state.critical_failures || [],
+          component_status: {
+            'Flight Controller': state.battery_valid ? 'OK' : 'ERROR',
+            'GPS': state.global_position_valid ? 'OK' : 'ERROR', 
+            'Position': state.position_valid ? 'OK' : 'ERROR',
+            'Velocity': state.velocity_valid ? 'OK' : 'ERROR',
+            'RC Signal': state.rc_signal_valid ? 'OK' : 'ERROR',
+            'Manual Control': state.manual_control_lost ? 'ERROR' : 'OK',
+            'GCS Link': state.gcs_connection_lost ? 'ERROR' : 'OK'
+          },
+          
+          // Communication (real data from PX4 telemetry_status topic)
+          rc_signal_strength: state.rc_signal_strength || 0,
+          rc_signal_valid: state.rc_signal_valid || false,
+          telemetry_link_quality: state.telemetry_link_quality || 0,
+          gcs_connected: !state.gcs_connection_lost,
+          packet_loss_rate: state.packet_loss_rate || 0,
+          
+          // Flight Performance (real data from PX4 vehicle_local_position topic)
+          velocity_ned: [
+            state.velocity_x || 0,
+            state.velocity_y || 0, 
+            state.velocity_z || 0
+          ],
+          altitude_rate: state.altitude_rate || 0,
+          wind_speed: state.wind_speed || 0,
+          wind_direction: state.wind_direction || 0,
+          
+          // Mission Status (simulated for now - would need mission service integration)
+          mission_progress: 0,
+          current_waypoint: 0,
+          total_waypoints: 0,
+          distance_to_target: 0,
+          eta_to_target: 0,
+          
+          // Safety Status (real data from PX4)
+          geofence_status: state.geofence_status || 'UNKNOWN',
+          flight_time_elapsed: state.flight_time_elapsed || 0,
+          flight_time_limit: state.flight_time_limit || 1800,
+          
+          timestamp: Date.now()
+        };
+        
+        setTelemetryData(telemetryData);
+        
+        // Generate alerts based on real telemetry data
+        generateAlerts(telemetryData);
+      } else {
+        console.error('Failed to fetch telemetry data:', response.message || 'Unknown error');
+      }
       
     } catch (error) {
       console.error('Failed to fetch telemetry data:', error);

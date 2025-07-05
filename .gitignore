@@ -16,6 +16,8 @@ Micro-XRCE-DDS-Agent/build/*
 .env
 node_modules
 venv
+web_interface/frontend/build/
+web_interface/frontend/install/
 
 # Python cache files
 __pycache__/
