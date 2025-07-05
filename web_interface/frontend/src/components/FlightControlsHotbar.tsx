@@ -84,7 +84,7 @@ const FlightControlsHotbar: React.FC<FlightControlsHotbarProps> = ({
       icon: '🎯',
       action: () => executeCommand(() => droneAPI.setOffboard(), 'Set Offboard'),
       variant: 'info',
-      disabled: droneStatus.flight_mode === 'OFFBOARD'
+      disabled: false  // Always allow offboard to be set
     }
   ];
 
@@ -168,24 +168,6 @@ const FlightControlsHotbar: React.FC<FlightControlsHotbarProps> = ({
           >
             <span className="btn-icon">🚨</span>
             <span className="btn-text">EMERG</span>
-          </button>
-          <button
-            className="hotbar-btn-compact btn-info"
-            onClick={() => executeCommand(() => droneAPI.setMode('POSCTL'), 'Set Position Control Mode')}
-            disabled={isLoading}
-            title="Position Control Mode"
-          >
-            <span className="btn-icon">🎯</span>
-            <span className="btn-text">POSCTL</span>
-          </button>
-          <button
-            className="hotbar-btn-compact btn-info"
-            onClick={() => executeCommand(() => droneAPI.setMode('ALTCTL'), 'Set Altitude Control Mode')}
-            disabled={isLoading}
-            title="Altitude Control Mode"
-          >
-            <span className="btn-icon">📏</span>
-            <span className="btn-text">ALTCTL</span>
           </button>
         </div>
       </div>

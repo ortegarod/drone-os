@@ -655,6 +655,7 @@ const App: React.FC = () => {
                   droneStatus={droneStatus}
                   unitSystem={unitSystem}
                   availableDrones={availableDrones}
+                  isConnected={isConnected}
                 />
               </div>
             </div>
