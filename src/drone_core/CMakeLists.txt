@@ -24,6 +24,7 @@ add_library(drone_core_lib
   src/drone_core/drone_state.cpp
   src/drone_core/drone_state_publisher.cpp
   src/drone_core/mission_manager.cpp
+  src/drone_core/failsafe_monitor.cpp
   src/utils/state_enums.cpp
 )
 target_include_directories(drone_core_lib PUBLIC include)

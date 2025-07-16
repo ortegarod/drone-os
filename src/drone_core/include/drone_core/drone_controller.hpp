@@ -9,6 +9,7 @@
 #include "drone_core/drone_agent.hpp"
 #include "drone_core/offboard_control.hpp"
 #include "drone_core/mission_manager.hpp"
+#include "drone_core/failsafe_monitor.hpp"
 #include <memory>
 #include <future>     // Used for sync methods
 #include <chrono>     // Used for sync methods
@@ -127,6 +128,24 @@ public:
      */
     ArmingState get_arming_state() const;
 
+    /**
+     * @brief Get current failsafe status
+     * @return Current FailsafeStatus structure
+     */
+    const drone_core::FailsafeStatus& getFailsafeStatus() const;
+
+    /**
+     * @brief Check if drone is safe for mission execution
+     * @return true if safe, false if failsafe conditions present
+     */
+    bool isSafeForMission() const;
+
+    /**
+     * @brief Get human-readable failsafe description
+     * @return String description of current failsafe state
+     */
+    std::string getFailsafeDescription() const;
+
 private:
     rclcpp::Node* node_;                    ///< Pointer to ROS2 node
     std::string name_;                      ///< Name of the drone
@@ -142,6 +161,7 @@ private:
     std::unique_ptr<OffboardControl> offboard_control_;    ///< Offboard control manager
     std::unique_ptr<DroneState> drone_state_;       ///< Drone state tracker
     std::unique_ptr<drone_core::MissionManager> mission_manager_;  ///< Mission planning and execution
+    std::unique_ptr<drone_core::FailsafeMonitor> failsafe_monitor_; ///< Failsafe monitoring and safety checks
 
     // ROS 2 Services (Added)
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr arm_service_;

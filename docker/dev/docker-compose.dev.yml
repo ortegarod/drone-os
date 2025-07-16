@@ -62,7 +62,9 @@ services:
       - -c
       - |
         . /opt/ros/humble/setup.bash
-        . /root/ws_droneOS/install/setup.bash
+        cd /root/ws_droneOS
+        colcon build --packages-select drone_interfaces px4_msgs drone_core
+        . install/setup.bash
         ros2 run drone_core drone_core --ros-args \
           -r __node:=drone1 \
           -p drone_name:=drone1 \

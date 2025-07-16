@@ -1,0 +1,94 @@
+# === Production Web Interface Services ===
+#
+# This configuration provides the web interface for production deployment
+# Intended for use with existing drone_core and micro_agent services
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.web.yml up -d
+#
+
+services:
+  # --- rosbridge WebSocket Service ---
+  # Provides WebSocket communication between web frontend and ROS2
+  rosbridge_server:
+    image: ros:humble
+    container_name: rosbridge_server_prod
+    network_mode: "host"
+    restart: unless-stopped
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
+    volumes:
+      - ../fastdds_config_drone.xml:/root/ws_droneOS/fastdds_config.xml
+    depends_on:
+      - drone_core
+    command: >
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        apt-get update &&
+        apt-get install -y ros-humble-rosbridge-suite &&
+        echo 'Starting rosbridge on port 9090 with DroneOS interfaces...' &&
+        ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090
+      "
+
+  # --- Web Interface Service ---
+  # Serves the React frontend and provides REST API
+  web_interface:
+    build:
+      context: ../..
+      dockerfile: docker/prod/web_interface.Dockerfile
+    container_name: web_interface_prod
+    network_mode: "host"
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "8000:8000"
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
+      - NODE_ENV=production
+    volumes:
+      - ../fastdds_config_drone.xml:/root/ws_droneOS/fastdds_config.xml
+      - ./logs:/root/ws_droneOS/logs
+    depends_on:
+      - rosbridge_server
+    command: >
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        source /root/ws_droneOS/install/setup.bash &&
+        echo 'Starting production web interface...' &&
+        nginx &&
+        cd /root/ws_droneOS/web_interface/backend &&
+        python3 ros2_web_bridge.py
+      "
+
+  # --- Video Streaming Service ---
+  # Provides HTTP video streaming for camera feeds
+  video_stream:
+    image: ros:humble
+    container_name: video_stream_prod
+    network_mode: "host"
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
+    volumes:
+      - ../fastdds_config_drone.xml:/root/ws_droneOS/fastdds_config.xml
+    depends_on:
+      - camera_service
+    command: >
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        apt-get update &&
+        apt-get install -y ros-humble-web-video-server &&
+        echo 'Starting video streaming server on port 8080...' &&
+        ros2 run web_video_server web_video_server --ros-args -p port:=8080
+      "

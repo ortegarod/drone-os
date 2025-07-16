@@ -10,10 +10,35 @@ A real-time web-based ground control station for monitoring and controlling PX4 
 - **ROSLIB.js** for real-time ROS2 communication via rosbridge
 - **Webpack** for bundling and development
 
-### Backend (Python)
-- **rosbridge_server** for WebSocket-based ROS2 communication
+### Backend Services
+- **rosbridge_server** (port 9090) - Primary WebSocket-based ROS2 communication
+- **Custom Python bridge** (port 8000) - REST API with DroneOS-specific logic
 - **AI Orchestrator** for natural language drone control
-- **FastAPI** integration for REST endpoints
+
+### Communication Architecture
+The web interface uses **two parallel bridge services**:
+
+#### 1. rosbridge_suite (WebSocket - Port 9090) - PRIMARY
+- **Used by**: React frontend exclusively
+- **Purpose**: Real-time ROS2 communication
+- **Features**:
+  - All drone commands (arm, disarm, takeoff, land, position control)
+  - Real-time telemetry subscriptions
+  - PX4 raw topic subscriptions (vehicle status, position, battery)
+  - Service discovery and drone detection
+  - Standard rosbridge protocol with ROSLIB.js
+
+#### 2. Custom Python Bridge (REST API - Port 8000) - SECONDARY
+- **Used by**: Currently unused by frontend
+- **Purpose**: Application-specific business logic
+- **Features**:
+  - DroneOS-specific REST endpoints
+  - Structured request/response with Pydantic models
+  - Multi-drone target switching
+  - State aggregation and management
+  - HTTP-based drone control API
+
+**Note**: The React frontend uses **only rosbridge_suite** for all communication. The custom Python bridge exists but is not currently utilized by the web interface.
 
 ### Real-Time Telemetry System
 - **10Hz GPS position updates** via ROS2 topics
@@ -76,14 +101,19 @@ A real-time web-based ground control station for monitoring and controlling PX4 
 
 #### 3. Real-Time Data Flow
 ```
-PX4 → Micro-XRCE-DDS → telemetry_publisher → rosbridge → WebSocket → DroneMap
+PX4 → Micro-XRCE-DDS → drone_core → rosbridge_suite → WebSocket → React Frontend
 ```
+
+**Communication Paths:**
+- **Drone Commands**: React → ROSLIB.js → rosbridge_suite → ROS2 Services → drone_core
+- **Telemetry Data**: drone_core → ROS2 Topics → rosbridge_suite → WebSocket → React
+- **PX4 Raw Data**: PX4 → Micro-XRCE-DDS → rosbridge_suite → WebSocket → React
 
 **Update Frequency:**
 - PX4 sensors: Variable (up to 100Hz)
-- Telemetry publisher: 10Hz
-- WebSocket streaming: 10Hz
-- Map rendering: Throttled to 10Hz
+- drone_core services: On-demand (service calls)
+- rosbridge_suite: Real-time (WebSocket streaming)
+- React frontend: Throttled to 10Hz for smooth UI
 
 ### Configuration
 
@@ -94,11 +124,23 @@ PX4 → Micro-XRCE-DDS → telemetry_publisher → rosbridge → WebSocket → D
 
 #### WebSocket Settings
 ```typescript
-// Optimized for real-time performance
-const topic = new ROSLIB.Topic({
-  ros: droneAPI.ros,
-  name: '/px4_1/drone_state',
-  messageType: 'drone_interfaces/DroneState',
+// rosbridge_suite connection (port 9090)
+const ros = new ROSLIB.Ros({
+  url: 'ws://localhost:9090'
+});
+
+// Example service call for drone commands
+const armService = new ROSLIB.Service({
+  ros: ros,
+  name: '/drone1/arm',
+  serviceType: 'std_srvs/srv/Trigger'
+});
+
+// Example topic subscription for telemetry
+const stateTopic = new ROSLIB.Topic({
+  ros: ros,
+  name: '/drone1/fmuout/vehicle_local_position',
+  messageType: 'px4_msgs/msg/VehicleLocalPosition',
   throttle_rate: 100,  // 10Hz maximum
   queue_length: 1      // Latest message only
 });
@@ -114,48 +156,89 @@ const topic = new ROSLIB.Topic({
 
 ### Quick Start
 
-1. **Start the complete system:**
-```bash
-cd ws_droneOS
-docker compose -f docker/dev/docker-compose.dev.yml up -d --build
-```
-
-2. **Launch PX4 SITL:**
+1. **Start PX4 SITL (in separate terminal):**
 ```bash
 cd PX4-Autopilot
 HEADLESS=1 make px4_sitl gz_x500
 ```
 
-3. **Start telemetry publisher:**
+2. **Start core drone services:**
 ```bash
-source install/setup.bash
-ros2 run drone_core telemetry_publisher
+cd ws_droneOS
+docker compose -f docker/dev/docker-compose.dev.yml up -d --build drone_core micro_agent
 ```
 
-4. **Access web interface:**
+3. **Start web interface services:**
 ```bash
-cd web_interface
-npm install
-npm start
+# Start rosbridge_suite for frontend communication
+docker compose -f docker/dev/docker-compose.dev.yml up -d rosbridge_server
+
+# Start custom web bridge (optional, for REST API)
+docker compose -f docker/dev/docker-compose.web.yml up -d web_interface
 ```
 
-Navigate to `http://localhost:3000` to view the ground control station.
-
-### Development Mode
-
-For frontend development with hot reload:
+4. **Start frontend (React development server):**
 ```bash
 cd web_interface/frontend
 npm install
 npm start
 ```
 
-For backend development:
+**Access Points:**
+- **Web Interface**: `http://localhost:3000` (React frontend)
+- **rosbridge WebSocket**: `ws://localhost:9090` (Used by frontend)
+- **Custom API**: `http://localhost:8000` (Available but unused by frontend)
+
+**Note**: If port 3000 is in use, the frontend will automatically use the next available port (e.g., 3001). Check the npm start output for the actual URL.
+
+### Development Mode
+
+**Frontend Development (with hot reload):**
 ```bash
+cd web_interface/frontend
+npm install
+npm start
+```
+- Frontend runs on host machine for faster development
+- Hot reload enabled for code changes
+- Connects to rosbridge_suite running in Docker
+
+**Backend Development:**
+```bash
+# For rosbridge_suite (primary backend)
+docker compose -f docker/dev/docker-compose.dev.yml logs -f rosbridge_server
+
+# For custom Python bridge (optional)
 cd web_interface/backend
 pip install -r requirements.txt
 python ros2_web_bridge.py
 ```
+
+**Development Tips:**
+- Keep Docker services running for ROS2 communication
+- Frontend automatically reconnects to rosbridge if connection drops
+- Use browser dev tools to monitor WebSocket communication
+- Check Docker logs for backend service issues
+
+### Deployment Considerations
+
+**Development Setup (Current):**
+- Frontend runs on host machine (port 3000/3001)
+- Backend services run in Docker containers
+- Optimized for development with hot reload
+- Direct access to Node.js development server
+
+**Production Setup (Future):**
+- Frontend would be built and served from Docker container
+- All services containerized for consistency
+- Static files served via nginx
+- Environment variables for configuration
+
+**Current Architecture Benefits:**
+- Faster development cycle with hot reload
+- Easy debugging with direct Node.js access
+- Flexible port management
+- Simplified dependency management
 
 ## Usage
 
@@ -197,6 +280,18 @@ The system supports multiple drones with distinct markers:
 
 ### Common Issues
 
+**Frontend not starting:**
+1. **Port 3000 in use**: Frontend will automatically use next available port (3001, 3002, etc.)
+2. **Webpack permission errors**: Run `chmod -R +x node_modules/.bin/` in frontend directory
+3. **npm dependencies**: Delete `node_modules` and run `npm install` again
+4. **Node.js version**: Ensure Node.js 18+ is installed
+
+**rosbridge Connection Issues:**
+1. **WebSocket connection failed**: Verify rosbridge_server container is running
+2. **Service discovery fails**: Check if drone_core services are available
+3. **Connection drops**: rosbridge automatically reconnects, check Docker logs
+4. **Port conflicts**: Ensure port 9090 is available for rosbridge
+
 **No GPS updates on map:**
 1. Verify telemetry publisher is running
 2. Check rosbridge connection in browser console
@@ -215,19 +310,36 @@ The system supports multiple drones with distinct markers:
 3. Verify setPosition service is available
 4. Monitor console for JavaScript errors
 
+**Docker Container Issues:**
+1. **Web interface container not exposing frontend**: Frontend runs on host, not in container
+2. **Permission denied errors**: Check file permissions in mounted volumes
+3. **Container exits immediately**: Check Docker logs for startup errors
+
 ### Debug Commands
 
 ```bash
-# Check ROS2 topics
-ros2 topic list | grep drone_state
-ros2 topic echo /px4_1/drone_state
+# Check running containers
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-# Monitor rosbridge
-rostopic list
-rostopic echo /rosbridge_websocket
+# Check rosbridge_suite logs
+docker logs -f rosbridge_server
 
-# Check telemetry publisher
-ros2 node info /telemetry_publisher
+# Test rosbridge WebSocket connection
+curl -s -w "%{http_code}" http://localhost:9090 || echo "rosbridge not responding"
+
+# Check ROS2 services available to drone
+docker exec drone_core_node ros2 service list | grep drone1
+
+# Monitor ROS2 topics
+docker exec drone_core_node ros2 topic list | grep drone1
+docker exec drone_core_node ros2 topic echo /drone1/fmuout/vehicle_status
+
+# Check frontend development server
+lsof -i :3000  # Check if port 3000 is in use
+lsof -i :3001  # Check if port 3001 is in use
+
+# Verify npm dependencies
+cd web_interface/frontend && npm list --depth=0
 ```
 
 ## Technical Details
@@ -292,6 +404,13 @@ colcon test --packages-select drone_core
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Changelog
+
+### v1.3.0 - Frontend Architecture Update
+- **Fixed frontend deployment**: React frontend now runs on host machine for optimal development
+- **Clarified dual bridge architecture**: rosbridge_suite (primary) + custom Python bridge (optional)
+- **Updated documentation**: Comprehensive troubleshooting and setup procedures
+- **Improved port management**: Automatic port selection for frontend development
+- **Enhanced debugging**: Added detailed debug commands and container monitoring
 
 ### v1.2.0 - Real-Time GPS Implementation
 - Added 10Hz telemetry publishing

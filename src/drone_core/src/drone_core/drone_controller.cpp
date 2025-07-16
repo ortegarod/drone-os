@@ -40,6 +40,9 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
     mission_manager_ = std::make_unique<drone_core::MissionManager>(node_, name_);
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] MissionManager created.", name_.c_str());
     
+    failsafe_monitor_ = std::make_unique<drone_core::FailsafeMonitor>(node_, ns_);
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] FailsafeMonitor created.", name_.c_str());
+    
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Drone components initialized. Creating services...", name_.c_str());
 
     // --- Create Services (Added) ---
@@ -845,4 +848,17 @@ void DroneController::get_mission_status_callback(const std::shared_ptr<rmw_requ
         response->mission_id = 0;
         response->mission_progress = 0.0f;
     }
+}
+
+// Failsafe monitoring methods
+const drone_core::FailsafeStatus& DroneController::getFailsafeStatus() const {
+    return failsafe_monitor_->getStatus();
+}
+
+bool DroneController::isSafeForMission() const {
+    return failsafe_monitor_->isSafeForMission();
+}
+
+std::string DroneController::getFailsafeDescription() const {
+    return failsafe_monitor_->getFailsafeDescription();
 }
