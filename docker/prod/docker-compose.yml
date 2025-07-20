@@ -104,8 +104,8 @@ services:
   # Builds libcamera and rpicam-apps from source for camera support
   camera_service:
     build:
-      context: .
-      dockerfile: camera.dev.Dockerfile
+      context: ../..
+      dockerfile: docker/dev/camera.dev.Dockerfile
     container_name: camera_service_node
     network_mode: "host"
     restart: unless-stopped
@@ -141,7 +141,13 @@ services:
           # Create a dummy calibration file to suppress warnings initially
           mkdir -p /root/.ros/camera_info/
           touch "/root/.ros/camera_info/drone1_camera.yaml"
-          # Example: ros2 run camera_ros camera_node --ros-args -p camera:=0 -p width:=640 -p height:=480 -p format:=RGB888
+          # Start web_video_server in background
+          ros2 run web_video_server web_video_server --ros-args \
+            -p port:=8080 \
+            -p default_stream_type:='ros_compressed' \
+            -p quality:=80 \
+            -p framerate:=15 &
+          # Start camera node
           ros2 run camera_ros camera_node --ros-args -p camera:=0 -p width:=1280 -p height:=720 -p format:=XRGB8888 -p frame_id:="drone1_camera_link" -p camera_info_url:="file:///root/.ros/camera_info/drone1_camera.yaml"
 
 volumes:
