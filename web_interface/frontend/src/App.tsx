@@ -9,6 +9,7 @@ import DroneMap from './components/DroneMap';
 import DevPage from './components/DevPage';
 import FlightControlsHotbar from './components/FlightControlsHotbar';
 import RuneScapeMenu from './components/RuneScapeMenu';
+import AltitudeControl from './components/AltitudeControl';
 import './App.css';
 
 // rosbridge WebSocket URL
@@ -85,6 +86,10 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('droneOS_units');
     return (saved as UnitSystem) || 'metric';
   });
+  
+  // Altitude control state for map clicks
+  const [targetAltitude, setTargetAltitude] = useState(15); // Default 15m altitude
+  const [maxAltitude, setMaxAltitude] = useState(50); // Default 50m max altitude
 
   // Save unit preference to localStorage
   const changeUnitSystem = (system: UnitSystem) => {
@@ -297,6 +302,8 @@ const App: React.FC = () => {
     disarm: () => callTriggerService('disarm'),
     takeoff: () => callTriggerService('takeoff'),
     land: () => callTriggerService('land'),
+    returnToLaunch: () => callTriggerService('return_to_launch'),
+    flightTermination: () => callTriggerService('flight_termination'),
     setOffboard: () => callTriggerService('set_offboard'),
     
     // Position control (mirrors CLI 'pos x y z yaw' command)
@@ -645,8 +652,17 @@ const App: React.FC = () => {
                   droneStatus={droneStatus}
                   availableDrones={availableDrones}
                   unitSystem={unitSystem}
+                  targetAltitude={targetAltitude}
                 />
               </div>
+              
+              {/* Altitude Control Slider */}
+              <AltitudeControl
+                targetAltitude={targetAltitude}
+                setTargetAltitude={setTargetAltitude}
+                maxAltitude={maxAltitude}
+                setMaxAltitude={setMaxAltitude}
+              />
               
               {/* RuneScape-style menu */}
               <div className="right-menu">

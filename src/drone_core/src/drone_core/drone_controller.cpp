@@ -77,6 +77,16 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
         std::bind(&DroneController::set_position_mode_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_position_mode_service_->get_service_name());
 
+    return_to_launch_service_ = node_->create_service<std_srvs::srv::Trigger>(
+        "/" + name_ + "/return_to_launch",
+        std::bind(&DroneController::return_to_launch_callback, this, _1, _2, _3));
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), return_to_launch_service_->get_service_name());
+
+    flight_termination_service_ = node_->create_service<std_srvs::srv::Trigger>(
+        "/" + name_ + "/flight_termination",
+        std::bind(&DroneController::flight_termination_callback, this, _1, _2, _3));
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), flight_termination_service_->get_service_name());
+
     // Create SetPosition service
     set_position_service_ = node_->create_service<drone_interfaces::srv::SetPosition>(
         "/" + name_ + "/set_position",
@@ -221,6 +231,50 @@ void DroneController::land() {
             }
         });
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Land command sent via NAV_LAND", name_.c_str());
+}
+
+void DroneController::return_to_launch() {
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Initiating return to launch...", name_.c_str());
+    if (!drone_agent_->is_service_ready()) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Return to launch command failed: Agent service not ready.", name_.c_str());
+        return;
+    }
+
+    // If currently in offboard mode, stop the offboard controller first
+    if (get_nav_state() == NavState::OFFBOARD) {
+        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Was in Offboard mode, stopping OffboardControl before RTL.", name_.c_str());
+        offboard_control_->stop();
+    }
+
+    // Send the NAV_RETURN_TO_LAUNCH command
+    drone_agent_->sendVehicleCommand(VehicleCommand::VEHICLE_CMD_NAV_RETURN_TO_LAUNCH, 0.0f, 0.0f,
+        [this](uint8_t result) {
+            if (result == 0) {
+                RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Return to launch initiated (Ack)", name_.c_str());
+            } else {
+                RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Failed to initiate return to launch (Ack)", name_.c_str());
+            }
+        });
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Return to launch command sent via NAV_RETURN_TO_LAUNCH", name_.c_str());
+}
+
+void DroneController::flight_termination() {
+    RCLCPP_WARN(node_->get_logger(), "[%s][Controller] EMERGENCY: Initiating flight termination...", name_.c_str());
+    if (!drone_agent_->is_service_ready()) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Flight termination failed: Agent service not ready.", name_.c_str());
+        return;
+    }
+
+    // Send the DO_FLIGHTTERMINATION command with param1 = 1.0 (activate termination)
+    drone_agent_->sendVehicleCommand(VehicleCommand::VEHICLE_CMD_DO_FLIGHTTERMINATION, 1.0f, 0.0f,
+        [this](uint8_t result) {
+            if (result == 0) {
+                RCLCPP_WARN(node_->get_logger(), "[%s][Controller] EMERGENCY: Flight termination activated (Ack)", name_.c_str());
+            } else {
+                RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] EMERGENCY: Failed to activate flight termination (Ack)", name_.c_str());
+            }
+        });
+    RCLCPP_WARN(node_->get_logger(), "[%s][Controller] EMERGENCY: Flight termination command sent via DO_FLIGHTTERMINATION", name_.c_str());
 }
 
 /**
@@ -585,6 +639,40 @@ void DroneController::set_position_mode_callback(
         response->success = false;
         response->message = std::string("Exception during set_position_mode: ") + e.what();
     } 
+}
+
+void DroneController::return_to_launch_callback(
+    const std::shared_ptr<rmw_request_id_t> /*request_header*/,
+    const std::shared_ptr<std_srvs::srv::Trigger::Request> /*request*/,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Return to launch service called", name_.c_str());
+    try {
+        this->return_to_launch(); // Call the internal method
+        response->success = true;
+        response->message = "Return to launch command initiated";
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during return to launch command: %s", name_.c_str(), e.what());
+        response->success = false;
+        response->message = std::string("Exception during return to launch: ") + e.what();
+    }
+}
+
+void DroneController::flight_termination_callback(
+    const std::shared_ptr<rmw_request_id_t> /*request_header*/,
+    const std::shared_ptr<std_srvs::srv::Trigger::Request> /*request*/,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+    RCLCPP_WARN(node_->get_logger(), "[%s][Controller] EMERGENCY: Flight termination service called", name_.c_str());
+    try {
+        this->flight_termination(); // Call the internal method
+        response->success = true;
+        response->message = "EMERGENCY: Flight termination command initiated";
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during flight termination command: %s", name_.c_str(), e.what());
+        response->success = false;
+        response->message = std::string("Exception during flight termination: ") + e.what();
+    }
 }
 
 // --- Added SetPosition Callback Implementation ---

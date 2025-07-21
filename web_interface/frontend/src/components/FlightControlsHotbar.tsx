@@ -79,6 +79,14 @@ const FlightControlsHotbar: React.FC<FlightControlsHotbarProps> = ({
       disabled: !droneStatus.armed
     },
     { 
+      id: 'rtl', 
+      label: 'RTL', 
+      icon: '🏠',
+      action: () => executeCommand(() => droneAPI.returnToLaunch(), 'Return to Launch'),
+      variant: 'info',
+      disabled: !droneStatus.armed
+    },
+    { 
       id: 'offboard', 
       label: 'OFFBOARD', 
       icon: '🎯',
@@ -162,9 +170,9 @@ const FlightControlsHotbar: React.FC<FlightControlsHotbarProps> = ({
         <div className="advanced-controls">
           <button
             className="hotbar-btn-compact btn-danger"
-            onClick={() => executeCommand(() => droneAPI.land(), 'Emergency Land')}
+            onClick={() => executeCommand(() => droneAPI.flightTermination(), 'Flight Termination')}
             disabled={isLoading}
-            title="Emergency Landing"
+            title="Emergency Flight Termination"
           >
             <span className="btn-icon">🚨</span>
             <span className="btn-text">EMERG</span>

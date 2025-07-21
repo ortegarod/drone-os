@@ -367,6 +367,13 @@ const RuneScapeMenu: React.FC<RuneScapeMenuProps> = ({ droneAPI, droneStatus, av
                 LAND
               </button>
               <button
+                className="control-btn btn-info"
+                onClick={() => executeFlightCommand(() => droneAPI.returnToLaunch(), 'Return to Launch')}
+                disabled={!droneStatus.armed || isLoading}
+              >
+                RTL
+              </button>
+              <button
                 className="control-btn btn-secondary"
                 onClick={() => executeFlightCommand(() => droneAPI.disarm(), 'Disarm')}
                 disabled={!droneStatus.armed || isLoading}
@@ -375,7 +382,7 @@ const RuneScapeMenu: React.FC<RuneScapeMenuProps> = ({ droneAPI, droneStatus, av
               </button>
               <button
                 className="control-btn btn-danger"
-                onClick={() => executeFlightCommand(() => droneAPI.land(), 'Emergency Land')}
+                onClick={() => executeFlightCommand(() => droneAPI.flightTermination(), 'Flight Termination')}
                 disabled={isLoading}
               >
                 EMERGENCY

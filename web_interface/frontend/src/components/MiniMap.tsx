@@ -18,6 +18,7 @@ interface MiniMapProps {
   droneStatus: DroneStatus;
   availableDrones: string[];
   unitSystem: UnitSystem;
+  targetAltitude: number;
 }
 
 interface DronePosition {
@@ -29,7 +30,7 @@ interface DronePosition {
   droneName: string;
 }
 
-const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrones, unitSystem }) => {
+const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrones, unitSystem, targetAltitude }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const droneMarkersRef = useRef<Map<string, L.Marker>>(new Map());
@@ -433,7 +434,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       // Calculate target local position
       const targetX = state.state.local_x + localOffset.x;
       const targetY = state.state.local_y + localOffset.y;
-      const targetZ = -10; // 10 meters altitude
+      const targetZ = -targetAltitude; // Use selected altitude (negative for NED up)
       const targetYaw = state.state.local_yaw; // Keep current yaw
         
       console.log('MiniMap: Moving to local coordinates:', { x: targetX, y: targetY, z: targetZ, yaw: targetYaw });
@@ -493,7 +494,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
 
   return (
     <div style={miniMapStyle}>
-      {/* Professional tactical frame */}
+        {/* Professional tactical frame */}
       <div style={{
         position: 'absolute',
         top: '-3px',
@@ -506,6 +507,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%)',
         boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)'
       }} />
+
       
       <div 
         ref={mapRef} 

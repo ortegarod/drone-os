@@ -87,6 +87,16 @@ public:
     void land();
 
     /**
+     * @brief Command the drone to return to launch
+     */
+    void return_to_launch();
+
+    /**
+     * @brief Emergency flight termination (immediate motor cutoff)
+     */
+    void flight_termination();
+
+    /**
      * @brief Set the drone to position control mode
      */
     void set_position_mode();
@@ -170,6 +180,8 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr disarm_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_offboard_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_position_mode_service_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr return_to_launch_service_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr flight_termination_service_;
     rclcpp::Service<drone_interfaces::srv::SetPosition>::SharedPtr set_position_service_; // Added SetPosition service
     rclcpp::Service<drone_interfaces::srv::GetState>::SharedPtr get_state_service_; // Added GetState service
     
@@ -218,6 +230,14 @@ private:
     void set_position_mode_callback(const std::shared_ptr<rmw_request_id_t> request_header,
                                     const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                                     std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+
+    void return_to_launch_callback(const std::shared_ptr<rmw_request_id_t> request_header,
+                                   const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                                   std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+
+    void flight_termination_callback(const std::shared_ptr<rmw_request_id_t> request_header,
+                                     const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                                     std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
     // Added SetPosition service callback declaration
     void set_position_callback(const std::shared_ptr<rmw_request_id_t> request_header,

@@ -37,6 +37,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
   const [dronePositions, setDronePositions] = useState<Map<string, DronePosition>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [targetAltitude, setTargetAltitude] = useState(15); // Default 15m altitude
   const [targetPin, setTargetPin] = useState<L.Marker | null>(null);
   const [userInteracted, setUserInteracted] = useState(false);
   const topicSubscriptionsRef = useRef<Map<string, any>>(new Map());
@@ -410,7 +411,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
       
       const targetX = state.state.local_x + localOffset.x;
       const targetY = state.state.local_y + localOffset.y;
-      const targetZ = -10; // 10 meters altitude
+      const targetZ = -targetAltitude; // Use selected altitude (negative for NED up)
       const targetYaw = state.state.local_yaw;
 
       console.log('DroneMap: Moving to local coordinates:', { x: targetX, y: targetY, z: targetZ, yaw: targetYaw });
@@ -471,6 +472,40 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
       }}>
         <h2>Drone Map</h2>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {/* Altitude Control */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            color: '#00ff41',
+            padding: '4px 8px',
+            borderRadius: '3px',
+            fontSize: '12px',
+            fontFamily: 'monospace',
+            border: '1px solid #00ff41'
+          }}>
+            <span>Click Alt:</span>
+            <input
+              type="number"
+              value={targetAltitude}
+              onChange={(e) => setTargetAltitude(Math.max(1, parseInt(e.target.value) || 15))}
+              style={{
+                width: '50px',
+                backgroundColor: 'transparent',
+                color: '#00ff41',
+                border: '1px solid #00ff41',
+                borderRadius: '2px',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                padding: '2px 4px',
+                textAlign: 'center'
+              }}
+              min="1"
+              max="100"
+            />
+            <span>m</span>
+          </div>
           <span style={{ fontSize: '0.875rem', color: '#888' }}>
             Real-time tracking: {dronePositions.size} drone(s)
           </span>
