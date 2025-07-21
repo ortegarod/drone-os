@@ -271,7 +271,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
               height: 0;
               border-left: ${size/2}px solid transparent;
               border-right: ${size/2}px solid transparent;
-              border-bottom: ${size}px solid ${isCurrentTarget ? '#00ff41' : '#1e90ff'};
+              border-bottom: ${size}px solid ${isCurrentTarget ? '#4a90a4' : '#5ba0b4'};
               position: absolute;
               top: 0;
               left: 0;
@@ -308,7 +308,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
               right: -2px;
               width: 6px;
               height: 6px;
-              background: #00ff41;
+              background: #4a90a4;
               border-radius: 50%;
               border: 1px solid #ffffff;
               animation: pulse 1.5s infinite;
@@ -525,7 +525,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         left: '4px',
         right: '4px',
         textAlign: 'center',
-        color: '#00ff41',
+        color: '#e1e8ed',
         fontSize: '10px',
         fontWeight: '600',
         fontFamily: 'Segoe UI, system-ui, sans-serif',
@@ -572,7 +572,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
             transform: 'translateX(-50%)',
             fontSize: '8px',
             fontWeight: 'bold',
-            color: '#00ff41',
+            color: '#e1e8ed',
             fontFamily: 'monospace'
           }}>N</div>
           <div style={{
@@ -614,7 +614,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
             transform: 'translate(-50%, -50%)',
             width: '2px',
             height: '20px',
-            background: 'linear-gradient(to top, #888 0%, #00ff41 100%)',
+            background: 'linear-gradient(to top, #888 0%, #4a90a4 100%)',
             transformOrigin: 'bottom center',
             borderRadius: '1px'
           }} />
@@ -627,7 +627,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
             transform: 'translate(-50%, -50%)',
             width: '4px',
             height: '4px',
-            backgroundColor: '#00ff41',
+            backgroundColor: '#4a90a4',
             borderRadius: '50%',
             border: '1px solid #000'
           }} />

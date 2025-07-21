@@ -15,20 +15,22 @@ const AltitudeControl: React.FC<AltitudeControlProps> = ({
 }) => {
   return (
     <div style={{
-      backgroundColor: 'rgba(0, 0, 0, 0.9)',
-      color: '#00ff41',
-      padding: '8px 12px',
-      border: '1px solid #00ff41',
-      borderRadius: '3px',
-      fontSize: '11px',
-      fontFamily: 'monospace',
-      marginTop: '4px'
+      backgroundColor: 'rgba(15, 25, 35, 0.95)',
+      color: '#e1e8ed',
+      padding: '10px 16px',
+      border: '1px solid #4a90a4',
+      borderRadius: '2px',
+      fontSize: '12px',
+      fontFamily: '"Segoe UI", "Roboto", sans-serif',
+      fontWeight: '500',
+      marginTop: '2px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
     }}>
       {/* Altitude Slider */}
       <div style={{ marginBottom: '6px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-          <span>Click Alt: {targetAltitude}m</span>
-          <span>Max: {maxAltitude}m</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <span style={{ color: '#a8b8c8' }}>Click Altitude: <strong style={{ color: '#e1e8ed' }}>{targetAltitude}m</strong></span>
+          <span style={{ color: '#a8b8c8' }}>Max: <strong style={{ color: '#e1e8ed' }}>{maxAltitude}m</strong></span>
         </div>
         <input
           type="range"
@@ -41,7 +43,7 @@ const AltitudeControl: React.FC<AltitudeControlProps> = ({
             appearance: 'none',
             height: '4px',
             borderRadius: '2px',
-            background: `linear-gradient(to right, #00ff41 0%, #00ff41 ${(targetAltitude/maxAltitude)*100}%, #333 ${(targetAltitude/maxAltitude)*100}%, #333 100%)`,
+            background: `linear-gradient(to right, #4a90a4 0%, #4a90a4 ${(targetAltitude/maxAltitude)*100}%, #2a3a4a ${(targetAltitude/maxAltitude)*100}%, #2a3a4a 100%)`,
             outline: 'none',
             cursor: 'pointer'
           }}
@@ -49,8 +51,8 @@ const AltitudeControl: React.FC<AltitudeControlProps> = ({
       </div>
       
       {/* Max Altitude Setting */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span>Max Alt:</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ color: '#a8b8c8' }}>Max Altitude:</span>
         <input
           type="number"
           value={maxAltitude}
@@ -60,20 +62,20 @@ const AltitudeControl: React.FC<AltitudeControlProps> = ({
             if (targetAltitude > newMax) setTargetAltitude(newMax);
           }}
           style={{
-            width: '50px',
-            backgroundColor: 'transparent',
-            color: '#00ff41',
-            border: '1px solid #00ff41',
+            width: '60px',
+            backgroundColor: 'rgba(10, 20, 30, 0.8)',
+            color: '#e1e8ed',
+            border: '1px solid #4a90a4',
             borderRadius: '2px',
-            fontSize: '11px',
-            fontFamily: 'monospace',
-            padding: '2px 4px',
+            fontSize: '12px',
+            fontFamily: '"Segoe UI", "Roboto", sans-serif',
+            padding: '4px 6px',
             textAlign: 'center'
           }}
           min="10"
           max="200"
         />
-        <span>m</span>
+        <span style={{ color: '#a8b8c8' }}>meters</span>
       </div>
     </div>
   );

@@ -18,7 +18,7 @@
 .app-header h1 {
   margin: 0;
   font-size: 1.2rem;
-  color: #00ff88;
+  color: #4a90a4;
 }
 
 /* Status Bar - Compact Military Style */
@@ -262,33 +262,39 @@
 }
 
 .btn-primary {
-  background-color: #333;
-  border-color: #555;
+  background-color: #4a90a4;
+  border-color: #4a90a4;
+  color: #e1e8ed;
 }
 
 .btn-secondary {
-  background-color: #333;
-  border-color: #555;
+  background-color: rgba(10, 20, 30, 0.8);
+  border-color: #4a90a4;
+  color: #e1e8ed;
 }
 
 .btn-success {
-  background-color: #333;
-  border-color: #555;
+  background-color: #2d7a3e;
+  border-color: #2d7a3e;
+  color: #e1e8ed;
 }
 
 .btn-warning {
-  background-color: #5a4a00;
-  border-color: #6a5a10;
+  background-color: #a67c52;
+  border-color: #a67c52;
+  color: #e1e8ed;
 }
 
 .btn-danger {
-  background-color: #5a0000;
-  border-color: #6a1010;
+  background-color: #a54242;
+  border-color: #a54242;
+  color: #e1e8ed;
 }
 
 .btn-info {
-  background-color: #333;
-  border-color: #555;
+  background-color: #4a90a4;
+  border-color: #4a90a4;
+  color: #e1e8ed;
 }
 
 .btn-disabled {
@@ -1151,33 +1157,39 @@
 }
 
 .control-btn.btn-warning {
-  background-color: #5a4a00;
-  border-color: #6a5a10;
+  background-color: #a67c52;
+  border-color: #a67c52;
+  color: #e1e8ed;
 }
 
 .control-btn.btn-danger {
-  background-color: #5a0000;
-  border-color: #6a1010;
+  background-color: #a54242;
+  border-color: #a54242;
+  color: #e1e8ed;
 }
 
 .control-btn.btn-success {
-  background-color: #004a2f;
-  border-color: #005a3f;
+  background-color: #2d7a3e;
+  border-color: #2d7a3e;
+  color: #e1e8ed;
 }
 
 .control-btn.btn-primary {
-  background-color: #003a5a;
-  border-color: #004a6a;
+  background-color: #4a90a4;
+  border-color: #4a90a4;
+  color: #e1e8ed;
 }
 
 .control-btn.btn-info {
-  background-color: #333;
-  border-color: #555;
+  background-color: #4a90a4;
+  border-color: #4a90a4;
+  color: #e1e8ed;
 }
 
 .control-btn.btn-secondary {
-  background-color: #333;
-  border-color: #555;
+  background-color: rgba(10, 20, 30, 0.8);
+  border-color: #4a90a4;
+  color: #e1e8ed;
 }
 
 .keybinding-list {

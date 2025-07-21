@@ -476,35 +476,36 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            color: '#00ff41',
-            padding: '4px 8px',
-            borderRadius: '3px',
+            gap: '8px',
+            backgroundColor: 'rgba(15, 25, 35, 0.95)',
+            color: '#e1e8ed',
+            padding: '6px 12px',
+            borderRadius: '2px',
             fontSize: '12px',
-            fontFamily: 'monospace',
-            border: '1px solid #00ff41'
+            fontFamily: '"Segoe UI", "Roboto", sans-serif',
+            fontWeight: '500',
+            border: '1px solid #4a90a4'
           }}>
-            <span>Click Alt:</span>
+            <span style={{ color: '#a8b8c8' }}>Click Altitude:</span>
             <input
               type="number"
               value={targetAltitude}
               onChange={(e) => setTargetAltitude(Math.max(1, parseInt(e.target.value) || 15))}
               style={{
-                width: '50px',
-                backgroundColor: 'transparent',
-                color: '#00ff41',
-                border: '1px solid #00ff41',
+                width: '60px',
+                backgroundColor: 'rgba(10, 20, 30, 0.8)',
+                color: '#e1e8ed',
+                border: '1px solid #4a90a4',
                 borderRadius: '2px',
                 fontSize: '12px',
-                fontFamily: 'monospace',
-                padding: '2px 4px',
+                fontFamily: '"Segoe UI", "Roboto", sans-serif',
+                padding: '4px 6px',
                 textAlign: 'center'
               }}
               min="1"
               max="100"
             />
-            <span>m</span>
+            <span style={{ color: '#a8b8c8' }}>meters</span>
           </div>
           <span style={{ fontSize: '0.875rem', color: '#888' }}>
             Real-time tracking: {dronePositions.size} drone(s)
