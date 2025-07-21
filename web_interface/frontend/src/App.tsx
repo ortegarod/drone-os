@@ -10,6 +10,7 @@ import DevPage from './components/DevPage';
 import FlightControlsHotbar from './components/FlightControlsHotbar';
 import RuneScapeMenu from './components/RuneScapeMenu';
 import AltitudeControl from './components/AltitudeControl';
+import TargetStatusDisplay from './components/TargetStatusDisplay';
 import './App.css';
 
 // rosbridge WebSocket URL
@@ -584,17 +585,7 @@ const App: React.FC = () => {
             </span>
           </div>
           
-          <div className="status-section">
-            <span className="status-label">Target:</span>
-            <span className={`status-value ${droneStatus.connected ? 'status-connected' : 'status-disconnected'}`}>
-              {droneStatus.drone_name.toUpperCase()}{droneStatus.connected ? ' ✓' : ' ✗'}
-            </span>
-          </div>
           
-          <div className="status-section">
-            <span className="status-label">Fleet:</span>
-            <span className="status-value">{availableDrones.length} UNIT{availableDrones.length !== 1 ? 'S' : ''}</span>
-          </div>
           
           <div className="status-section">
             <span className="status-label">Connection:</span>
@@ -645,6 +636,12 @@ const App: React.FC = () => {
 
             {/* Right panel container for both MiniMap and RuneScape menu */}
             <div className="right-panel-container">
+              <TargetStatusDisplay
+                droneStatus={droneStatus}
+                unitSystem={unitSystem}
+                convertDistance={convertDistance}
+                getDistanceUnit={getDistanceUnit}
+              />
               {/* MiniMap in its own container */}
               <div className="minimap-container">
                 <MiniMap 
@@ -756,15 +753,6 @@ const App: React.FC = () => {
       {/* Bottom Status Bar */}
       <footer className="bottom-status-bar">
         <div className="status-bar-left">
-          <span className="status-item">
-            Target: {droneStatus.drone_name}
-          </span>
-          <span className="status-item">
-            Mode: {droneStatus.flight_mode}
-          </span>
-          <span className="status-item">
-            Pos: ({convertDistance(droneStatus.position.x, unitSystem).toFixed(1)}, {convertDistance(droneStatus.position.y, unitSystem).toFixed(1)}, {convertDistance(droneStatus.position.z, unitSystem).toFixed(1)}){getDistanceUnit(unitSystem)}
-          </span>
         </div>
         
         <div className="status-bar-right">

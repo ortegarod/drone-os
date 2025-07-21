@@ -17,7 +17,7 @@ interface TabItem {
 }
 
 const RuneScapeMenu: React.FC<RuneScapeMenuProps> = ({ droneAPI, droneStatus, availableDrones, isConnected }) => {
-  const [activeTab, setActiveTab] = useState<string>('stats');
+  const [activeTab, setActiveTab] = useState<string>('drones');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [showPositionControls, setShowPositionControls] = useState(false);

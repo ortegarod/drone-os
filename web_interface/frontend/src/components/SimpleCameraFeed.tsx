@@ -74,34 +74,6 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
           </div>
         </div>
         
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <span style={{
-            fontSize: '11px',
-            fontWeight: '600',
-            color: droneStatus.armed ? '#e74c3c' : '#00ff41',
-            fontFamily: 'Segoe UI, system-ui, sans-serif'
-          }}>
-            {droneStatus.armed ? '🔴 ARMED' : '🟢 DISARMED'}
-          </span>
-          <span style={{
-            fontSize: '11px',
-            color: '#888',
-            fontFamily: 'Segoe UI, system-ui, sans-serif'
-          }}>
-            Mode: {droneStatus.flight_mode}
-          </span>
-          <span style={{
-            fontSize: '11px',
-            color: '#888',
-            fontFamily: 'Segoe UI, system-ui, sans-serif'
-          }}>
-            Alt: {((unitSystem === 'imperial' ? -droneStatus.position.z * 3.28084 : -droneStatus.position.z) || 0).toFixed(1)}{unitSystem === 'imperial' ? 'ft' : 'm'}
-          </span>
-        </div>
       </div>
       
       <div style={{ 

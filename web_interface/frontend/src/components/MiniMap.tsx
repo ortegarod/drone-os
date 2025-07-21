@@ -539,149 +539,61 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         {dronePositions.size} ASSET{dronePositions.size !== 1 ? 'S' : ''} • LIVE
       </div>
       
-      {/* Compass overlay */}
+      {/* Simple compass overlay */}
       <div style={{
         position: 'absolute',
-        top: '8px',
-        right: '8px',
-        width: '60px',
-        height: '60px',
-        backgroundColor: 'rgba(255,0,0,0.8)', // Debug: red background
+        top: '6px',
+        right: '6px',
+        width: '40px',
+        height: '40px',
+        backgroundColor: 'rgba(15, 25, 35, 0.9)',
         borderRadius: '50%',
-        border: '2px solid #00ff00', // Debug: green border
+        border: '1px solid #4a90a4',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         pointerEvents: 'none',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-        zIndex: 9999 // Debug: ensure it's on top
+        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+        zIndex: 1000
       }}>
-        {/* Compass ring */}
+        {/* North indicator */}
         <div style={{
-          position: 'relative',
-          width: '50px',
-          height: '50px',
-          borderRadius: '50%',
-          border: '1px solid #555'
-        }}>
-          {/* Cardinal directions */}
-          <div style={{
-            position: 'absolute',
-            top: '-2px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: '8px',
-            fontWeight: 'bold',
-            color: '#e1e8ed',
-            fontFamily: 'monospace'
-          }}>N</div>
-          <div style={{
-            position: 'absolute',
-            right: '-2px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontSize: '8px',
-            fontWeight: 'bold',
-            color: '#888',
-            fontFamily: 'monospace'
-          }}>E</div>
-          <div style={{
-            position: 'absolute',
-            bottom: '-2px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: '8px',
-            fontWeight: 'bold',
-            color: '#888',
-            fontFamily: 'monospace'
-          }}>S</div>
-          <div style={{
-            position: 'absolute',
-            left: '-2px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontSize: '8px',
-            fontWeight: 'bold',
-            color: '#888',
-            fontFamily: 'monospace'
-          }}>W</div>
-          
-          {/* Compass needle pointing north */}
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '2px',
-            height: '20px',
-            background: 'linear-gradient(to top, #888 0%, #4a90a4 100%)',
-            transformOrigin: 'bottom center',
-            borderRadius: '1px'
-          }} />
-          
-          {/* Center dot */}
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '4px',
-            height: '4px',
-            backgroundColor: '#4a90a4',
-            borderRadius: '50%',
-            border: '1px solid #000'
-          }} />
-          
-          {/* Current drone heading number */}
-          {(() => {
-            const currentDronePos = dronePositions.get(droneStatus.drone_name);
-            console.log('[MiniMap DEBUG] Compass rendering:', {
-              droneStatus_drone_name: droneStatus.drone_name,
-              dronePositions_size: dronePositions.size,
-              dronePositions_keys: Array.from(dronePositions.keys()),
-              currentDronePos: currentDronePos,
-              currentDronePos_valid: currentDronePos?.valid,
-              currentDronePos_yaw: currentDronePos?.yaw
-            });
-            
-            if (currentDronePos && currentDronePos.valid) {
-              return (
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  fontSize: '10px', // Debug: larger font
-                  fontWeight: 'bold',
-                  color: '#ffffff', // Debug: white text
-                  fontFamily: 'monospace',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.8)',
-                  marginTop: '8px',
-                  backgroundColor: 'rgba(0,0,0,0.8)', // Debug: background
-                  padding: '2px 4px',
-                  borderRadius: '2px'
-                }}>
-                  {Math.round(currentDronePos.yaw)}°
-                </div>
-              );
-            }
+          position: 'absolute',
+          top: '2px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: '8px',
+          fontWeight: 'bold',
+          color: '#4a90a4',
+          fontFamily: 'monospace'
+        }}>N</div>
+        
+        {/* Drone heading display */}
+        {(() => {
+          const currentDronePos = dronePositions.get(droneStatus.drone_name);
+          if (currentDronePos && currentDronePos.valid) {
             return (
               <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                fontSize: '8px',
+                fontSize: '10px',
                 fontWeight: 'bold',
-                color: '#ff0000', // Debug: red text
+                color: '#e1e8ed',
                 fontFamily: 'monospace',
-                marginTop: '8px'
+                textAlign: 'center'
               }}>
-                NO DATA
+                {Math.round(currentDronePos.yaw)}°
               </div>
             );
-          })()}
-        </div>
+          }
+          return (
+            <div style={{
+              fontSize: '8px',
+              color: '#6c7a89',
+              fontFamily: 'monospace'
+            }}>
+              ---
+            </div>
+          );
+        })()}
       </div>
 
       {/* Command status indicator */}
