@@ -125,8 +125,18 @@ services:
       - ROS_DOMAIN_ID=0
       # DDS Discovery settings
       - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
-      - FASTRTPS_WHITELIST_INTERFACES=all
+      # Production: Use 4G/cellular interface by default, fallback to tailscale0
+      - FASTRTPS_WHITELIST_INTERFACES=${NETWORK_INTERFACE:-wwan0,tailscale0}
       - DRONE_NAME=drone1 # Set a default drone name
+      
+      # === VIDEO STREAMING CONFIGURATION ===
+      # Optimized for 4G bandwidth conservation
+      - VIDEO_WIDTH=${VIDEO_WIDTH:-320}        # 320p for low bandwidth
+      - VIDEO_HEIGHT=${VIDEO_HEIGHT:-240}      # 320x240 resolution
+      - VIDEO_FRAMERATE=${VIDEO_FRAMERATE:-1}  # 1fps for ultra-low bandwidth
+      - VIDEO_QUALITY=${VIDEO_QUALITY:-30}     # Low quality for compression
+      - STREAM_TYPE=${STREAM_TYPE:-ros_compressed} # Compressed stream
+      - VIDEO_FORMAT=${VIDEO_FORMAT:-XRGB8888} # Video format
     volumes:
       # Mount the FastDDS config file
       - /home/rodrigo/ws_droneOS/fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
@@ -141,14 +151,20 @@ services:
           # Create a dummy calibration file to suppress warnings initially
           mkdir -p /root/.ros/camera_info/
           touch "/root/.ros/camera_info/drone1_camera.yaml"
-          # Start web_video_server in background
+          # Start web_video_server in background with configurable settings
           ros2 run web_video_server web_video_server --ros-args \
             -p port:=8080 \
-            -p default_stream_type:='ros_compressed' \
-            -p quality:=80 \
-            -p framerate:=15 &
-          # Start camera node
-          ros2 run camera_ros camera_node --ros-args -p camera:=0 -p width:=1280 -p height:=720 -p format:=XRGB8888 -p frame_id:="drone1_camera_link" -p camera_info_url:="file:///root/.ros/camera_info/drone1_camera.yaml"
+            -p default_stream_type:="${STREAM_TYPE}" \
+            -p quality:="${VIDEO_QUALITY}" \
+            -p framerate:="${VIDEO_FRAMERATE}" &
+          # Start camera node with configurable resolution
+          ros2 run camera_ros camera_node --ros-args \
+            -p camera:=0 \
+            -p width:="${VIDEO_WIDTH}" \
+            -p height:="${VIDEO_HEIGHT}" \
+            -p format:="${VIDEO_FORMAT}" \
+            -p frame_id:="drone1_camera_link" \
+            -p camera_info_url:="file:///root/.ros/camera_info/drone1_camera.yaml"
 
 volumes:
   logs: # Declares that the host path './logs' is expected
