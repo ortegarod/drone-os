@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 // @ts-ignore
 import ROSLIB from 'roslib';
 import { DroneStatus, UnitSystem } from '../App';
+import { logger } from '../utils/logger';
 
 // Fix for default markers in webpack
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -59,7 +60,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         return null;
       }
     } catch (error) {
-      console.error('MiniMap: Failed to get drone position:', error);
+      logger.error('MiniMap: Failed to get drone position:', error);
       return null;
     }
   };
@@ -72,13 +73,20 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     
     // Only initialize if not already initialized
     if (mapInstanceRef.current) {
-      console.log('MiniMap: Map already initialized, skipping');
+      logger.debug('MiniMap: Map already initialized, skipping');
       return;
     }
     
     // Clear any existing Leaflet state on the container
     if ('_leaflet_id' in container) {
+      logger.debug('MiniMap: Cleaning existing Leaflet state');
       delete (container as any)._leaflet_id;
+    }
+    
+    // Additional check: ensure container doesn't have a map instance
+    if (container.innerHTML && container.innerHTML.includes('leaflet-')) {
+      logger.debug('MiniMap: Container already has Leaflet content, clearing');
+      container.innerHTML = '';
     }
     
     const initializeMap = async () => {
@@ -87,21 +95,32 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         const dronePos = await getDroneGPSPosition();
         const center = dronePos || mapCenter;
         
-        console.log('MiniMap: Creating Leaflet map');
-        const map = L.map(container, {
-          zoomControl: false,
-          attributionControl: false,
-          dragging: true,
-          scrollWheelZoom: true,
-          doubleClickZoom: true,
-          boxZoom: false,
-          keyboard: false
-        }).setView(center, 13);
+        logger.debug('MiniMap: Creating Leaflet map');
+        
+        let map;
+        try {
+          map = L.map(container, {
+            zoomControl: false,
+            attributionControl: false,
+            dragging: true,
+            scrollWheelZoom: true,
+            doubleClickZoom: true,
+            boxZoom: false,
+            keyboard: false
+          }).setView(center, 13);
+        } catch (leafletError: any) {
+          if (leafletError.message && leafletError.message.includes('already initialized')) {
+            // Container already has a map, skip initialization but don't error
+            logger.debug('MiniMap: Container already initialized, skipping');
+            return;
+          }
+          throw leafletError;
+        }
         
         // Set crosshair cursor for the map
         map.getContainer().style.cursor = 'crosshair';
 
-        console.log('MiniMap: Map created successfully');
+        logger.debug('MiniMap: Map created successfully');
 
         // Add tile layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -110,7 +129,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
 
         // Store map click handler
         const clickHandler = (e: L.LeafletMouseEvent) => {
-          console.log('MiniMap: Map clicked at:', e.latlng);
+          logger.debug('MiniMap: Map clicked at:', e.latlng);
           if (e.latlng) {
             handleMapClick(e.latlng);
           }
@@ -131,25 +150,30 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         mapInstanceRef.current = map;
         setMapCenter(center);
       } catch (error) {
-        console.error('MiniMap: Failed to initialize map:', error);
+        logger.error('MiniMap: Failed to initialize map:', error);
       }
     };
 
     initializeMap();
 
     return () => {
-      console.log('MiniMap: Cleaning up map...');
+      logger.debug('MiniMap: Cleaning up map...');
       if (mapInstanceRef.current) {
         try {
+          mapInstanceRef.current.off(); // Remove all event listeners
           mapInstanceRef.current.remove();
         } catch (error) {
-          console.warn('MiniMap: Error during map cleanup:', error);
+          logger.warn('MiniMap: Error during map cleanup:', error);
         }
         mapInstanceRef.current = null;
       }
       // Clear Leaflet state from container
       if ('_leaflet_id' in container) {
         delete (container as any)._leaflet_id;
+      }
+      // Clear container content to ensure clean state
+      if (container) {
+        container.innerHTML = '';
       }
     };
   }, []); // Only initialize once
@@ -158,11 +182,11 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
   useEffect(() => {
     if (!droneAPI.ros) return;
 
-    console.log('MiniMap: Setting up real-time subscriptions for drones:', availableDrones);
+    logger.debug('MiniMap: Setting up real-time subscriptions for drones:', availableDrones);
 
     // Clean up existing subscriptions
     topicSubscriptionsRef.current.forEach((topic, droneName) => {
-      console.log(`MiniMap: Unsubscribing from ${droneName}`);
+      logger.debug(`MiniMap: Unsubscribing from ${droneName}`);
       topic.unsubscribe();
     });
     topicSubscriptionsRef.current.clear();
@@ -172,7 +196,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       const namespace = droneName === 'drone1' ? 'px4_1' : `px4_${droneName.replace('drone', '')}`;
       const topicName = `/${namespace}/drone_state`;
       
-      console.log(`MiniMap: Subscribing to ${topicName} for ${droneName}`);
+      logger.debug(`MiniMap: Subscribing to ${topicName} for ${droneName}`);
       
       const topic = new ROSLIB.Topic({
         ros: droneAPI.ros,
@@ -188,14 +212,12 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
                                   Math.abs(message.latitude) <= 90 && Math.abs(message.longitude) <= 180;
         
         if (message.global_position_valid || hasReasonableCoords) {
-          console.log(`[MiniMap DEBUG] ${droneName} received data:`, {
+          logger.debug(`[MiniMap] ${droneName} received data:`, {
             lat: message.latitude,
             lng: message.longitude,
             alt: message.altitude,
             compass_heading: message.compass_heading,
-            local_yaw: message.local_yaw,
-            has_compass_heading: 'compass_heading' in message,
-            compass_heading_type: typeof message.compass_heading
+            local_yaw: message.local_yaw
           });
           
           setDronePositions(prev => {
@@ -249,13 +271,9 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         // So CSS rotation should match compass heading directly
         const yawDegrees = position.yaw;
         
-        console.log(`[MiniMap DEBUG] Triangle rotation for ${droneName}:`, {
+        logger.debug(`[MiniMap] Triangle rotation for ${droneName}:`, {
           compass_heading: position.yaw,
-          css_rotation: yawDegrees,
-          should_point: position.yaw === 0 ? 'North' : 
-                       position.yaw === 90 ? 'East' : 
-                       position.yaw === 180 ? 'South' : 
-                       position.yaw === 270 ? 'West' : `${position.yaw}°`
+          css_rotation: yawDegrees
         });
         
         // Triangular drone marker that points in yaw direction
@@ -366,7 +384,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
 
   // Handle map clicks for navigation - simplified like ManualControls
   const handleMapClick = React.useCallback(async (latlng: L.LatLng) => {
-    console.log('MiniMap: handleMapClick called with:', latlng);
+    logger.debug('MiniMap: handleMapClick called with:', latlng);
 
     // Get current drone position for reference
     const currentDronePos = dronePositions.get(droneStatus.drone_name);
@@ -437,7 +455,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       const targetZ = -targetAltitude; // Use selected altitude (negative for NED up)
       const targetYaw = state.state.local_yaw; // Keep current yaw
         
-      console.log('MiniMap: Moving to local coordinates:', { x: targetX, y: targetY, z: targetZ, yaw: targetYaw });
+      logger.debug('MiniMap: Moving to local coordinates:', { x: targetX, y: targetY, z: targetZ, yaw: targetYaw });
         
       // Use auto-yaw to point towards destination
       const result = await droneAPI.setPositionAutoYaw(targetX, targetY, targetZ);
@@ -453,7 +471,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
         }
       }, 2000);
     } catch (error) {
-      console.error('MiniMap: Move command failed:', error);
+      logger.error('MiniMap: Move command failed:', error);
       setMessage(`Failed to move drone: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setTimeout(() => setMessage(''), 3000);
     } finally {
@@ -472,7 +490,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     
     // Add updated click handler
     const clickHandler = (e: L.LeafletMouseEvent) => {
-      console.log('MiniMap: Map clicked at:', e.latlng);
+      logger.debug('MiniMap: Map clicked at:', e.latlng);
       if (e.latlng) {
         handleMapClick(e.latlng);
       }

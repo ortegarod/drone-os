@@ -7,7 +7,6 @@ import TelemetryPage from './components/TelemetryPage';
 import MiniMap from './components/MiniMap';
 import DroneMap from './components/DroneMap';
 import DevPage from './components/DevPage';
-import FlightControlsHotbar from './components/FlightControlsHotbar';
 import RuneScapeMenu from './components/RuneScapeMenu';
 import AltitudeControl from './components/AltitudeControl';
 import TargetStatusDisplay from './components/TargetStatusDisplay';
@@ -106,16 +105,16 @@ const App: React.FC = () => {
       });
 
       rosInstance.on('connection', () => {
-        console.log('[DEBUG] Connected to rosbridge WebSocket at', ROSBRIDGE_URL);
+        // Connected to rosbridge
         setIsConnected(true);
         setRos(rosInstance);
         
         // Start real-time drone state subscription
-        console.log('[DEBUG] Starting drone state subscription...');
+        // Starting drone state subscription
         startDroneStateSubscription(rosInstance);
         
         // Discover available drones
-        console.log('[DEBUG] Discovering available drones...');
+        // Discovering available drones
         discoverAvailableDrones(rosInstance);
       });
 
@@ -125,7 +124,7 @@ const App: React.FC = () => {
       });
 
       rosInstance.on('close', () => {
-        console.log('[DEBUG] rosbridge connection closed - attempting reconnect in 3s');
+        // Connection closed - attempting reconnect
         setIsConnected(false);
         setRos(null);
         // Attempt to reconnect after 3 seconds
@@ -205,7 +204,6 @@ const App: React.FC = () => {
         });
         
         setAvailableDrones(discoveredDrones);
-        console.log('Discovered drones:', discoveredDrones);
         
         // If current drone is not in discovered list, switch to first available
         if (discoveredDrones.length > 0 && !discoveredDrones.includes(droneStatus.drone_name)) {
@@ -226,11 +224,11 @@ const App: React.FC = () => {
   const startDroneStateSubscription = (rosInstance: any) => {
     // Clear any existing polling interval
     if (droneStateSub) {
-      console.log('[DEBUG] Clearing previous state polling interval');
+      // Clearing previous state polling interval
       clearInterval(droneStateSub);
     }
     
-    console.log('[DEBUG] Starting periodic state polling for', droneStatus.drone_name);
+    // Starting periodic state polling
     
     // Function to poll state via service
     const pollDroneState = async () => {
@@ -244,14 +242,7 @@ const App: React.FC = () => {
         const request = new ROSLIB.ServiceRequest({});
         
         getStateService.callService(request, (result: any) => {
-          console.log('[DEBUG] State service response:', {
-            success: result.success,
-            armed: result.arming_state,
-            mode: result.nav_state,
-            position: [result.local_x, result.local_y, result.local_z],
-            battery: result.battery_remaining,
-            timestamp: new Date().toLocaleTimeString()
-          });
+          // State service response received
           
           if (result.success) {
             setDroneStatus(prev => ({
@@ -270,7 +261,7 @@ const App: React.FC = () => {
             }));
           }
         }, (error: any) => {
-          console.error('[DEBUG] State service error:', error);
+          // Silent - UI already shows OFFLINE status
         });
       } catch (error) {
         console.error('[DEBUG] State polling error:', error);
@@ -284,7 +275,7 @@ const App: React.FC = () => {
     const pollInterval = setInterval(pollDroneState, 2000);
     setDroneStateSub(pollInterval);
     
-    console.log('[DEBUG] State polling established for', droneStatus.drone_name, '(2 second interval)');
+    // State polling established
   };
   
   // Handle drone name changes - restart subscription for new drone
@@ -313,7 +304,7 @@ const App: React.FC = () => {
         return Promise.reject(new Error('Not connected to rosbridge'));
       }
       
-      console.log('[DEBUG] Sending setPosition command:', { x, y, z, yaw, drone: droneStatus.drone_name });
+      // Sending setPosition command
       
       return new Promise((resolve, reject) => {
         const serviceName = `/${droneStatus.drone_name}/set_position`;
@@ -326,7 +317,7 @@ const App: React.FC = () => {
         const request = new ROSLIB.ServiceRequest({ x, y, z, yaw });
         
         setPositionService.callService(request, (result: any) => {
-          console.log('[DEBUG] setPosition response:', { success: result.success, message: result.message });
+          // setPosition response received
           resolve({ success: result.success, message: result.message });
           // Refresh state after command
           setTimeout(() => refreshDroneState(ros), 1000);
@@ -348,12 +339,7 @@ const App: React.FC = () => {
       const current_y = droneStatus.position.y;
       const yaw_to_target = Math.atan2(y - current_y, x - current_x);
       
-      console.log('[DEBUG] Auto-calculated yaw:', { 
-        from: [current_x, current_y], 
-        to: [x, y], 
-        yaw_radians: yaw_to_target,
-        yaw_degrees: yaw_to_target * 180 / Math.PI
-      });
+      // Auto-calculated yaw
       
       return droneAPI.setPosition(x, y, z, yaw_to_target);
     },
@@ -486,7 +472,7 @@ const App: React.FC = () => {
       return Promise.reject(new Error('Not connected to rosbridge'));
     }
     
-    console.log('[DEBUG] Calling trigger service:', serviceName, 'for drone:', droneStatus.drone_name);
+    // Calling trigger service
     
     return new Promise((resolve, reject) => {
       const fullServiceName = `/${droneStatus.drone_name}/${serviceName}`;
@@ -499,7 +485,7 @@ const App: React.FC = () => {
       const request = new ROSLIB.ServiceRequest({});
       
       service.callService(request, (result: any) => {
-        console.log('[DEBUG]', serviceName, 'response:', { success: result.success, message: result.message });
+        // Service response received
         resolve({ success: result.success, message: result.message });
         // Refresh state after command
         setTimeout(() => refreshDroneState(ros), 1000);
@@ -674,15 +660,6 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Flight controls hotbar - separate component */}
-          <div className="hotbar-container">
-            <FlightControlsHotbar
-              droneAPI={droneAPI}
-              droneStatus={droneStatus}
-              availableDrones={availableDrones}
-              unitSystem={unitSystem}
-            />
-          </div>
 
         </div>
       ) : currentPage === 'telemetry' ? (

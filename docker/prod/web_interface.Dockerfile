@@ -1,5 +1,18 @@
 # === Production Web Interface Dockerfile ===
 #
+# NOTE: This is a MONOLITHIC container that bundles frontend + backend + ROS2
+# together for production deployment. It is NOT suitable for separate deployment
+# of frontend and backend services in a microservices architecture.
+#
+# This container:
+# - Builds React frontend and serves via nginx (port 80)
+# - Runs Python FastAPI backend (port 8000)
+# - Includes full ROS2 environment for drone communication
+#
+# For separate microservice deployment (e.g., cloud/edge):
+# - Frontend-only: Create a Node.js/nginx container that builds and serves React app
+# - Backend-only: Create a ROS2 container that runs just the Python FastAPI server
+#
 # Multi-stage build for optimized production deployment
 # Builds React frontend and serves via nginx + Python backend
 #

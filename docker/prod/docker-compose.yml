@@ -151,20 +151,14 @@ services:
           # Create a dummy calibration file to suppress warnings initially
           mkdir -p /root/.ros/camera_info/
           touch "/root/.ros/camera_info/drone1_camera.yaml"
-          # Start web_video_server in background with configurable settings
-          ros2 run web_video_server web_video_server --ros-args \
-            -p port:=8080 \
-            -p default_stream_type:="${STREAM_TYPE}" \
-            -p quality:="${VIDEO_QUALITY}" \
-            -p framerate:="${VIDEO_FRAMERATE}" &
-          # Start camera node with configurable resolution
-          ros2 run camera_ros camera_node --ros-args \
+          # Start web_video_server in background with 1fps publish rate
+          ros2 run web_video_server web_video_server --ros-args -p port:=8080 -p publish_rate:=1.0 &
+          # Start camera node with default settings (web server handles resizing)
+          exec ros2 run camera_ros camera_node --ros-args \
             -p camera:=0 \
-            -p width:="${VIDEO_WIDTH}" \
-            -p height:="${VIDEO_HEIGHT}" \
-            -p format:="${VIDEO_FORMAT}" \
-            -p frame_id:="drone1_camera_link" \
-            -p camera_info_url:="file:///root/.ros/camera_info/drone1_camera.yaml"
+            -p format:=XRGB8888 \
+            -p frame_id:=drone1_camera_link \
+            -p camera_info_url:=file:///root/.ros/camera_info/drone1_camera.yaml
 
 volumes:
   logs: # Declares that the host path './logs' is expected

@@ -47,7 +47,7 @@ services:
         echo 'Starting telemetry publisher for drone state...' &&
         ros2 run drone_core telemetry_publisher \
           --ros-args \
-          -p drone_namespaces:=['px4_1'] \
+          -p drone_namespaces:=['fmu'] \
           -p publish_rate_hz:=10 \
           -p enable_rosbridge_topics:=true \
           -p enable_get_state_services:=true

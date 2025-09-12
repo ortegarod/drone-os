@@ -1,3 +1,16 @@
+# === Development Web Interface Dockerfile ===
+#
+# NOTE: This is a MONOLITHIC container that bundles frontend + backend + ROS2
+# together for local development. It is NOT suitable for separate deployment
+# of frontend and backend services.
+#
+# For separate microservice deployment:
+# - Frontend-only: Create a Node.js container that builds and serves React app
+# - Backend-only: Create a ROS2 container that runs just the Python FastAPI server
+#
+# This container is used by docker-compose.web.yml for integrated local development.
+#
+
 FROM ros:humble
 
 # Install Python dependencies and Node.js
