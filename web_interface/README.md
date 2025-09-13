@@ -12,7 +12,7 @@ A real-time web-based ground control station for monitoring and controlling PX4 
 
 ### Backend Services
 - **rosbridge_server** (port 9090) - Primary WebSocket-based ROS2 communication
-- **Custom Python bridge** (port 8000) - REST API with DroneOS-specific logic
+- **Custom Python bridge** (port 8000) - REST API with DroneOS-specific logic - use in conjunction with rosbridge - RPC/gRPC for commands. rosbridge/roslibjs for debugging and raw telemetry exploration.
 - **AI Orchestrator** for natural language drone control
 
 ### Communication Architecture
@@ -41,17 +41,13 @@ The web interface uses **two parallel bridge services**:
 **Note**: The React frontend uses **only rosbridge_suite** for all communication. The custom Python bridge exists but is not currently utilized by the web interface.
 
 ### Real-Time Telemetry System
-- **10Hz GPS position updates** via ROS2 topics
 - **WebSocket streaming** for low-latency data transfer
-- **Optimized rendering** with throttled map updates
 
 ## Key Features
 
 ### 🗺️ Real-Time GPS Mapping
 - **Live position tracking** of multiple drones at 10Hz
 - **Interactive map controls** for waypoint navigation
-- **OSRS-style drone markers** with customizable styling
-- **Smooth position interpolation** for fluid movement visualization
 
 ### 📊 Comprehensive Telemetry Dashboard
 - **Battery status** with voltage, current, and remaining percentage
@@ -66,7 +62,7 @@ The web interface uses **two parallel bridge services**:
 - **Position control** with local coordinate targeting
 - **Emergency RTL** (Return to Launch)
 
-### 🤖 AI Integration
+### 🤖 AI Integration - highly experimental!
 - **Natural language** drone control commands
 - **OpenAI GPT** integration for intelligent flight planning
 - **Safety validation** of AI-generated commands
@@ -214,32 +210,6 @@ pip install -r requirements.txt
 python ros2_web_bridge.py
 ```
 
-**Development Tips:**
-- Keep Docker services running for ROS2 communication
-- Frontend automatically reconnects to rosbridge if connection drops
-- Use browser dev tools to monitor WebSocket communication
-- Check Docker logs for backend service issues
-
-### Deployment Considerations
-
-**Development Setup (Current):**
-- Frontend runs on host machine (port 3000/3001)
-- Backend services run in Docker containers
-- Optimized for development with hot reload
-- Direct access to Node.js development server
-
-**Production Setup (Future):**
-- Frontend would be built and served from Docker container
-- All services containerized for consistency
-- Static files served via nginx
-- Environment variables for configuration
-
-**Current Architecture Benefits:**
-- Faster development cycle with hot reload
-- Easy debugging with direct Node.js access
-- Flexible port management
-- Simplified dependency management
-
 ## Usage
 
 ### Real-Time GPS Tracking
@@ -256,64 +226,6 @@ The system supports multiple drones with distinct markers:
 - **Blue markers**: Other drones in the fleet
 - **Real-time updates**: All drones update simultaneously
 
-### Interactive Controls
-
-- **Map click**: Send position commands to active drone
-- **Marker popup**: View detailed drone information
-- **Zoom controls**: Navigate between local and wide area views
-- **Status indicators**: Monitor connection and GPS health
-
-## Performance Optimization
-
-### Real-Time Rendering
-- **Throttled updates**: Prevents UI overwhelming at high frequencies
-- **Smart marker management**: Only updates when positions change significantly
-- **Efficient data structures**: Maps for O(1) drone lookups
-- **WebSocket optimization**: Minimal message queuing
-
-### GPS Accuracy
-- **Coordinate validation**: Filters invalid GPS readings
-- **Accuracy thresholds**: Configurable precision requirements
-- **Fallback handling**: Graceful degradation when GPS is unavailable
-
-## Troubleshooting
-
-### Common Issues
-
-**Frontend not starting:**
-1. **Port 3000 in use**: Frontend will automatically use next available port (3001, 3002, etc.)
-2. **Webpack permission errors**: Run `chmod -R +x node_modules/.bin/` in frontend directory
-3. **npm dependencies**: Delete `node_modules` and run `npm install` again
-4. **Node.js version**: Ensure Node.js 18+ is installed
-
-**rosbridge Connection Issues:**
-1. **WebSocket connection failed**: Verify rosbridge_server container is running
-2. **Service discovery fails**: Check if drone_core services are available
-3. **Connection drops**: rosbridge automatically reconnects, check Docker logs
-4. **Port conflicts**: Ensure port 9090 is available for rosbridge
-
-**No GPS updates on map:**
-1. Verify telemetry publisher is running
-2. Check rosbridge connection in browser console
-3. Ensure drone has valid GPS fix
-4. Verify topic names match configuration
-
-**Slow or choppy updates:**
-1. Check network latency to rosbridge
-2. Verify WebSocket throttling settings
-3. Monitor browser performance in DevTools
-4. Reduce update frequency if needed
-
-**Map clicks not working:**
-1. Ensure drone has valid local position
-2. Check coordinate transformation calculations
-3. Verify setPosition service is available
-4. Monitor console for JavaScript errors
-
-**Docker Container Issues:**
-1. **Web interface container not exposing frontend**: Frontend runs on host, not in container
-2. **Permission denied errors**: Check file permissions in mounted volumes
-3. **Container exits immediately**: Check Docker logs for startup errors
 
 ### Debug Commands
 
@@ -361,47 +273,6 @@ interface DroneState {
 }
 ```
 
-### Coordinate Systems
-- **Local NED**: North-East-Down for flight control
-- **GPS WGS84**: Global positioning for mapping
-- **Map projection**: Automatic conversion between systems
-
-### Update Pipeline
-1. **PX4 sensors** → Raw telemetry data
-2. **DroneState** → Aggregated state information
-3. **Telemetry publisher** → ROS2 topic publication
-4. **rosbridge** → WebSocket streaming
-5. **DroneMap** → Real-time visualization
-
-## Contributing
-
-### Development Setup
-1. Fork the repository
-2. Create feature branch
-3. Make changes with tests
-4. Submit pull request
-
-### Code Style
-- **TypeScript**: Strict mode enabled
-- **React**: Functional components with hooks
-- **C++**: ROS2 coding standards
-- **Python**: PEP 8 compliance
-
-### Testing
-```bash
-# Frontend tests
-npm test
-
-# Backend tests
-python -m pytest
-
-# ROS2 integration tests
-colcon test --packages-select drone_core
-```
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Changelog
 

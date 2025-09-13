@@ -247,7 +247,8 @@ export class RosbridgeClient {
       const serviceMsg: RosbridgeMessage = {
         op: 'call_service',
         service: `/${droneNamespace}/get_state`,
-        type: 'drone_interfaces/GetState',
+        // ROS 2 rosbridge commonly uses the 'pkg/srv/ServiceName' format
+        type: 'drone_interfaces/srv/GetState',
         id: callId
       };
 
@@ -426,15 +427,9 @@ export class RosbridgeClient {
   }
 
   private startPingTimer(): void {
-    this.pingTimer = setInterval(() => {
-      if (this.isConnected && this.ws && this.ws.readyState === WebSocket.OPEN) {
-        // Send a simple status request as ping
-        this.sendMessage({
-          op: 'status',
-          id: `ping_${Date.now()}`
-        });
-      }
-    }, this.pingInterval);
+    // Ping disabled - rosbridge doesn't support 'status' operation
+    // WebSocket connection itself provides keep-alive functionality
+    this.pingTimer = null;
   }
 
   private clearTimers(): void {

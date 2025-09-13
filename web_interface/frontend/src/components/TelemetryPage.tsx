@@ -75,13 +75,11 @@ const TelemetryPage: React.FC<TelemetryPageProps> = ({ droneAPI, droneStatus, un
   // Fetch comprehensive telemetry data from real PX4 via GetState service
   const fetchTelemetryData = async () => {
     try {
-      if (!droneAPI.ros) return;
-      
       // Call the real GetState service to get PX4 telemetry data
       const response = await droneAPI.getState();
       
-      if (response.success && response.state) {
-        const state = response.state;
+      if (response && response.success) {
+        const state = response;
         const telemetryData: TelemetryData = {
           // Battery & Power (real data from PX4 battery_status topic)
           battery_voltage: state.battery_voltage || 0,
@@ -231,7 +229,7 @@ const TelemetryPage: React.FC<TelemetryPageProps> = ({ droneAPI, droneStatus, un
       const interval = setInterval(fetchTelemetryData, 2000); // Every 2 seconds
       return () => clearInterval(interval);
     }
-  }, [droneAPI.ros, autoRefresh]);
+  }, [droneAPI, autoRefresh]);
 
   const acknowledgeAlert = (alertId: string) => {
     setAlerts(prev => prev.map(alert => 

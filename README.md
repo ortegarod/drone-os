@@ -1,9 +1,38 @@
-# DroneOS
+# What is DroneOS?
 
-DroneOS is a framework for autonomous drone control, built on open-source ROS 2 and PX4 Autopilot. It includes:
+DroneOS is a framework for autonomous drone control, built on open-source ROS 2 and PX4 Autopilot. 
 
-- **Drone Core SDK**: A C++ library that provides a high-level abstraction layer for controlling PX4 drones with drone state tracking, command execution, and offboard control
-- Seamless communication with PX4 flight controllers via Micro XRCE-DDS
+PX4 already publishes raw topics via DDS (through micro XRCE-DDS). You could control drones by just publishing to /fmu/in/trajectory_setpoint and listening to /fmu/out/vehicle_local_position…
+
+…but DroneOS provides the developer-friendly layer:
+
+Abstracted high-level APIs (like MAVSDK, but native to ROS 2):
+
+- **Drone Core SDK**: A C++ library that provides a high-level abstraction layer for drones running PX4 and ROS2.
+
+Features: 
+- autonomous drone control
+   - programmable
+   - BVLOS
+- state tracking 
+- command execution
+- and more
+
+Technical Documentation:
+
+What is included? 
+
+### `camera_ros` (C++ with libcamera integration)
+
+Provides access to camera feed from a physical camera (e.g., Raspberry Pi camera module) connected to the drone's companion computer (e.g., Raspberry Pi 4/5). This component integrates `libcamera` for camera hardware interaction and `rpicam-apps` for lower-level camera control, packaged within a ROS 2 node.
+
+- **Purpose**: Publishes image topics that can be consumed by other ROS 2 nodes for computer vision tasks, telemetry, or recording. Requires a functioning camera and correctly configured drivers on the host system where the service is run.
+- **Deployment**: Typically runs as a dedicated Docker service (`camera_service`) on the companion computer.
+- **Source**: Based on [christianrauch/camera_ros](https://github.com/christianrauch/camera_ros), built from source within its Docker image along with `libcamera` and `rpicam-apps`.
+- **Configuration**: Configured in `docker/dev/docker-compose.dev.yml` (for general service definition) and `docker/dev/camera.dev.Dockerfile` (for image build). The `docker-compose.prod.yml` would be used for on-drone deployment. Also runs web_video_server within the same container.
+
+web_video_server - HTTP Streaming of ROS Image Topics in Multiple Formats
+This node provides HTTP streaming of ROS image topics in various formats, making it easy to view robot camera feeds and other image topics in a web browser without requiring special plugins or extensions. see repo `web_video_server` for more details
 
 ### `drone_core` (C++)
 
@@ -11,29 +40,13 @@ The package is structured in two main parts:
 
 1. **`drone_core_lib`**: A shared C++ library that provides the core drone control functionality:
 
-
 2. **`drone_core` Node**: A ROS 2 node that uses `drone_core_lib` to expose drone control capabilities as ROS 2 services:
 
 For detailed implementation specifications, API documentation, and usage guidelines, refer to `src/drone_core/README.md`.
 
-### `drone_gcs_cli` (Python, Proprietary)
-
-A command-line interface for controlling drones managed by `drone_core`. It supports both SITL and real drone deployments, with multi-drone targeting and remote control capabilities.
-
-For detailed usage, commands, and architecture, see `src/drone_gcs_cli/README.md`.
-
-### `camera_ros` (C++ with libcamera integration)
-
-Provides access to camera streams from a physical camera (e.g., Raspberry Pi camera module) connected to the drone's companion computer. It publishes these streams as ROS 2 topics. This component integrates `libcamera` for camera hardware interaction and `rpicam-apps` for lower-level camera control, packaged within a ROS 2 node.
-
-- **Purpose**: Streams live video from a camera physically connected to the drone's companion computer (e.g., Raspberry Pi).
-- **Deployment**: Typically runs as a dedicated Docker service (`camera_service`) on the companion computer, not usually on a local development machine for SITL unless a camera is directly attached and configured for that machine.
-- **Integration**: Runs as a dedicated Docker service (`camera_service`).
-- **Source**: Based on [christianrauch/camera_ros](https://github.com/christianrauch/camera_ros), built from source within its Docker image along with `libcamera` and `rpicam-apps`.
-- **Configuration**: Configured in `docker/dev/docker-compose.dev.yml` (for general service definition) and `docker/dev/camera.dev.Dockerfile` (for image build). The `docker-compose.prod.yml` would be used for on-drone deployment.
-- **Usage**: Publishes image topics that can be consumed by other ROS 2 nodes for computer vision tasks, telemetry, or recording. Requires a functioning camera and correctly configured drivers on the host system where the service is run.
-
 ## 🔗 Third-Party Integrations
+
+Drone Core relies on these packages.
 
 ### `px4_msgs` (ROS 2 Package - Open Source)
 
@@ -50,6 +63,31 @@ Acts as a broker between the ROS 2 DDS network and the PX4 Autopilot (which typi
 - **Location**: `Micro-XRCE-DDS-Agent/` (Workspace Root)
 - **Source**: Pulled from [eProsima/Micro-XRCE-DDS-Agent](https://github.com/eProsima/Micro-XRCE-DDS-Agent)
 - **See**: `Micro-XRCE-DDS-Agent/README.md`
+
+Tools:
+
+### `drone_gcs_cli` (Python)
+
+A command-line interface for interacting with `drone_core`. It supports both SITL and real drone deployments.
+
+For detailed usage, commands, and architecture, see `src/drone_gcs_cli/README.md`.
+
+- Web Interface
+   - web_interface (React/TypeScript): real-time web drone command using rosbridge (WebSocket) for telemetry and commands; includes an optional backend/AI agent via OpenAI API
+  orchestrator.
+   - see `/ws_droneOS/web_interface`
+
+RosBridge Suite
+rosbridge provides a JSON interface to ROS, allowing any client to send JSON to publish or subscribe to ROS topics, call ROS services, and more. rosbridge supports a variety of transport layers, including WebSockets and TCP. For information on the protocol itself, see the rosbridge protocol specification.
+- see source for reference `/ws_droneOS/rosbridge_suite` including `/ws_droneOS/rosbridge_suite/README.md`
+- this is what allows us to get real-time telemetry data delivered via cloud (drone > 4g > VPN > ROS2 > remote command center)
+
+Object Detector - `/ws_droneOS/src/object_detector` - in the works - need to fix 4g connectivity to test properly
+
+src/drone_agent_system (Python): AI/agent orchestration utilities and service (natural language control, tooling). highly experimental!
+
+Issues: high bandwidth - ROS2 topics / camera feed
+
 
 ## 🚀 Getting Started
 
