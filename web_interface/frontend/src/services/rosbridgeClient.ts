@@ -248,7 +248,7 @@ export class RosbridgeClient {
         op: 'call_service',
         service: `/${droneNamespace}/get_state`,
         // ROS 2 rosbridge commonly uses the 'pkg/srv/ServiceName' format
-        type: 'drone_interfaces/srv/GetState',
+        type: 'drone_interfaces/GetState',
         id: callId
       };
 
@@ -268,6 +268,162 @@ export class RosbridgeClient {
               resolve(response.values);
             } else {
               reject(new Error('Service call failed'));
+            }
+          }
+        } catch (error) {
+          // Ignore JSON parse errors for other messages
+        }
+      };
+
+      this.ws?.addEventListener('message', handleResponse);
+      this.sendMessage(serviceMsg);
+    });
+  }
+
+  /**
+   * Call Arm service for a specific drone
+   */
+  async callArmService(droneNamespace: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      console.log('[TRACE] callArmService called for:', droneNamespace);
+      console.log('[TRACE] WebSocket connected:', this.isConnected);
+
+      if (!this.isConnected) {
+        reject(new Error('Not connected to rosbridge'));
+        return;
+      }
+
+      const callId = `arm_${Date.now()}`;
+      const serviceMsg: RosbridgeMessage = {
+        op: 'call_service',
+        service: `/${droneNamespace}/arm`,
+        type: 'std_srvs/Trigger',
+        id: callId,
+        args: {}
+      };
+
+      console.log('[TRACE] Sending ARM service message:', JSON.stringify(serviceMsg));
+
+      const timeout = setTimeout(() => {
+        console.log('[TRACE] ARM service call timed out after 5 seconds');
+        reject(new Error('Service call timeout'));
+      }, 5000);
+
+      const handleResponse = (event: MessageEvent) => {
+        try {
+          const response = JSON.parse(event.data);
+          console.log('[TRACE] Received WebSocket message:', response);
+
+          if (response.op === 'service_response' && response.id === callId) {
+            console.log('[TRACE] ARM service response matched:', response);
+            clearTimeout(timeout);
+            this.ws?.removeEventListener('message', handleResponse);
+
+            if (response.result !== undefined) {
+              resolve({
+                success: response.result,
+                message: response.values?.message || (response.result ? 'Armed successfully' : 'Failed to arm')
+              });
+            } else {
+              reject(new Error('Invalid service response'));
+            }
+          }
+        } catch (error) {
+          console.log('[TRACE] Error parsing WebSocket message:', error);
+        }
+      };
+
+      this.ws?.addEventListener('message', handleResponse);
+      this.sendMessage(serviceMsg);
+    });
+  }
+
+  /**
+   * Call Disarm service for a specific drone
+   */
+  async callDisarmService(droneNamespace: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!this.isConnected) {
+        reject(new Error('Not connected to rosbridge'));
+        return;
+      }
+
+      const callId = `disarm_${Date.now()}`;
+      const serviceMsg: RosbridgeMessage = {
+        op: 'call_service',
+        service: `/${droneNamespace}/disarm`,
+        type: 'std_srvs/Trigger',
+        id: callId,
+        args: {}
+      };
+
+      const timeout = setTimeout(() => {
+        reject(new Error('Service call timeout'));
+      }, 5000);
+
+      const handleResponse = (event: MessageEvent) => {
+        try {
+          const response = JSON.parse(event.data);
+          if (response.op === 'service_response' && response.id === callId) {
+            clearTimeout(timeout);
+            this.ws?.removeEventListener('message', handleResponse);
+
+            if (response.result !== undefined) {
+              resolve({
+                success: response.result,
+                message: response.values?.message || (response.result ? 'Disarmed successfully' : 'Failed to disarm')
+              });
+            } else {
+              reject(new Error('Invalid service response'));
+            }
+          }
+        } catch (error) {
+          // Ignore JSON parse errors for other messages
+        }
+      };
+
+      this.ws?.addEventListener('message', handleResponse);
+      this.sendMessage(serviceMsg);
+    });
+  }
+
+  /**
+   * Call SetOffboard service for a specific drone
+   */
+  async callSetOffboardService(droneNamespace: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!this.isConnected) {
+        reject(new Error('Not connected to rosbridge'));
+        return;
+      }
+
+      const callId = `set_offboard_${Date.now()}`;
+      const serviceMsg: RosbridgeMessage = {
+        op: 'call_service',
+        service: `/${droneNamespace}/set_offboard`,
+        type: 'std_srvs/Trigger',
+        id: callId,
+        args: {}
+      };
+
+      const timeout = setTimeout(() => {
+        reject(new Error('Service call timeout'));
+      }, 5000);
+
+      const handleResponse = (event: MessageEvent) => {
+        try {
+          const response = JSON.parse(event.data);
+          if (response.op === 'service_response' && response.id === callId) {
+            clearTimeout(timeout);
+            this.ws?.removeEventListener('message', handleResponse);
+
+            if (response.result !== undefined) {
+              resolve({
+                success: response.result,
+                message: response.values?.message || (response.result ? 'Offboard mode enabled' : 'Failed to enable offboard mode')
+              });
+            } else {
+              reject(new Error('Invalid service response'));
             }
           }
         } catch (error) {
@@ -383,14 +539,22 @@ export class RosbridgeClient {
   }
 
   private sendMessage(message: RosbridgeMessage): void {
+    console.log('[TRACE] sendMessage called with:', message);
+    console.log('[TRACE] WebSocket state:', this.ws?.readyState, '(OPEN=1)');
+
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.log('[TRACE] Cannot send message: WebSocket not connected');
       this.log('warn', 'Cannot send message: WebSocket not connected');
       return;
     }
 
     try {
-      this.ws.send(JSON.stringify(message));
+      const messageStr = JSON.stringify(message);
+      console.log('[TRACE] Sending message to WebSocket:', messageStr);
+      this.ws.send(messageStr);
+      console.log('[TRACE] Message sent successfully');
     } catch (error) {
+      console.error('[TRACE] Failed to send message:', error);
       this.log('error', `Failed to send message: ${error}`);
     }
   }
