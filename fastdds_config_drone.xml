@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dds>
+  <profiles xmlns="https://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+    <transport_descriptors>
+      <transport_descriptor>
+        <transport_id>udp_tailscale</transport_id>
+        <type>UDPv4</type>
+        <interfaceWhiteList>
+          <!-- Tailscale range -->
+          <address>100.64.0.0/10</address>
+        </interfaceWhiteList>
+      </transport_descriptor>
+    </transport_descriptors>
+
+    <!-- SUPER_CLIENT profile - participates in local SIMPLE + connects to remote server -->
+    <participant profile_name="drone_super_client" is_default_profile="true">
+      <rtps>
+        <name>drone_participant</name>
+        <userTransports>
+          <transport_id>udp_tailscale</transport_id>
+        </userTransports>
+        <useBuiltinTransports>false</useBuiltinTransports>
+        <builtin>
+          <discovery_config>
+            <!-- SUPER_CLIENT: does SIMPLE discovery locally + connects to server remotely -->
+            <discoveryProtocol>SUPER_CLIENT</discoveryProtocol>
+            <discoveryServersList>
+              <!-- Connect to ground station Discovery Server (server-id=1) -->
+              <RemoteServer prefix="44.53.52.53.01.00.00.00.00.00.00.00">
+                <metatrafficUnicastLocatorList>
+                  <locator>
+                    <udpv4>
+                      <!-- Ground station Tailscale IP -->
+                      <address><tailscale-ip></address>
+                      <port>11811</port>
+                    </udpv4>
+                  </locator>
+                </metatrafficUnicastLocatorList>
+              </RemoteServer>
+            </discoveryServersList>
+            <leaseDuration><sec>60</sec></leaseDuration>
+            <initialAnnouncements><count>5</count></initialAnnouncements>
+          </discovery_config>
+        </builtin>
+      </rtps>
+    </participant>
+  </profiles>
+</dds>

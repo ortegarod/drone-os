@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dds>
+  <profiles xmlns="https://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+    <transport_descriptors>
+      <transport_descriptor>
+        <transport_id>udp_tailscale</transport_id>
+        <type>UDPv4</type>
+        <interfaceWhiteList>
+          <!-- Tailscale range -->
+          <address>100.64.0.0/10</address>
+        </interfaceWhiteList>
+      </transport_descriptor>
+    </transport_descriptors>
+
+    <!-- Discovery SERVER profile for ground station -->
+    <participant profile_name="discovery_server" is_default_profile="true">
+      <rtps>
+        <name>ground_station_server</name>
+        <userTransports>
+          <transport_id>udp_tailscale</transport_id>
+        </userTransports>
+        <useBuiltinTransports>false</useBuiltinTransports>
+        <builtin>
+          <discovery_config>
+            <discoveryProtocol>SERVER</discoveryProtocol>
+            <!-- server-id=1 → generates prefix 44.53.52.53.01... -->
+            <leaseDuration><sec>60</sec></leaseDuration>
+            <initialAnnouncements><count>5</count></initialAnnouncements>
+          </discovery_config>
+          <metatrafficUnicastLocatorList>
+            <locator>
+              <udpv4>
+                <port>11811</port>
+              </udpv4>
+            </locator>
+          </metatrafficUnicastLocatorList>
+        </builtin>
+      </rtps>
+    </participant>
+  </profiles>
+</dds>

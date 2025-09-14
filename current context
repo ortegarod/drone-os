@@ -1,0 +1,14 @@
+current context:
+
+ground station running docker-compose.ground.yml
+drone running docker-compose.yml
+
+both run tailscale VPN
+
+ground station uses web_interface/frontend (http://localhost:3000/) to send commands to drone - see /web_interface/frontend
+
+ALSO must receive ack response
+
+give me fastdds configs for both (one file for each) to make sure setup work
+
+

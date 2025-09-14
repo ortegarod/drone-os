@@ -8,12 +8,15 @@ services:
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - FASTDDS_DEFAULT_PROFILES_FILE=/root/fastdds_config_ground.xml
+    volumes:
+      - ../../fastdds_config_ground.xml:/root/fastdds_config_ground.xml:ro
     command: >
       bash -lc "
         apt-get update &&
         apt-get install -y fastdds-tools &&
         echo 'Starting Fast DDS Discovery Server on <tailscale-ip>:11811...' &&
-        fastdds discovery -i 0 -l <tailscale-ip> -p 11811
+        fastdds discovery -i 1 -l <tailscale-ip> -p 11811
       "
     restart: unless-stopped
 
@@ -24,9 +27,9 @@ services:
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/fastdds_config.xml
+      - FASTDDS_DEFAULT_PROFILES_FILE=/root/fastdds_config_ground.xml
     volumes:
-      - ../../fastdds_config.xml:/root/fastdds_config.xml:ro
+      - ../../fastdds_config_ground.xml:/root/fastdds_config_ground.xml:ro
       - ../../install:/root/ws_droneOS/install:rw
       - ../../src:/root/ws_droneOS/src:ro
     command: >
@@ -48,9 +51,9 @@ services:
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/fastdds_config.xml
+      - FASTDDS_DEFAULT_PROFILES_FILE=/root/fastdds_config_ground.xml
     volumes:
-      - ../../fastdds_config.xml:/root/fastdds_config.xml:ro
+      - ../../fastdds_config_ground.xml:/root/fastdds_config_ground.xml:ro
       - ../../install:/root/ws_droneOS/install:rw
       - ../../src:/root/ws_droneOS/src:ro
     command: >
