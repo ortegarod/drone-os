@@ -39,28 +39,7 @@ So this config works only if:
             <initialAnnouncements>
               <count>5</count>
             </initialAnnouncements>
-            <initialPeersList>
-              <locator>
-                <udpv4>
-                  <address><tailscale-ip></address>
-                  <port>7400</port>
-                </udpv4>
-              </locator>
-              <locator>
-                <udpv4>
-                  <address><tailscale-ip></address>
-                  <port>7400</port>
-                </udpv4>
-              </locator>
-            </initialPeersList>
           </discovery_config>
-          <metatrafficUnicastLocatorList>
-            <locator>
-              <udpv4>
-                <port>7400</port>
-              </udpv4>
-            </locator>
-          </metatrafficUnicastLocatorList>
         </builtin>
       </rtps>
     </participant>
