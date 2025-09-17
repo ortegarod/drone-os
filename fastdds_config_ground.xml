@@ -1,36 +1,63 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+Perfect — what you’ve got right now is the default XML config for peer-to-peer discovery using SIMPLE protocol.
+🔍 Breakdown of What You Have:
+
+    Discovery type: SIMPLE → peer-to-peer (multicast or static peers).
+
+    No initialPeersList → you&#x27;re relying on multicast.
+
+    No ROS_DISCOVERY_SERVER → not using Discovery Server.
+
+So this config works only if:
+
+    All nodes are on the same LAN (or Docker host with network_mode: host)
+
+    Multicast works (not true for 4G/VPN/Tailscale)
+
+    i.e., SITL DEV MODE on UBUNTU
+-->
 <dds>
   <profiles xmlns="https://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
-    <transport_descriptors>
-      <transport_descriptor>
-        <transport_id>udp_tailscale</transport_id>
-        <type>UDPv4</type>
-        <interfaceWhiteList>
-          <!-- Tailscale range -->
-          <address>100.64.0.0/10</address>
-        </interfaceWhiteList>
-      </transport_descriptor>
-    </transport_descriptors>
-
-    <!-- Discovery SERVER profile for ground station -->
-    <participant profile_name="discovery_server" is_default_profile="true">
+    <participant profile_name="default_profile" is_default_profile="true">
+      <domainId>0</domainId>
       <rtps>
-        <name>ground_station_server</name>
-        <userTransports>
-          <transport_id>udp_tailscale</transport_id>
-        </userTransports>
-        <useBuiltinTransports>false</useBuiltinTransports>
+        <name>default_participant</name>
+        <defaultUnicastLocatorList>
+          <locator>
+            <udpv4>
+              <port>0</port>
+            </udpv4>
+          </locator>
+        </defaultUnicastLocatorList>
         <builtin>
           <discovery_config>
-            <discoveryProtocol>SERVER</discoveryProtocol>
-            <!-- server-id=1 → generates prefix 44.53.52.53.01... -->
-            <leaseDuration><sec>60</sec></leaseDuration>
-            <initialAnnouncements><count>5</count></initialAnnouncements>
+            <discoveryProtocol>SIMPLE</discoveryProtocol>
+            <leaseDuration>
+              <sec>20</sec>
+            </leaseDuration>
+            <initialAnnouncements>
+              <count>5</count>
+            </initialAnnouncements>
+            <initialPeersList>
+              <locator>
+                <udpv4>
+                  <address><tailscale-ip></address>
+                  <port>7400</port>
+                </udpv4>
+              </locator>
+              <locator>
+                <udpv4>
+                  <address><tailscale-ip></address>
+                  <port>7400</port>
+                </udpv4>
+              </locator>
+            </initialPeersList>
           </discovery_config>
           <metatrafficUnicastLocatorList>
             <locator>
               <udpv4>
-                <port>11811</port>
+                <port>7400</port>
               </udpv4>
             </locator>
           </metatrafficUnicastLocatorList>

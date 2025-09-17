@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/rodrigo/ws_droneOS/rosbridge_suite/install/rosapi/lib/rosapi/rosapi_node", line 44, in <module>
+    from rosapi import glob_helper, objectutils, params, proxy
+  File "/home/rodrigo/ws_droneOS/rosbridge_suite/install/rosapi/local/lib/python3.10/dist-packages/rosapi/params.py", line 42, in <module>
+    from rclpy.parameter import get_parameter_value
+ImportError: cannot import name 'get_parameter_value' from 'rclpy.parameter' (/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/parameter.py)
+[ros2run]: Process exited with failure 1

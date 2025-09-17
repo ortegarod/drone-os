@@ -35,7 +35,9 @@ services:
       # DDS Domain ID (must match across all containers)
       - ROS_DOMAIN_ID=0
       # DDS Discovery settings
-      - FASTDDS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config_drone.xml
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      # Whitelist specific interface for Fast-RTPS
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
     depends_on:
       # Ensure the agent starts before the core logic
       - micro_agent
@@ -88,7 +90,9 @@ services:
       # DDS Domain ID (must match across all containers)
       - ROS_DOMAIN_ID=0
       # DDS Discovery settings
-      - FASTDDS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config_drone.xml
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      # Whitelist specific interface for Fast-RTPS
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
     # --- Command for serial communication ---
     command: > # Use multi-line format for clarity
       bash -c "sleep 2 && \

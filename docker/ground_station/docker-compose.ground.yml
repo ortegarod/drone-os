@@ -1,71 +1,57 @@
 version: '3.8'
 
 services:
-  discovery_server:
-    image: ros:humble
-    container_name: fastdds_discovery_server
-    network_mode: host
-    environment:
-      - ROS_DOMAIN_ID=0
-      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-      - FASTDDS_DEFAULT_PROFILES_FILE=/root/fastdds_config_ground.xml
-    volumes:
-      - ../../fastdds_config_ground.xml:/root/fastdds_config_ground.xml:ro
-    command: >
-      bash -lc "
-        apt-get update &&
-        apt-get install -y fastdds-tools &&
-        echo 'Starting Fast DDS Discovery Server on <tailscale-ip>:11811...' &&
-        fastdds discovery -i 1 -l <tailscale-ip> -p 11811
-      "
-    restart: unless-stopped
-
+  # ROS2 Bridge - Provides WebSocket/JSON interface to ROS2 network
   rosbridge:
     image: ros:humble
     container_name: rosbridge_server
-    network_mode: host
+    ports:
+      - "9090:9090"  # WebSocket port for web frontend
+    network_mode: host  # Required for ROS2 DDS discovery
     environment:
       - ROS_DOMAIN_ID=0
-      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-      - FASTDDS_DEFAULT_PROFILES_FILE=/root/fastdds_config_ground.xml
+      - ROS_DISCOVERY_SERVER=<tailscale-ip>:11811
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_super_client.xml
     volumes:
-      - ../../fastdds_config_ground.xml:/root/fastdds_config_ground.xml:ro
-      - ../../install:/root/ws_droneOS/install:rw
-      - ../../src:/root/ws_droneOS/src:ro
+      - ../../install:/root/ws_droneOS/install:rw  # Mount built packages with write access
+      - ../../src:/root/ws_droneOS/src:ro  # Mount source for message definitions
+      - ../../fastdds_super_client.xml:/root/ws_droneOS/fastdds_super_client.xml:ro  # Super client config
     command: >
-      bash -lc "
-        apt-get update &&
-        apt-get install -y ros-humble-rosbridge-suite &&
+      bash -c "
+        apt-get update && 
+        apt-get install -y ros-humble-rosbridge-suite python3-pymongo &&
         source /opt/ros/humble/setup.bash &&
-        source /root/ws_droneOS/install/setup.bash ||
-        true &&
-        echo 'Starting rosbridge on :9090...' &&
+        source /root/ws_droneOS/install/setup.bash &&
+        echo 'Starting rosbridge on port 9090 with DroneOS interfaces...' &&
         ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090
       "
     restart: unless-stopped
 
+  # Telemetry Publisher - Publishes drone state for web frontend consumption
   telemetry_publisher:
     image: ros:humble
     container_name: telemetry_publisher
-    network_mode: host
+    network_mode: host  # Required for ROS2 DDS discovery
     environment:
       - ROS_DOMAIN_ID=0
-      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-      - FASTDDS_DEFAULT_PROFILES_FILE=/root/fastdds_config_ground.xml
+      - ROS_DISCOVERY_SERVER=<tailscale-ip>:11811
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_super_client.xml
     volumes:
-      - ../../fastdds_config_ground.xml:/root/fastdds_config_ground.xml:ro
-      - ../../install:/root/ws_droneOS/install:rw
-      - ../../src:/root/ws_droneOS/src:ro
+      - ../../install:/root/ws_droneOS/install:rw  # Mount built packages with write access
+      - ../../src:/root/ws_droneOS/src:ro  # Mount source for message definitions
+      - ../../fastdds_super_client.xml:/root/ws_droneOS/fastdds_super_client.xml:ro  # Super client config
     command: >
-      bash -lc "
+      bash -c "
         source /opt/ros/humble/setup.bash &&
         source /root/ws_droneOS/install/setup.bash &&
-        echo 'Starting telemetry publisher...' &&
-        ros2 run drone_core telemetry_publisher
-          --ros-args
-          -p drone_namespaces:=['px4_1']
-          -p publish_rate_hz:=10
-          -p enable_rosbridge_topics:=true
+        echo 'Starting telemetry publisher for drone state...' &&
+        ros2 run drone_core telemetry_publisher \
+          --ros-args \
+          -p drone_namespaces:=['fmu'] \
+          -p publish_rate_hz:=10 \
+          -p enable_rosbridge_topics:=true \
           -p enable_get_state_services:=true
       "
+    depends_on:
+      - rosbridge
     restart: unless-stopped
