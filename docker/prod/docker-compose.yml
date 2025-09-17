@@ -34,8 +34,10 @@ services:
       - ROS_LOG_SEVERITY_THRESHOLD=debug
       # DDS Domain ID (must match across all containers)
       - ROS_DOMAIN_ID=0
-      # DDS Discovery settings
-      - FASTDDS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config_drone.xml
+      # DDS Discovery settings - Use ROS_DISCOVERY_SERVER for discovery server
+      - ROS_DISCOVERY_SERVER=<tailscale-ip>:11811
+      # Whitelist specific interface for Fast-RTPS
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
     depends_on:
       # Ensure the agent starts before the core logic
       - micro_agent
@@ -87,8 +89,10 @@ services:
       - ROS_LOG_SEVERITY_THRESHOLD=debug
       # DDS Domain ID (must match across all containers)
       - ROS_DOMAIN_ID=0
-      # DDS Discovery settings
-      - FASTDDS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config_drone.xml
+      # Whitelist specific interface for Fast-RTPS
+      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
+      # DDS Discovery settings - Use ROS_DISCOVERY_SERVER for discovery server
+      - ROS_DISCOVERY_SERVER=<tailscale-ip>:11811
     # --- Command for serial communication ---
     command: > # Use multi-line format for clarity
       bash -c "sleep 2 && \
@@ -119,8 +123,8 @@ services:
       - ROS_LOG_SEVERITY_THRESHOLD=debug
       # DDS Domain ID (must match across all containers)
       - ROS_DOMAIN_ID=0
-      # DDS Discovery settings
-      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      # DDS Discovery settings - Use ROS_DISCOVERY_SERVER for discovery server
+      - ROS_DISCOVERY_SERVER=<tailscale-ip>:11811
       # Let netplan manage network interface priority (wlan0 preferred over wwan0)
       - FASTRTPS_WHITELIST_INTERFACES=${NETWORK_INTERFACE:-all}
       - DRONE_NAME=drone1 # Set a default drone name
@@ -133,9 +137,6 @@ services:
       - VIDEO_QUALITY=${VIDEO_QUALITY:-30}     # Low quality for compression
       - STREAM_TYPE=${STREAM_TYPE:-ros_compressed} # Compressed stream
       - VIDEO_FORMAT=${VIDEO_FORMAT:-XRGB8888} # Video format
-    volumes:
-      # Mount the FastDDS config file
-      - /home/rodrigo/ws_droneOS/fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
     command:
       - bash
       - -c
