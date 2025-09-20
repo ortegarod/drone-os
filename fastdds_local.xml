@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+Perfect — what you’ve got right now is the default XML config for peer-to-peer discovery using SIMPLE protocol.
+🔍 Breakdown of What You Have:
+
+    Discovery type: SIMPLE → peer-to-peer (multicast or static peers).
+
+    No initialPeersList → you&#x27;re relying on multicast.
+
+    No ROS_DISCOVERY_SERVER → not using Discovery Server.
+
+So this config works only if:
+
+    All nodes are on the same LAN (or Docker host with network_mode: host)
+
+    Multicast works (not true for 4G/VPN/Tailscale)
+
+    i.e., SITL DEV MODE on UBUNTU
+-->
+<dds>
+  <profiles xmlns="https://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+    <participant profile_name="default_profile" is_default_profile="true">
+      <domainId>0</domainId>
+      <rtps>
+        <name>default_participant</name>
+        <defaultUnicastLocatorList>
+          <locator>
+            <udpv4>
+              <port>0</port>
+            </udpv4>
+          </locator>
+        </defaultUnicastLocatorList>
+        <builtin>
+          <discovery_config>
+            <discoveryProtocol>SIMPLE</discoveryProtocol>
+            <leaseDuration>
+              <sec>20</sec>
+            </leaseDuration>
+            <initialAnnouncements>
+              <count>5</count>
+            </initialAnnouncements>
+            <initialPeersList>
+              <locator>
+                <udpv4>
+                  <address><tailscale-ip></address>
+                  <port>7400</port>
+                </udpv4>
+              </locator>
+              <locator>
+                <udpv4>
+                  <address><tailscale-ip></address>
+                  <port>7400</port>
+                </udpv4>
+              </locator>
+            </initialPeersList>
+          </discovery_config>
+          <metatrafficUnicastLocatorList>
+            <locator>
+              <udpv4>
+                <port>7400</port>
+              </udpv4>
+            </locator>
+          </metatrafficUnicastLocatorList>
+        </builtin>
+      </rtps>
+    </participant>
+  </profiles>
+</dds>
