@@ -1,6 +1,8 @@
 {
   "name": "droneos-command-center",
   "version": "1.0.0",
+  "private": true,
+  "license": "UNLICENSED",
   "description": "DroneOS Command Center Web Interface",
   "main": "index.js",
   "scripts": {

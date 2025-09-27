@@ -15,8 +15,8 @@ setup(
     zip_safe=True,
     maintainer='rodrigo',
     maintainer_email='rodrigo@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='Ground Control Station CLI for DroneOS',
+    license='Proprietary',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [

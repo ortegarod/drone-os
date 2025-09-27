@@ -137,7 +137,7 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
    * **Note**: MAV_SYS_ID can be updated via PX4 parameters using QGroundControl.
 
 
-  /home/rodrigo/PX4-Autopilot/Tools/simulation/gz/worlds/default.sdf
+  <PX4_AUTOPILOT_DIR>/Tools/simulation/gz/worlds/default.sdf
 
 
     
