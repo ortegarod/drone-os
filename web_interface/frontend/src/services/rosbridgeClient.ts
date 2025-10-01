@@ -3,8 +3,11 @@
  *
  * This module provides a TypeScript client for connecting to rosbridge WebSocket server
  * and subscribing to drone telemetry topics for real-time status updates.
+ *
+ * Uses roslibjs for ROS communication.
  */
 
+import * as ROSLIB from 'roslib';
 import { ROSBRIDGE_URL } from '../config/rosbridge';
 
 export interface DroneState {
@@ -110,33 +113,29 @@ export type ConnectionCallback = (connected: boolean, error?: string) => void;
 export type LogCallback = (level: 'info' | 'warn' | 'error', message: string) => void;
 
 export class RosbridgeClient {
-  private ws: WebSocket | null = null;
+  private ros: ROSLIB.Ros | null = null;
   private url: string;
   private reconnectInterval: number;
   private maxReconnectAttempts: number;
-  private pingInterval: number;
   private enableLogging: boolean;
-  
+
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
-  private pingTimer: NodeJS.Timeout | null = null;
   private isConnected = false;
   private shouldReconnect = true;
-  
+
   // Event callbacks
   private droneStateCallbacks: Map<string, DroneStateCallback> = new Map();
   private connectionCallbacks: Set<ConnectionCallback> = new Set();
   private logCallbacks: Set<LogCallback> = new Set();
-  
+
   // Subscription tracking
-  private activeSubscriptions: Set<string> = new Set();
-  private subscriptionQueue: RosbridgeMessage[] = [];
+  private activeSubscriptions: Map<string, ROSLIB.Topic> = new Map();
 
   constructor(options: ConnectionOptions = {}) {
     this.url = options.url || ROSBRIDGE_URL;
     this.reconnectInterval = options.reconnectInterval || 3000;
     this.maxReconnectAttempts = options.maxReconnectAttempts || 10;
-    this.pingInterval = options.pingInterval || 30000;
     this.enableLogging = options.enableLogging !== false;
   }
 
@@ -144,7 +143,7 @@ export class RosbridgeClient {
    * Connect to rosbridge WebSocket server
    */
   connect(): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.isConnected) {
       this.log('warn', 'Already connected to rosbridge');
       return;
     }
@@ -153,10 +152,13 @@ export class RosbridgeClient {
     this.shouldReconnect = true;
 
     try {
-      this.ws = new WebSocket(this.url);
-      this.setupWebSocketHandlers();
+      this.ros = new ROSLIB.Ros({
+        url: this.url
+      });
+
+      this.setupRosHandlers();
     } catch (error) {
-      this.log('error', `Failed to create WebSocket connection: ${error}`);
+      this.log('error', `Failed to create ROS connection: ${error}`);
       this.scheduleReconnect();
     }
   }
@@ -167,12 +169,16 @@ export class RosbridgeClient {
   disconnect(): void {
     this.shouldReconnect = false;
     this.clearTimers();
-    
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+
+    // Unsubscribe from all topics
+    this.activeSubscriptions.forEach(topic => topic.unsubscribe());
+    this.activeSubscriptions.clear();
+
+    if (this.ros) {
+      this.ros.close();
+      this.ros = null;
     }
-    
+
     this.isConnected = false;
     this.reconnectAttempts = 0;
     this.notifyConnectionStatus(false);
@@ -182,27 +188,32 @@ export class RosbridgeClient {
    * Subscribe to drone state updates for a specific drone
    */
   subscribeToDroneState(droneNamespace: string, callback: DroneStateCallback): string {
-    const topic = `/${droneNamespace}/drone_state`;
+    const topicName = `/${droneNamespace}/drone_state`;
     const subscriptionId = `drone_state_${droneNamespace}`;
-    
-    this.droneStateCallbacks.set(subscriptionId, callback);
-    
-    const subscribeMsg: RosbridgeMessage = {
-      op: 'subscribe',
-      topic: topic,
-      type: 'drone_interfaces/DroneState',
-      throttle_rate: 100, // 10Hz updates
-      queue_length: 1,
-      compression: 'none'
-    };
 
-    if (this.isConnected) {
-      this.sendMessage(subscribeMsg);
-      this.activeSubscriptions.add(topic);
-    } else {
-      this.subscriptionQueue.push(subscribeMsg);
+    this.droneStateCallbacks.set(subscriptionId, callback);
+
+    if (!this.ros) {
+      this.log('warn', 'Cannot subscribe: not connected to ROS');
+      return subscriptionId;
     }
 
+    const topic = new ROSLIB.Topic({
+      ros: this.ros,
+      name: topicName,
+      messageType: 'drone_interfaces/msg/DroneState',
+      throttle_rate: 100, // 10Hz updates
+      queue_length: 1
+    });
+
+    topic.subscribe((message: any) => {
+      const cb = this.droneStateCallbacks.get(subscriptionId);
+      if (cb) {
+        cb(message as DroneState);
+      }
+    });
+
+    this.activeSubscriptions.set(topicName, topic);
     this.log('info', `Subscribed to drone state for ${droneNamespace}`);
     return subscriptionId;
   }
@@ -218,18 +229,14 @@ export class RosbridgeClient {
     }
 
     this.droneStateCallbacks.delete(subscriptionId);
-    
-    const droneNamespace = subscriptionId.replace('drone_state_', '');
-    const topic = `/${droneNamespace}/drone_state`;
-    
-    const unsubscribeMsg: RosbridgeMessage = {
-      op: 'unsubscribe',
-      topic: topic
-    };
 
-    if (this.isConnected) {
-      this.sendMessage(unsubscribeMsg);
-      this.activeSubscriptions.delete(topic);
+    const droneNamespace = subscriptionId.replace('drone_state_', '');
+    const topicName = `/${droneNamespace}/drone_state`;
+
+    const topic = this.activeSubscriptions.get(topicName);
+    if (topic) {
+      topic.unsubscribe();
+      this.activeSubscriptions.delete(topicName);
     }
 
     this.log('info', `Unsubscribed from drone state for ${droneNamespace}`);
@@ -240,45 +247,24 @@ export class RosbridgeClient {
    */
   async callGetStateService(droneNamespace: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (!this.isConnected) {
+      if (!this.ros || !this.isConnected) {
         reject(new Error('Not connected to rosbridge'));
         return;
       }
 
-      const callId = `get_state_${Date.now()}`;
-      const serviceMsg: RosbridgeMessage = {
-        op: 'call_service',
-        service: `/${droneNamespace}/get_state`,
-        // ROS 2 rosbridge commonly uses the 'pkg/srv/ServiceName' format
-        type: 'drone_interfaces/GetState',
-        id: callId
-      };
+      const service = new ROSLIB.Service({
+        ros: this.ros,
+        name: `/${droneNamespace}/get_state`,
+        serviceType: 'drone_interfaces/srv/GetState'
+      });
 
-      // Set up one-time response handler
-      const timeout = setTimeout(() => {
-        reject(new Error('Service call timeout'));
-      }, 5000);
+      const request = new ROSLIB.ServiceRequest({});
 
-      const handleResponse = (event: MessageEvent) => {
-        try {
-          const response = JSON.parse(event.data);
-          if (response.op === 'service_response' && response.id === callId) {
-            clearTimeout(timeout);
-            this.ws?.removeEventListener('message', handleResponse);
-            
-            if (response.result) {
-              resolve(response.values);
-            } else {
-              reject(new Error('Service call failed'));
-            }
-          }
-        } catch (error) {
-          // Ignore JSON parse errors for other messages
-        }
-      };
-
-      this.ws?.addEventListener('message', handleResponse);
-      this.sendMessage(serviceMsg);
+      service.callService(request, (result) => {
+        resolve(result);
+      }, (error) => {
+        reject(new Error(`Service call failed: ${error}`));
+      });
     });
   }
 
@@ -288,55 +274,33 @@ export class RosbridgeClient {
   async callArmService(droneNamespace: string): Promise<any> {
     return new Promise((resolve, reject) => {
       console.log('[TRACE] callArmService called for:', droneNamespace);
-      console.log('[TRACE] WebSocket connected:', this.isConnected);
+      console.log('[TRACE] ROS connected:', this.isConnected);
 
-      if (!this.isConnected) {
+      if (!this.ros || !this.isConnected) {
         reject(new Error('Not connected to rosbridge'));
         return;
       }
 
-      const callId = `arm_${Date.now()}`;
-      const serviceMsg: RosbridgeMessage = {
-        op: 'call_service',
-        service: `/${droneNamespace}/arm`,
-        type: 'std_srvs/Trigger',
-        id: callId,
-        args: {}
-      };
+      const service = new ROSLIB.Service({
+        ros: this.ros,
+        name: `/${droneNamespace}/arm`,
+        serviceType: 'std_srvs/srv/Trigger'
+      });
 
-      console.log('[TRACE] Sending ARM service message:', JSON.stringify(serviceMsg));
+      const request = new ROSLIB.ServiceRequest({});
 
-      const timeout = setTimeout(() => {
-        console.log('[TRACE] ARM service call timed out after 5 seconds');
-        reject(new Error('Service call timeout'));
-      }, 5000);
+      console.log('[TRACE] Calling ARM service...');
 
-      const handleResponse = (event: MessageEvent) => {
-        try {
-          const response = JSON.parse(event.data);
-          console.log('[TRACE] Received WebSocket message:', response);
-
-          if (response.op === 'service_response' && response.id === callId) {
-            console.log('[TRACE] ARM service response matched:', response);
-            clearTimeout(timeout);
-            this.ws?.removeEventListener('message', handleResponse);
-
-            if (response.result !== undefined) {
-              resolve({
-                success: response.result,
-                message: response.values?.message || (response.result ? 'Armed successfully' : 'Failed to arm')
-              });
-            } else {
-              reject(new Error('Invalid service response'));
-            }
-          }
-        } catch (error) {
-          console.log('[TRACE] Error parsing WebSocket message:', error);
-        }
-      };
-
-      this.ws?.addEventListener('message', handleResponse);
-      this.sendMessage(serviceMsg);
+      service.callService(request, (result: any) => {
+        console.log('[TRACE] ARM service response:', result);
+        resolve({
+          success: result.success || false,
+          message: result.message || (result.success ? 'Armed successfully' : 'Failed to arm')
+        });
+      }, (error: string) => {
+        console.log('[TRACE] ARM service error:', error);
+        reject(new Error(`Arm service failed: ${error}`));
+      });
     });
   }
 
@@ -345,47 +309,27 @@ export class RosbridgeClient {
    */
   async callDisarmService(droneNamespace: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (!this.isConnected) {
+      if (!this.ros || !this.isConnected) {
         reject(new Error('Not connected to rosbridge'));
         return;
       }
 
-      const callId = `disarm_${Date.now()}`;
-      const serviceMsg: RosbridgeMessage = {
-        op: 'call_service',
-        service: `/${droneNamespace}/disarm`,
-        type: 'std_srvs/Trigger',
-        id: callId,
-        args: {}
-      };
+      const service = new ROSLIB.Service({
+        ros: this.ros,
+        name: `/${droneNamespace}/disarm`,
+        serviceType: 'std_srvs/srv/Trigger'
+      });
 
-      const timeout = setTimeout(() => {
-        reject(new Error('Service call timeout'));
-      }, 5000);
+      const request = new ROSLIB.ServiceRequest({});
 
-      const handleResponse = (event: MessageEvent) => {
-        try {
-          const response = JSON.parse(event.data);
-          if (response.op === 'service_response' && response.id === callId) {
-            clearTimeout(timeout);
-            this.ws?.removeEventListener('message', handleResponse);
-
-            if (response.result !== undefined) {
-              resolve({
-                success: response.result,
-                message: response.values?.message || (response.result ? 'Disarmed successfully' : 'Failed to disarm')
-              });
-            } else {
-              reject(new Error('Invalid service response'));
-            }
-          }
-        } catch (error) {
-          // Ignore JSON parse errors for other messages
-        }
-      };
-
-      this.ws?.addEventListener('message', handleResponse);
-      this.sendMessage(serviceMsg);
+      service.callService(request, (result: any) => {
+        resolve({
+          success: result.success || false,
+          message: result.message || (result.success ? 'Disarmed successfully' : 'Failed to disarm')
+        });
+      }, (error: string) => {
+        reject(new Error(`Disarm service failed: ${error}`));
+      });
     });
   }
 
@@ -394,47 +338,27 @@ export class RosbridgeClient {
    */
   async callSetOffboardService(droneNamespace: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (!this.isConnected) {
+      if (!this.ros || !this.isConnected) {
         reject(new Error('Not connected to rosbridge'));
         return;
       }
 
-      const callId = `set_offboard_${Date.now()}`;
-      const serviceMsg: RosbridgeMessage = {
-        op: 'call_service',
-        service: `/${droneNamespace}/set_offboard`,
-        type: 'std_srvs/Trigger',
-        id: callId,
-        args: {}
-      };
+      const service = new ROSLIB.Service({
+        ros: this.ros,
+        name: `/${droneNamespace}/set_offboard`,
+        serviceType: 'std_srvs/srv/Trigger'
+      });
 
-      const timeout = setTimeout(() => {
-        reject(new Error('Service call timeout'));
-      }, 5000);
+      const request = new ROSLIB.ServiceRequest({});
 
-      const handleResponse = (event: MessageEvent) => {
-        try {
-          const response = JSON.parse(event.data);
-          if (response.op === 'service_response' && response.id === callId) {
-            clearTimeout(timeout);
-            this.ws?.removeEventListener('message', handleResponse);
-
-            if (response.result !== undefined) {
-              resolve({
-                success: response.result,
-                message: response.values?.message || (response.result ? 'Offboard mode enabled' : 'Failed to enable offboard mode')
-              });
-            } else {
-              reject(new Error('Invalid service response'));
-            }
-          }
-        } catch (error) {
-          // Ignore JSON parse errors for other messages
-        }
-      };
-
-      this.ws?.addEventListener('message', handleResponse);
-      this.sendMessage(serviceMsg);
+      service.callService(request, (result: any) => {
+        resolve({
+          success: result.success || false,
+          message: result.message || (result.success ? 'Offboard mode enabled' : 'Failed to enable offboard mode')
+        });
+      }, (error: string) => {
+        reject(new Error(`Set offboard service failed: ${error}`));
+      });
     });
   }
 
@@ -477,100 +401,34 @@ export class RosbridgeClient {
    * Get list of active subscriptions
    */
   getActiveSubscriptions(): string[] {
-    return Array.from(this.activeSubscriptions);
+    return Array.from(this.activeSubscriptions.keys());
   }
 
-  private setupWebSocketHandlers(): void {
-    if (!this.ws) return;
+  private setupRosHandlers(): void {
+    if (!this.ros) return;
 
-    this.ws.onopen = () => {
-      this.log('info', 'Connected to rosbridge WebSocket server');
+    this.ros.on('connection', () => {
+      this.log('info', 'Connected to rosbridge server');
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
-      this.startPingTimer();
-      this.processSubscriptionQueue();
-    };
+    });
 
-    this.ws.onmessage = (event) => {
-      this.handleIncomingMessage(event);
-    };
+    this.ros.on('error', (error: any) => {
+      this.log('error', `ROS connection error: ${error}`);
+      this.notifyConnectionStatus(false, 'ROS connection error occurred');
+    });
 
-    this.ws.onclose = (event) => {
-      this.log('warn', `WebSocket connection closed: ${event.code} - ${event.reason}`);
+    this.ros.on('close', () => {
+      this.log('warn', 'ROS connection closed');
       this.isConnected = false;
       this.clearTimers();
-      this.notifyConnectionStatus(false, `Connection closed: ${event.reason}`);
-      
+      this.notifyConnectionStatus(false, 'Connection closed');
+
       if (this.shouldReconnect) {
         this.scheduleReconnect();
       }
-    };
-
-    this.ws.onerror = (error) => {
-      this.log('error', `WebSocket error: ${error}`);
-      this.notifyConnectionStatus(false, 'WebSocket error occurred');
-    };
-  }
-
-  private handleIncomingMessage(event: MessageEvent): void {
-    try {
-      const message: RosbridgeMessage = JSON.parse(event.data);
-      
-      if (message.op === 'publish' && message.topic && message.msg) {
-        this.handleTopicMessage(message.topic, message.msg);
-      } else if (message.op === 'status') {
-        this.log('info', `Rosbridge status: ${message.msg}`);
-      }
-    } catch (error) {
-      this.log('error', `Failed to parse incoming message: ${error}`);
-    }
-  }
-
-  private handleTopicMessage(topic: string, msg: any): void {
-    // Handle drone state messages
-    if (topic.endsWith('/drone_state')) {
-      const droneNamespace = topic.split('/')[1];
-      const subscriptionId = `drone_state_${droneNamespace}`;
-      const callback = this.droneStateCallbacks.get(subscriptionId);
-      
-      if (callback) {
-        callback(msg as DroneState);
-      }
-    }
-  }
-
-  private sendMessage(message: RosbridgeMessage): void {
-    console.log('[TRACE] sendMessage called with:', message);
-    console.log('[TRACE] WebSocket state:', this.ws?.readyState, '(OPEN=1)');
-
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.log('[TRACE] Cannot send message: WebSocket not connected');
-      this.log('warn', 'Cannot send message: WebSocket not connected');
-      return;
-    }
-
-    try {
-      const messageStr = JSON.stringify(message);
-      console.log('[TRACE] Sending message to WebSocket:', messageStr);
-      this.ws.send(messageStr);
-      console.log('[TRACE] Message sent successfully');
-    } catch (error) {
-      console.error('[TRACE] Failed to send message:', error);
-      this.log('error', `Failed to send message: ${error}`);
-    }
-  }
-
-  private processSubscriptionQueue(): void {
-    while (this.subscriptionQueue.length > 0) {
-      const subscription = this.subscriptionQueue.shift();
-      if (subscription) {
-        this.sendMessage(subscription);
-        if (subscription.topic) {
-          this.activeSubscriptions.add(subscription.topic);
-        }
-      }
-    }
+    });
   }
 
   private scheduleReconnect(): void {
@@ -592,21 +450,10 @@ export class RosbridgeClient {
     }, delay);
   }
 
-  private startPingTimer(): void {
-    // Ping disabled - rosbridge doesn't support 'status' operation
-    // WebSocket connection itself provides keep-alive functionality
-    this.pingTimer = null;
-  }
-
   private clearTimers(): void {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
-    }
-    
-    if (this.pingTimer) {
-      clearInterval(this.pingTimer);
-      this.pingTimer = null;
     }
   }
 
