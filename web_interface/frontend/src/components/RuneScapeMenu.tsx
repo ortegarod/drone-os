@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { DroneStatus } from '../types/drone';
-import { UnitSystem } from '../utils/unitConversions';
 
 interface RuneScapeMenuProps {
   droneAPI: any;
   droneStatus: DroneStatus;
-  unitSystem: UnitSystem;
   availableDrones: string[];
   isConnected: boolean;
 }

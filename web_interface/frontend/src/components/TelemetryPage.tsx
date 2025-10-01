@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { DroneStatus } from '../types/drone';
-import { UnitSystem, convertDistance, convertSpeed, convertTemperature, getDistanceUnit, getSpeedUnit, getTemperatureUnit } from '../utils/unitConversions';
 
 interface TelemetryData {
   // Battery & Power
@@ -64,10 +63,9 @@ interface Alert {
 interface TelemetryPageProps {
   droneAPI: any;
   droneStatus: DroneStatus;
-  unitSystem: UnitSystem;
 }
 
-const TelemetryPage: React.FC<TelemetryPageProps> = ({ droneAPI, droneStatus, unitSystem }) => {
+const TelemetryPage: React.FC<TelemetryPageProps> = ({ droneAPI, droneStatus }) => {
   const [telemetryData, setTelemetryData] = useState<TelemetryData | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -360,7 +358,7 @@ const TelemetryPage: React.FC<TelemetryPageProps> = ({ droneAPI, droneStatus, un
             </div>
             <div className="telemetry-item">
               <span className="label">Temperature:</span>
-              <span className="value">{convertTemperature(telemetryData.battery_temperature, unitSystem).toFixed(1)}{getTemperatureUnit(unitSystem)}</span>
+              <span className="value">{telemetryData.battery_temperature.toFixed(1)}°C</span>
             </div>
             <div className="telemetry-item">
               <span className="label">Warning:</span>
@@ -400,11 +398,11 @@ const TelemetryPage: React.FC<TelemetryPageProps> = ({ droneAPI, droneStatus, un
             </div>
             <div className="telemetry-item">
               <span className="label">H Accuracy:</span>
-              <span className="value">{convertDistance(telemetryData.gps_accuracy_horizontal, unitSystem).toFixed(1)}{getDistanceUnit(unitSystem)}</span>
+              <span className="value">{telemetryData.gps_accuracy_horizontal.toFixed(1)}m</span>
             </div>
             <div className="telemetry-item">
               <span className="label">V Accuracy:</span>
-              <span className="value">{convertDistance(telemetryData.gps_accuracy_vertical, unitSystem).toFixed(1)}{getDistanceUnit(unitSystem)}</span>
+              <span className="value">{telemetryData.gps_accuracy_vertical.toFixed(1)}m</span>
             </div>
           </div>
         </div>
@@ -485,23 +483,23 @@ const TelemetryPage: React.FC<TelemetryPageProps> = ({ droneAPI, droneStatus, un
           <div className="telemetry-grid">
             <div className="telemetry-item">
               <span className="label">Velocity (N):</span>
-              <span className="value">{convertSpeed(telemetryData.velocity_ned[0], unitSystem).toFixed(1)} {getSpeedUnit(unitSystem)}</span>
+              <span className="value">{telemetryData.velocity_ned[0].toFixed(1)} m/s</span>
             </div>
             <div className="telemetry-item">
               <span className="label">Velocity (E):</span>
-              <span className="value">{convertSpeed(telemetryData.velocity_ned[1], unitSystem).toFixed(1)} {getSpeedUnit(unitSystem)}</span>
+              <span className="value">{telemetryData.velocity_ned[1].toFixed(1)} m/s</span>
             </div>
             <div className="telemetry-item">
               <span className="label">Velocity (D):</span>
-              <span className="value">{convertSpeed(telemetryData.velocity_ned[2], unitSystem).toFixed(1)} {getSpeedUnit(unitSystem)}</span>
+              <span className="value">{telemetryData.velocity_ned[2].toFixed(1)} m/s</span>
             </div>
             <div className="telemetry-item">
               <span className="label">Altitude Rate:</span>
-              <span className="value">{convertSpeed(telemetryData.altitude_rate, unitSystem).toFixed(2)} {getSpeedUnit(unitSystem)}</span>
+              <span className="value">{telemetryData.altitude_rate.toFixed(2)} m/s</span>
             </div>
             <div className="telemetry-item">
               <span className="label">Wind Speed:</span>
-              <span className="value">{convertSpeed(telemetryData.wind_speed, unitSystem).toFixed(1)} {getSpeedUnit(unitSystem)}</span>
+              <span className="value">{telemetryData.wind_speed.toFixed(1)} m/s</span>
             </div>
             <div className="telemetry-item">
               <span className="label">Wind Direction:</span>
@@ -528,7 +526,7 @@ const TelemetryPage: React.FC<TelemetryPageProps> = ({ droneAPI, droneStatus, un
             </div>
             <div className="telemetry-item">
               <span className="label">Distance to Target:</span>
-              <span className="value">{convertDistance(telemetryData.distance_to_target, unitSystem).toFixed(1)}{getDistanceUnit(unitSystem)}</span>
+              <span className="value">{telemetryData.distance_to_target.toFixed(1)}m</span>
             </div>
             <div className="telemetry-item">
               <span className="label">ETA:</span>

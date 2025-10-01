@@ -4,7 +4,6 @@ import 'leaflet/dist/leaflet.css';
 // @ts-ignore
 import ROSLIB from 'roslib';
 import { DroneStatus } from '../types/drone';
-import { UnitSystem } from '../utils/unitConversions';
 import { logger } from '../utils/logger';
 
 // Fix for default markers in webpack
@@ -19,7 +18,6 @@ interface MiniMapProps {
   droneAPI: any;
   droneStatus: DroneStatus;
   availableDrones: string[];
-  unitSystem: UnitSystem;
   targetAltitude: number;
 }
 
@@ -32,7 +30,7 @@ interface DronePosition {
   droneName: string;
 }
 
-const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrones, unitSystem, targetAltitude }) => {
+const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrones, targetAltitude }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const droneMarkersRef = useRef<Map<string, L.Marker>>(new Map());

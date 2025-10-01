@@ -4,7 +4,6 @@ import 'leaflet/dist/leaflet.css';
 // @ts-ignore
 import ROSLIB from 'roslib';
 import { DroneStatus } from '../types/drone';
-import { UnitSystem } from '../utils/unitConversions';
 
 // Fix for default markers in webpack
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -18,7 +17,6 @@ interface DroneMapProps {
   droneAPI: any;
   droneStatus: DroneStatus;
   availableDrones: string[];
-  unitSystem: UnitSystem;
 }
 
 interface DronePosition {
@@ -30,7 +28,7 @@ interface DronePosition {
   droneName: string;
 }
 
-const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDrones, unitSystem }) => {
+const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDrones }) => {
   console.log('DroneMap: Component created/rendered');
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
