@@ -12,16 +12,17 @@ import TargetStatusDisplay from './components/TargetStatusDisplay';
 import TopStatusBar from './components/TopStatusBar';
 import BottomStatusBar from './components/BottomStatusBar';
 import { rosbridgeClient } from './services/rosbridgeClient';
-import {
-  UnitSystem,
-  convertDistance,
-  getDistanceUnit
-} from './utils/unitConversions';
+import { UnitSystem, convertDistance, getDistanceUnit } from './utils/unitConversions';
 import { DroneStatus } from './types/drone';
 import { createDroneAPI } from './api/droneAPI';
+import { useUnitPreferences } from './hooks/useUnitPreferences';
+import { useRosbridgeConnection } from './hooks/useRosbridgeConnection';
 import './App.css';
 
 const App: React.FC = () => {
+  // Unit preferences with localStorage persistence
+  const { unitSystem, changeUnitSystem } = useUnitPreferences();
+
   const [droneStatus, setDroneStatus] = useState<DroneStatus>({
     drone_name: 'drone1',
     connected: false,
@@ -32,54 +33,32 @@ const App: React.FC = () => {
     timestamp: 0
   });
 
-  const [isConnected, setIsConnected] = useState(false);
   const [availableDrones, setAvailableDrones] = useState<string[]>([]);
-  
-  // Unit preferences with localStorage persistence
-  const [unitSystem, setUnitSystem] = useState<UnitSystem>(() => {
-    const saved = localStorage.getItem('droneOS_units');
-    return (saved as UnitSystem) || 'metric';
-  });
-  
+
   // Altitude control state for map clicks
   const [targetAltitude, setTargetAltitude] = useState(15); // Default 15m altitude
   const [maxAltitude, setMaxAltitude] = useState(50); // Default 50m max altitude
   const [droneStateSub, setDroneStateSub] = useState<string | null>(null);
 
-  // Save unit preference to localStorage
-  const changeUnitSystem = (system: UnitSystem) => {
-    setUnitSystem(system);
-    localStorage.setItem('droneOS_units', system);
+  // Function to discover available drones
+  const discoverAvailableDrones = async () => {
+    try {
+      // For now, set default drone - could be enhanced to discover dynamically via rosbridgeClient
+      const discoveredDrones = ['drone1'];
+      setAvailableDrones(discoveredDrones);
+
+      // If current drone is not in discovered list, switch to first available
+      if (discoveredDrones.length > 0 && !discoveredDrones.includes(droneStatus.drone_name)) {
+        setDroneStatus(prev => ({ ...prev, drone_name: discoveredDrones[0] }));
+      }
+    } catch (error) {
+      console.warn('Drone discovery error:', error);
+      setAvailableDrones(['drone1']);
+    }
   };
 
-  // Initialize rosbridge connection using shared client
-  useEffect(() => {
-    // Set up connection status callback
-    const handleConnectionStatus = (connected: boolean) => {
-      setIsConnected(connected);
-      if (connected) {
-        // Discover available drones when connected
-        discoverAvailableDrones();
-      }
-    };
-
-    // Register connection callback
-    rosbridgeClient.onConnectionStatusChanged(handleConnectionStatus);
-
-    // Check current connection status and connect if needed
-    const currentStatus = rosbridgeClient.getConnectionStatus();
-    if (!currentStatus) {
-      rosbridgeClient.connect();
-    } else {
-      setIsConnected(true);
-      discoverAvailableDrones();
-    }
-
-    // Cleanup on unmount
-    return () => {
-      rosbridgeClient.removeConnectionStatusCallback(handleConnectionStatus);
-    };
-  }, []);
+  // Rosbridge connection with drone discovery callback
+  const { isConnected } = useRosbridgeConnection(discoverAvailableDrones);
   
   // Function to refresh drone state using shared rosbridge client
   const refreshDroneState = async () => {
@@ -106,23 +85,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Function to discover available drones
-  const discoverAvailableDrones = async () => {
-    try {
-      // For now, set default drone - could be enhanced to discover dynamically via rosbridgeClient
-      const discoveredDrones = ['drone1'];
-      setAvailableDrones(discoveredDrones);
-      
-      // If current drone is not in discovered list, switch to first available
-      if (discoveredDrones.length > 0 && !discoveredDrones.includes(droneStatus.drone_name)) {
-        setDroneStatus(prev => ({ ...prev, drone_name: discoveredDrones[0] }));
-      }
-    } catch (error) {
-      console.warn('Drone discovery error:', error);
-      setAvailableDrones(['drone1']);
-    }
-  };
-  
   // Start subscription to drone state using rosbridgeClient
   const startDroneStateSubscription = () => {
     // Clear any existing subscription
