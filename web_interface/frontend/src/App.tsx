@@ -15,6 +15,7 @@ import {
   getDistanceUnit
 } from './utils/unitConversions';
 import { DroneStatus } from './types/drone';
+import { createDroneAPI } from './api/droneAPI';
 import './App.css';
 
 const App: React.FC = () => {
@@ -158,135 +159,12 @@ const App: React.FC = () => {
     }
   }, [isConnected, droneStatus.drone_name]);
 
-  // Helper function for Trigger services using rosbridgeClient
-  const callTriggerService = async (serviceName: string) => {
-    if (!isConnected) {
-      throw new Error('Not connected to rosbridge');
-    }
-
-    try {
-      const result = await rosbridgeClient.callArmService(droneStatus.drone_name); // For now, we'll use callArmService as template
-      // Refresh state after command
-      setTimeout(() => refreshDroneState(), 1000);
-      return result;
-    } catch (error) {
-      console.error('[DEBUG]', serviceName, 'failed:', error);
-      throw new Error(`${serviceName} failed: ${error}`);
-    }
-  };
-
-  // Drone API using rosbridgeClient for actual service calls
-  const droneAPI = React.useMemo(() => ({
-    ros: null, // Keep null to indicate we're using rosbridgeClient instead of ROSLIB
-    // Basic flight commands using our rosbridgeClient
-    arm: async () => {
-      console.log('[TRACE] ARM button clicked');
-      const actualConnectionStatus = rosbridgeClient.getConnectionStatus();
-      console.log('[TRACE] RosbridgeClient connected:', actualConnectionStatus);
-
-      if (!actualConnectionStatus) {
-        throw new Error('Not connected to drone control system');
-      }
-
-      try {
-        console.log('[TRACE] Calling callArmService for drone:', droneStatus.drone_name);
-        const result = await rosbridgeClient.callArmService(droneStatus.drone_name);
-        console.log('[TRACE] ARM service result:', result);
-        setTimeout(() => refreshDroneState(), 1000);
-        // Return the actual service response
-        return {
-          success: result.success,
-          message: result.message || (result.success ? 'Command executed' : 'Command failed')
-        };
-      } catch (error) {
-        console.error('[TRACE] ARM service error:', error);
-        throw new Error(`Arm command failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    },
-    disarm: async () => {
-      const actualConnectionStatus = rosbridgeClient.getConnectionStatus();
-      if (!actualConnectionStatus) throw new Error('Not connected to drone control system');
-      try {
-        const result = await rosbridgeClient.callDisarmService(droneStatus.drone_name);
-        setTimeout(() => refreshDroneState(), 1000);
-        // Return the actual service response
-        return {
-          success: result.success,
-          message: result.message || (result.success ? 'Command executed' : 'Command failed')
-        };
-      } catch (error) {
-        throw new Error(`Disarm command failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    },
-    takeoff: () => Promise.resolve({ success: false, message: 'Use CLI or web interface for takeoff' }),
-    land: () => Promise.resolve({ success: false, message: 'Use CLI or web interface for land' }),
-    returnToLaunch: () => Promise.resolve({ success: false, message: 'Use CLI or web interface for RTL' }),
-    flightTermination: () => Promise.resolve({ success: false, message: 'Use CLI or web interface for termination' }),
-    setOffboard: async () => {
-      const actualConnectionStatus = rosbridgeClient.getConnectionStatus();
-      if (!actualConnectionStatus) throw new Error('Not connected to drone control system');
-      try {
-        const result = await rosbridgeClient.callSetOffboardService(droneStatus.drone_name);
-        setTimeout(() => refreshDroneState(), 1000);
-        // Return the actual service response
-        return {
-          success: result.success,
-          message: result.message || (result.success ? 'Command executed' : 'Command failed')
-        };
-      } catch (error) {
-        throw new Error(`Set offboard failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    },
-    
-    // Position control (placeholder)
-    setPosition: (x: number, y: number, z: number, yaw: number) => {
-      return Promise.resolve({ success: false, message: 'Use CLI or web interface for position control' });
-    },
-
-    setPositionAutoYaw: (x: number, y: number, z: number) => {
-      return Promise.resolve({ success: false, message: 'Use CLI or web interface for position control' });
-    },
-
-    // Get drone state using rosbridgeClient
-    getState: () => {
-      if (!rosbridgeClient.getConnectionStatus()) {
-        return Promise.reject(new Error('Not connected to rosbridge'));
-      }
-      
-      return rosbridgeClient.callGetStateService(droneStatus.drone_name);
-    },
-
-    // Target management
-    setTargetDrone: (drone_name: string) => {
-      const old_target = droneStatus.drone_name;
-      setDroneStatus(prev => ({ ...prev, drone_name: drone_name }));
-      
-      return Promise.resolve({
-        success: true,
-        message: `Target changed from ${old_target} to ${drone_name}`,
-        old_target,
-        new_target: drone_name
-      });
-    },
-
-    // Simplified network/drone discovery
-    getNetwork: () => {
-      return Promise.resolve({
-        services: [],
-        target_drone: droneStatus.drone_name
-      });
-    },
-
-    getDroneServices: () => {
-      return Promise.resolve({
-        target_drone: droneStatus.drone_name,
-        services: []
-      });
-    },
-
-    discoverDrones: () => {
-      // Return default drone list
-      return Promise.resolve(['drone1']);
+  // Create drone API with current drone name
+  const droneAPI = React.useMemo(() => createDroneAPI({
+    droneName: droneStatus.drone_name,
+    onRefreshState: refreshDroneState,
+    onSetTargetDrone: (droneName: string) => {
+      setDroneStatus(prev => ({ ...prev, drone_name: droneName }));
     }
   }), [droneStatus.drone_name]);
 
