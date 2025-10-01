@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { rosbridgeClient } from '../services/rosbridgeClient';
 
 /**
@@ -6,13 +6,19 @@ import { rosbridgeClient } from '../services/rosbridgeClient';
  */
 export const useRosbridgeConnection = (onConnected?: () => void) => {
   const [isConnected, setIsConnected] = useState(false);
+  const onConnectedRef = useRef(onConnected);
+
+  // Update ref when callback changes
+  useEffect(() => {
+    onConnectedRef.current = onConnected;
+  }, [onConnected]);
 
   useEffect(() => {
     // Set up connection status callback
     const handleConnectionStatus = (connected: boolean) => {
       setIsConnected(connected);
-      if (connected && onConnected) {
-        onConnected();
+      if (connected && onConnectedRef.current) {
+        onConnectedRef.current();
       }
     };
 
@@ -25,8 +31,8 @@ export const useRosbridgeConnection = (onConnected?: () => void) => {
       rosbridgeClient.connect();
     } else {
       setIsConnected(true);
-      if (onConnected) {
-        onConnected();
+      if (onConnectedRef.current) {
+        onConnectedRef.current();
       }
     }
 
@@ -34,7 +40,7 @@ export const useRosbridgeConnection = (onConnected?: () => void) => {
     return () => {
       rosbridgeClient.removeConnectionStatusCallback(handleConnectionStatus);
     };
-  }, [onConnected]);
+  }, []); // Empty deps - only run once
 
   return { isConnected };
 };
