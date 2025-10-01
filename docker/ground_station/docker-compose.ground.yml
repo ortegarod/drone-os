@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  # Discovery Server - Central DDS discovery for multi-drone network
+  discovery_server:
+    image: ros:humble
+    container_name: discovery_server
+    network_mode: host
+    environment:
+      - ROS_DOMAIN_ID=0
+    command: >
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        echo 'Starting FastDDS Discovery Server on <tailscale-ip>:11811...' &&
+        fastdds discovery -i 0 -l <tailscale-ip> -p 11811
+      "
+    restart: unless-stopped
+
   # ROS2 Bridge - Provides WebSocket/JSON interface to ROS2 network
   rosbridge:
     image: ros:humble
