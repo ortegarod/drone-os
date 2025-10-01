@@ -4,7 +4,6 @@ interface SimpleCameraFeedProps {
   droneAPI: any;
   isConnected: boolean;
   droneStatus: any;
-  unitSystem: any;
 }
 
 interface VideoSettings {
@@ -22,7 +21,7 @@ const videoPresets: VideoSettings[] = [
   { width: 1920, height: 1080, quality: 85, label: '1080p Full' }
 ];
 
-const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnected, droneStatus, unitSystem }) => {
+const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnected, droneStatus }) => {
   const imgRef = useRef<HTMLImageElement>(null);
   const [status, setStatus] = useState<string>('Connecting...');
   const [currentPreset, setCurrentPreset] = useState<VideoSettings>(videoPresets[1]); // Default to 240p Low

@@ -11,17 +11,13 @@ import AltitudeControl from './components/AltitudeControl';
 import TargetStatusDisplay from './components/TargetStatusDisplay';
 import TopStatusBar from './components/TopStatusBar';
 import BottomStatusBar from './components/BottomStatusBar';
-import { UnitSystem, convertDistance, getDistanceUnit } from './utils/unitConversions';
 import { createDroneAPI } from './api/droneAPI';
-import { useUnitPreferences } from './hooks/useUnitPreferences';
 import { useRosbridgeConnection } from './hooks/useRosbridgeConnection';
 import { useDroneState } from './hooks/useDroneState';
 import { useDroneDiscovery } from './hooks/useDroneDiscovery';
 import './App.css';
 
 const App: React.FC = () => {
-  // Unit preferences with localStorage persistence
-  const { unitSystem, changeUnitSystem } = useUnitPreferences();
 
   // Altitude control state for map clicks
   const [targetAltitude, setTargetAltitude] = useState(15); // Default 15m altitude
@@ -83,19 +79,6 @@ const App: React.FC = () => {
             </nav>
           </div>
           <div className="connection-status">
-            {/* Unit System Selector */}
-            <div className="unit-selector-container">
-              <label className="unit-selector-label">Units:</label>
-              <select
-                value={unitSystem}
-                onChange={(e) => changeUnitSystem(e.target.value as UnitSystem)}
-                className="unit-selector"
-              >
-                <option value="metric">Metric (m)</option>
-                <option value="imperial">Imperial (ft)</option>
-              </select>
-            </div>
-
             <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
               {isConnected ? '🟢 Connected to rosbridge' : '🔴 Disconnected from rosbridge'}
             </span>
@@ -103,7 +86,7 @@ const App: React.FC = () => {
         </header>
 
         {/* Top Status Bar */}
-        <TopStatusBar droneStatus={droneStatus} unitSystem={unitSystem} />
+        <TopStatusBar droneStatus={droneStatus} />
 
         <Routes>
           <Route path="/" element={
@@ -116,7 +99,6 @@ const App: React.FC = () => {
                     droneAPI={droneAPI}
                     isConnected={isConnected}
                     droneStatus={droneStatus}
-                    unitSystem={unitSystem}
                   />
                 </div>
 
@@ -124,9 +106,6 @@ const App: React.FC = () => {
                 <div className="right-panel-container">
                   <TargetStatusDisplay
                     droneStatus={droneStatus}
-                    unitSystem={unitSystem}
-                    convertDistance={convertDistance}
-                    getDistanceUnit={getDistanceUnit}
                   />
                   {/* MiniMap in its own container */}
                   <div className="minimap-container">
@@ -134,7 +113,6 @@ const App: React.FC = () => {
                       droneAPI={droneAPI}
                       droneStatus={droneStatus}
                       availableDrones={availableDrones}
-                      unitSystem={unitSystem}
                       targetAltitude={targetAltitude}
                     />
                   </div>
@@ -152,7 +130,6 @@ const App: React.FC = () => {
                     <RuneScapeMenu
                       droneAPI={droneAPI}
                       droneStatus={droneStatus}
-                      unitSystem={unitSystem}
                       availableDrones={availableDrones}
                       isConnected={isConnected}
                     />
@@ -167,7 +144,6 @@ const App: React.FC = () => {
               <TelemetryPage
                 droneAPI={droneAPI}
                 droneStatus={droneStatus}
-                unitSystem={unitSystem}
               />
             </main>
           } />
@@ -178,7 +154,6 @@ const App: React.FC = () => {
                 droneAPI={droneAPI}
                 droneStatus={droneStatus}
                 availableDrones={availableDrones}
-                unitSystem={unitSystem}
               />
             </main>
           } />

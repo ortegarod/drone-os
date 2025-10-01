@@ -1,24 +1,15 @@
 import React from 'react';
 import { DroneStatus } from '../types/drone';
-import { UnitSystem } from '../utils/unitConversions';
 
 interface TargetStatusDisplayProps {
   droneStatus: DroneStatus;
-  unitSystem: UnitSystem;
-  convertDistance: (value: number, unit: UnitSystem) => number;
-  getDistanceUnit: (unit: UnitSystem) => string;
 }
 
-const TargetStatusDisplay: React.FC<TargetStatusDisplayProps> = ({
-  droneStatus,
-  unitSystem,
-  convertDistance,
-  getDistanceUnit
-}) => {
+const TargetStatusDisplay: React.FC<TargetStatusDisplayProps> = ({ droneStatus }) => {
   return (
-    <div style={{ 
-      display: 'flex', 
-      gap: '0.5rem', 
+    <div style={{
+      display: 'flex',
+      gap: '0.5rem',
       marginBottom: '0.5rem',
       flexWrap: 'wrap'
     }}>
@@ -33,7 +24,7 @@ const TargetStatusDisplay: React.FC<TargetStatusDisplayProps> = ({
       <div className="status-section">
         <span className="status-label">Pos:</span>
         <span className="status-value">
-          ({convertDistance(droneStatus.position.x, unitSystem).toFixed(1)}, {convertDistance(droneStatus.position.y, unitSystem).toFixed(1)}, {convertDistance(droneStatus.position.z, unitSystem).toFixed(1)}){getDistanceUnit(unitSystem)}
+          ({droneStatus.position.x.toFixed(1)}, {droneStatus.position.y.toFixed(1)}, {droneStatus.position.z.toFixed(1)})m
         </span>
       </div>
     </div>

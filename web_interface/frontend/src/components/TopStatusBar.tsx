@@ -1,13 +1,11 @@
 import React from 'react';
 import { DroneStatus } from '../types/drone';
-import { UnitSystem, convertDistance, getDistanceUnit } from '../utils/unitConversions';
 
 interface TopStatusBarProps {
   droneStatus: DroneStatus;
-  unitSystem: UnitSystem;
 }
 
-const TopStatusBar: React.FC<TopStatusBarProps> = ({ droneStatus, unitSystem }) => {
+const TopStatusBar: React.FC<TopStatusBarProps> = ({ droneStatus }) => {
   return (
     <div className="top-status-bar">
       <div className="status-row">
@@ -40,7 +38,7 @@ const TopStatusBar: React.FC<TopStatusBarProps> = ({ droneStatus, unitSystem }) 
         <div className="status-section">
           <span className="status-label">Position:</span>
           <span className="status-value">
-            ({convertDistance(droneStatus.position.x, unitSystem).toFixed(2)}, {convertDistance(droneStatus.position.y, unitSystem).toFixed(2)}, {convertDistance(Math.abs(droneStatus.position.z), unitSystem).toFixed(2)}) {getDistanceUnit(unitSystem)}
+            ({droneStatus.position.x.toFixed(2)}, {droneStatus.position.y.toFixed(2)}, {Math.abs(droneStatus.position.z).toFixed(2)}) m
           </span>
         </div>
 
