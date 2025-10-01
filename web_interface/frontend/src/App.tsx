@@ -17,9 +17,6 @@ import {
 import { DroneStatus } from './types/drone';
 import './App.css';
 
-// rosbridge WebSocket URL
-const ROSBRIDGE_URL = 'ws://localhost:9090';
-
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<'main' | 'telemetry' | 'map' | 'ai' | 'dev'>('main');
   const [droneStatus, setDroneStatus] = useState<DroneStatus>({

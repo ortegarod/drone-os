@@ -1,9 +1,11 @@
 /**
  * Rosbridge WebSocket Client for Real-time Drone Telemetry
- * 
+ *
  * This module provides a TypeScript client for connecting to rosbridge WebSocket server
  * and subscribing to drone telemetry topics for real-time status updates.
  */
+
+import { ROSBRIDGE_URL } from '../config/rosbridge';
 
 export interface DroneState {
   header: {
@@ -131,7 +133,7 @@ export class RosbridgeClient {
   private subscriptionQueue: RosbridgeMessage[] = [];
 
   constructor(options: ConnectionOptions = {}) {
-    this.url = options.url || 'ws://localhost:9090';
+    this.url = options.url || ROSBRIDGE_URL;
     this.reconnectInterval = options.reconnectInterval || 3000;
     this.maxReconnectAttempts = options.maxReconnectAttempts || 10;
     this.pingInterval = options.pingInterval || 30000;
