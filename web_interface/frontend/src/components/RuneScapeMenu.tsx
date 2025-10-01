@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { DroneStatus, UnitSystem } from '../App';
+import { DroneStatus } from '../types/drone';
+import { UnitSystem } from '../utils/unitConversions';
 
 interface RuneScapeMenuProps {
   droneAPI: any;

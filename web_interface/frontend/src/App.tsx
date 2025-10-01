@@ -9,59 +9,16 @@ import RuneScapeMenu from './components/RuneScapeMenu';
 import AltitudeControl from './components/AltitudeControl';
 import TargetStatusDisplay from './components/TargetStatusDisplay';
 import { rosbridgeClient } from './services/rosbridgeClient';
+import {
+  UnitSystem,
+  convertDistance,
+  getDistanceUnit
+} from './utils/unitConversions';
+import { DroneStatus } from './types/drone';
 import './App.css';
 
 // rosbridge WebSocket URL
 const ROSBRIDGE_URL = 'ws://localhost:9090';
-
-export interface DroneStatus {
-  drone_name: string;
-  connected: boolean;
-  armed: boolean;
-  flight_mode: string;
-  position: {
-    x: number;
-    y: number;
-    z: number;
-    yaw: number;
-  };
-  battery: number;
-  timestamp: number;
-}
-
-export type UnitSystem = 'metric' | 'imperial';
-
-export interface UnitPreferences {
-  system: UnitSystem;
-  distance: string; // 'm' or 'ft'
-  speed: string;    // 'm/s' or 'ft/s'
-  temperature: string; // 'C' or 'F'
-}
-
-// Unit conversion utilities
-export const convertDistance = (meters: number, system: UnitSystem): number => {
-  return system === 'imperial' ? meters * 3.28084 : meters;
-};
-
-export const convertSpeed = (mps: number, system: UnitSystem): number => {
-  return system === 'imperial' ? mps * 3.28084 : mps;
-};
-
-export const convertTemperature = (celsius: number, system: UnitSystem): number => {
-  return system === 'imperial' ? (celsius * 9/5) + 32 : celsius;
-};
-
-export const getDistanceUnit = (system: UnitSystem): string => {
-  return system === 'imperial' ? 'ft' : 'm';
-};
-
-export const getSpeedUnit = (system: UnitSystem): string => {
-  return system === 'imperial' ? 'ft/s' : 'm/s';
-};
-
-export const getTemperatureUnit = (system: UnitSystem): string => {
-  return system === 'imperial' ? '°F' : '°C';
-};
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<'main' | 'telemetry' | 'map' | 'ai' | 'dev'>('main');

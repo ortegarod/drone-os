@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { DroneStatus, UnitSystem, convertDistance, getDistanceUnit } from '../App';
+import { DroneStatus } from '../types/drone';
+import { UnitSystem, convertDistance, getDistanceUnit } from '../utils/unitConversions';
 
 interface FlightControlsHotbarProps {
   droneAPI: any;

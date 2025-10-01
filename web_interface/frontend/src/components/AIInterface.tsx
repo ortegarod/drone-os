@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { DroneStatus } from '../App';
+import { DroneStatus } from '../types/drone';
 
 interface AIMessage {
   id: string;

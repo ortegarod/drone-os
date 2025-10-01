@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { DroneStatus, UnitSystem, convertDistance, convertSpeed, convertTemperature, getDistanceUnit, getSpeedUnit, getTemperatureUnit } from '../App';
+import { DroneStatus } from '../types/drone';
+import { UnitSystem, convertDistance, convertSpeed, convertTemperature, getDistanceUnit, getSpeedUnit, getTemperatureUnit } from '../utils/unitConversions';
 
 interface TelemetryData {
   // Battery & Power

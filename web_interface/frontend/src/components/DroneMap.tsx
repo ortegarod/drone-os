@@ -3,7 +3,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 // @ts-ignore
 import ROSLIB from 'roslib';
-import { DroneStatus, UnitSystem } from '../App';
+import { DroneStatus } from '../types/drone';
+import { UnitSystem } from '../utils/unitConversions';
 
 // Fix for default markers in webpack
 delete (L.Icon.Default.prototype as any)._getIconUrl;

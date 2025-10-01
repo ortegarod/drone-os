@@ -1,5 +1,6 @@
 import React from 'react';
-import { DroneStatus, UnitSystem } from '../App';
+import { DroneStatus } from '../types/drone';
+import { UnitSystem } from '../utils/unitConversions';
 
 interface TargetStatusDisplayProps {
   droneStatus: DroneStatus;
