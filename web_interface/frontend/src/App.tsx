@@ -293,34 +293,34 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <header className="app-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+        <div className="header-nav-container">
           <h1>DroneOS Command Center</h1>
-          <nav style={{ display: 'flex', gap: '1rem' }}>
-            <button 
+          <nav className="header-nav">
+            <button
               className={`nav-btn ${currentPage === 'main' ? 'active' : ''}`}
               onClick={() => setCurrentPage('main')}
             >
               Main Dashboard
             </button>
-            <button 
+            <button
               className={`nav-btn ${currentPage === 'telemetry' ? 'active' : ''}`}
               onClick={() => setCurrentPage('telemetry')}
             >
               Status
             </button>
-            <button 
+            <button
               className={`nav-btn ${currentPage === 'map' ? 'active' : ''}`}
               onClick={() => setCurrentPage('map')}
             >
               Drone Map
             </button>
-            <button 
+            <button
               className={`nav-btn ${currentPage === 'ai' ? 'active' : ''}`}
               onClick={() => setCurrentPage('ai')}
             >
-              AI Assistant <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(BETA)</span>
+              AI Assistant <span className="nav-beta-label">(BETA)</span>
             </button>
-            <button 
+            <button
               className={`nav-btn ${currentPage === 'dev' ? 'active' : ''}`}
               onClick={() => setCurrentPage('dev')}
             >
@@ -328,27 +328,20 @@ const App: React.FC = () => {
             </button>
           </nav>
         </div>
-        <div className="connection-status" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="connection-status">
           {/* Unit System Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label style={{ fontSize: '0.875rem', color: '#ccc' }}>Units:</label>
-            <select 
-              value={unitSystem} 
+          <div className="unit-selector-container">
+            <label className="unit-selector-label">Units:</label>
+            <select
+              value={unitSystem}
               onChange={(e) => changeUnitSystem(e.target.value as UnitSystem)}
-              style={{
-                padding: '0.25rem 0.5rem',
-                backgroundColor: '#2d2d2d',
-                color: '#fff',
-                border: '1px solid #555',
-                borderRadius: '4px',
-                fontSize: '0.875rem'
-              }}
+              className="unit-selector"
             >
               <option value="metric">Metric (m)</option>
               <option value="imperial">Imperial (ft)</option>
             </select>
           </div>
-          
+
           <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
             {isConnected ? '🟢 Connected to rosbridge' : '🔴 Disconnected from rosbridge'}
           </span>
@@ -457,16 +450,16 @@ const App: React.FC = () => {
 
         </div>
       ) : currentPage === 'telemetry' ? (
-        <main style={{ flex: 1, overflow: 'hidden' }}>
-          <TelemetryPage 
+        <main className="page-main">
+          <TelemetryPage
             droneAPI={droneAPI}
             droneStatus={droneStatus}
             unitSystem={unitSystem}
           />
         </main>
       ) : currentPage === 'map' ? (
-        <main style={{ flex: 1, overflow: 'hidden' }}>
-          <DroneMap 
+        <main className="page-main">
+          <DroneMap
             droneAPI={droneAPI}
             droneStatus={droneStatus}
             availableDrones={availableDrones}
@@ -474,38 +467,17 @@ const App: React.FC = () => {
           />
         </main>
       ) : currentPage === 'ai' ? (
-        <main style={{ flex: 1, overflow: 'hidden' }}>
-          <div style={{ 
-            height: '100%', 
-            display: 'flex', 
-            flexDirection: 'column',
-            backgroundColor: '#1a1a1a'
-          }}>
-            <div style={{ 
-              padding: '1rem', 
-              borderBottom: '1px solid #444',
-              backgroundColor: '#2d2d2d',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}>
+        <main className="page-main">
+          <div className="ai-page-container">
+            <div className="ai-page-header">
               <h2>🤖 AI Assistant</h2>
-              <span style={{ 
-                fontSize: '0.75rem', 
-                backgroundColor: '#f39c12',
-                color: '#000',
-                padding: '2px 6px',
-                borderRadius: '3px',
-                fontWeight: 'bold'
-              }}>
-                BETA
-              </span>
-              <div style={{ fontSize: '0.875rem', color: '#888', marginLeft: 'auto' }}>
+              <span className="ai-beta-badge">BETA</span>
+              <div className="ai-page-description">
                 Natural language drone control and mission planning
               </div>
             </div>
-            <div style={{ flex: 1, padding: '1rem' }}>
-              <AIInterface 
+            <div className="ai-page-content">
+              <AIInterface
                 droneAPI={droneAPI}
                 droneStatus={droneStatus}
               />
@@ -513,8 +485,8 @@ const App: React.FC = () => {
           </div>
         </main>
       ) : (
-        <main style={{ flex: 1, overflow: 'hidden' }}>
-          <DevPage 
+        <main className="page-main">
+          <DevPage
             ros={null}
             isConnected={isConnected}
           />
@@ -525,12 +497,12 @@ const App: React.FC = () => {
       <footer className="bottom-status-bar">
         <div className="status-bar-left">
         </div>
-        
+
         <div className="status-bar-right">
-          <span className="status-item battery" style={{
-            color: droneStatus.battery > 50 ? '#00ff88' : 
-                   droneStatus.battery > 25 ? '#ff8800' : '#ff4444'
-          }}>
+          <span className={`status-item battery ${
+            droneStatus.battery > 50 ? 'battery-good' :
+            droneStatus.battery > 25 ? 'battery-warning' : 'battery-critical'
+          }`}>
             🔋 {droneStatus.battery}%
           </span>
         </div>
