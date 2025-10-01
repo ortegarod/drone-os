@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import AIInterface from './components/AIInterface';
 import SimpleCameraFeed from './components/SimpleCameraFeed';
 import TelemetryPage from './components/TelemetryPage';
@@ -21,7 +22,6 @@ import { createDroneAPI } from './api/droneAPI';
 import './App.css';
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'main' | 'telemetry' | 'map' | 'ai' | 'dev'>('main');
   const [droneStatus, setDroneStatus] = useState<DroneStatus>({
     drone_name: 'drone1',
     connected: false,
@@ -171,169 +171,179 @@ const App: React.FC = () => {
   }), [droneStatus.drone_name]);
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="header-nav-container">
-          <h1>DroneOS Command Center</h1>
-          <nav className="header-nav">
-            <button
-              className={`nav-btn ${currentPage === 'main' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('main')}
-            >
-              Main Dashboard
-            </button>
-            <button
-              className={`nav-btn ${currentPage === 'telemetry' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('telemetry')}
-            >
-              Status
-            </button>
-            <button
-              className={`nav-btn ${currentPage === 'map' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('map')}
-            >
-              Drone Map
-            </button>
-            <button
-              className={`nav-btn ${currentPage === 'ai' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('ai')}
-            >
-              AI Assistant <span className="nav-beta-label">(BETA)</span>
-            </button>
-            <button
-              className={`nav-btn ${currentPage === 'dev' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('dev')}
-            >
-              Dev
-            </button>
-          </nav>
-        </div>
-        <div className="connection-status">
-          {/* Unit System Selector */}
-          <div className="unit-selector-container">
-            <label className="unit-selector-label">Units:</label>
-            <select
-              value={unitSystem}
-              onChange={(e) => changeUnitSystem(e.target.value as UnitSystem)}
-              className="unit-selector"
-            >
-              <option value="metric">Metric (m)</option>
-              <option value="imperial">Imperial (ft)</option>
-            </select>
+    <Router>
+      <div className="app">
+        <header className="app-header">
+          <div className="header-nav-container">
+            <h1>DroneOS Command Center</h1>
+            <nav className="header-nav">
+              <NavLink
+                to="/"
+                className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}
+              >
+                Main Dashboard
+              </NavLink>
+              <NavLink
+                to="/telemetry"
+                className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}
+              >
+                Status
+              </NavLink>
+              <NavLink
+                to="/map"
+                className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}
+              >
+                Drone Map
+              </NavLink>
+              <NavLink
+                to="/ai"
+                className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}
+              >
+                AI Assistant <span className="nav-beta-label">(BETA)</span>
+              </NavLink>
+              <NavLink
+                to="/dev"
+                className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}
+              >
+                Dev
+              </NavLink>
+            </nav>
           </div>
+          <div className="connection-status">
+            {/* Unit System Selector */}
+            <div className="unit-selector-container">
+              <label className="unit-selector-label">Units:</label>
+              <select
+                value={unitSystem}
+                onChange={(e) => changeUnitSystem(e.target.value as UnitSystem)}
+                className="unit-selector"
+              >
+                <option value="metric">Metric (m)</option>
+                <option value="imperial">Imperial (ft)</option>
+              </select>
+            </div>
 
-          <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
-            {isConnected ? '🟢 Connected to rosbridge' : '🔴 Disconnected from rosbridge'}
-          </span>
-        </div>
-      </header>
+            <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+              {isConnected ? '🟢 Connected to rosbridge' : '🔴 Disconnected from rosbridge'}
+            </span>
+          </div>
+        </header>
 
-      {/* Top Status Bar */}
-      <TopStatusBar droneStatus={droneStatus} unitSystem={unitSystem} />
+        {/* Top Status Bar */}
+        <TopStatusBar droneStatus={droneStatus} unitSystem={unitSystem} />
 
-      {currentPage === 'main' ? (
-        <div className="app-main-new">
-          {/* Main content area */}
-          <div className="main-content">
-            {/* Center area for camera feed only */}
-            <div className="center-area">
-              <SimpleCameraFeed 
+        <Routes>
+          <Route path="/" element={
+            <div className="app-main-new">
+              {/* Main content area */}
+              <div className="main-content">
+                {/* Center area for camera feed only */}
+                <div className="center-area">
+                  <SimpleCameraFeed
+                    droneAPI={droneAPI}
+                    isConnected={isConnected}
+                    droneStatus={droneStatus}
+                    unitSystem={unitSystem}
+                  />
+                </div>
+
+                {/* Right panel container for both MiniMap and RuneScape menu */}
+                <div className="right-panel-container">
+                  <TargetStatusDisplay
+                    droneStatus={droneStatus}
+                    unitSystem={unitSystem}
+                    convertDistance={convertDistance}
+                    getDistanceUnit={getDistanceUnit}
+                  />
+                  {/* MiniMap in its own container */}
+                  <div className="minimap-container">
+                    <MiniMap
+                      droneAPI={droneAPI}
+                      droneStatus={droneStatus}
+                      availableDrones={availableDrones}
+                      unitSystem={unitSystem}
+                      targetAltitude={targetAltitude}
+                    />
+                  </div>
+
+                  {/* Altitude Control Slider */}
+                  <AltitudeControl
+                    targetAltitude={targetAltitude}
+                    setTargetAltitude={setTargetAltitude}
+                    maxAltitude={maxAltitude}
+                    setMaxAltitude={setMaxAltitude}
+                  />
+
+                  {/* RuneScape-style menu */}
+                  <div className="right-menu">
+                    <RuneScapeMenu
+                      droneAPI={droneAPI}
+                      droneStatus={droneStatus}
+                      unitSystem={unitSystem}
+                      availableDrones={availableDrones}
+                      isConnected={isConnected}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          } />
+
+          <Route path="/telemetry" element={
+            <main className="page-main">
+              <TelemetryPage
                 droneAPI={droneAPI}
+                droneStatus={droneStatus}
+                unitSystem={unitSystem}
+              />
+            </main>
+          } />
+
+          <Route path="/map" element={
+            <main className="page-main">
+              <DroneMap
+                droneAPI={droneAPI}
+                droneStatus={droneStatus}
+                availableDrones={availableDrones}
+                unitSystem={unitSystem}
+              />
+            </main>
+          } />
+
+          <Route path="/ai" element={
+            <main className="page-main">
+              <div className="ai-page-container">
+                <div className="ai-page-header">
+                  <h2>🤖 AI Assistant</h2>
+                  <span className="ai-beta-badge">BETA</span>
+                  <div className="ai-page-description">
+                    Natural language drone control and mission planning
+                  </div>
+                </div>
+                <div className="ai-page-content">
+                  <AIInterface
+                    droneAPI={droneAPI}
+                    droneStatus={droneStatus}
+                  />
+                </div>
+              </div>
+            </main>
+          } />
+
+          <Route path="/dev" element={
+            <main className="page-main">
+              <DevPage
+                ros={null}
                 isConnected={isConnected}
-                droneStatus={droneStatus}
-                unitSystem={unitSystem}
               />
-            </div>
+            </main>
+          } />
+        </Routes>
 
-            {/* Right panel container for both MiniMap and RuneScape menu */}
-            <div className="right-panel-container">
-              <TargetStatusDisplay
-                droneStatus={droneStatus}
-                unitSystem={unitSystem}
-                convertDistance={convertDistance}
-                getDistanceUnit={getDistanceUnit}
-              />
-              {/* MiniMap in its own container */}
-              <div className="minimap-container">
-                <MiniMap 
-                  droneAPI={droneAPI}
-                  droneStatus={droneStatus}
-                  availableDrones={availableDrones}
-                  unitSystem={unitSystem}
-                  targetAltitude={targetAltitude}
-                />
-              </div>
-              
-              {/* Altitude Control Slider */}
-              <AltitudeControl
-                targetAltitude={targetAltitude}
-                setTargetAltitude={setTargetAltitude}
-                maxAltitude={maxAltitude}
-                setMaxAltitude={setMaxAltitude}
-              />
-              
-              {/* RuneScape-style menu */}
-              <div className="right-menu">
-                <RuneScapeMenu
-                  droneAPI={droneAPI}
-                  droneStatus={droneStatus}
-                  unitSystem={unitSystem}
-                  availableDrones={availableDrones}
-                  isConnected={isConnected}
-                />
-              </div>
-            </div>
-          </div>
-
-
-        </div>
-      ) : currentPage === 'telemetry' ? (
-        <main className="page-main">
-          <TelemetryPage
-            droneAPI={droneAPI}
-            droneStatus={droneStatus}
-            unitSystem={unitSystem}
-          />
-        </main>
-      ) : currentPage === 'map' ? (
-        <main className="page-main">
-          <DroneMap
-            droneAPI={droneAPI}
-            droneStatus={droneStatus}
-            availableDrones={availableDrones}
-            unitSystem={unitSystem}
-          />
-        </main>
-      ) : currentPage === 'ai' ? (
-        <main className="page-main">
-          <div className="ai-page-container">
-            <div className="ai-page-header">
-              <h2>🤖 AI Assistant</h2>
-              <span className="ai-beta-badge">BETA</span>
-              <div className="ai-page-description">
-                Natural language drone control and mission planning
-              </div>
-            </div>
-            <div className="ai-page-content">
-              <AIInterface
-                droneAPI={droneAPI}
-                droneStatus={droneStatus}
-              />
-            </div>
-          </div>
-        </main>
-      ) : (
-        <main className="page-main">
-          <DevPage
-            ros={null}
-            isConnected={isConnected}
-          />
-        </main>
-      )}
-
-      {/* Bottom Status Bar */}
-      <BottomStatusBar droneStatus={droneStatus} />
-    </div>
+        {/* Bottom Status Bar */}
+        <BottomStatusBar droneStatus={droneStatus} />
+      </div>
+    </Router>
   );
 };
 
