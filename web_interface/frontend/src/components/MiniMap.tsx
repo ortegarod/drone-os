@@ -435,7 +435,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
     }
 
     setIsLoading(true);
-    setMessage(`Moving ${droneStatus.drone_name} to clicked location...`);
+    setMessage(`Moving ${droneStatus.drone_name || 'drone'} to clicked location...`);
 
     try {
       // Get current drone state for local coordinates

@@ -238,6 +238,17 @@ export class RosbridgeClient {
   async callSetOffboardService(droneNamespace: string): Promise<ServiceResponse> {
     return this.services.callSetOffboardService(droneNamespace);
   }
+
+  /**
+   * Discovers available drones by querying ROS topics.
+   * Delegates to ServiceManager.
+   *
+   * @async
+   * @returns {Promise<string[]>} Array of drone namespaces
+   */
+  async discoverDrones(): Promise<string[]> {
+    return this.services.discoverDrones();
+  }
 }
 
 /**

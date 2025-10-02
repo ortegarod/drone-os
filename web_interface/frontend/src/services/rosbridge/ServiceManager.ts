@@ -264,4 +264,73 @@ export class ServiceManager {
       });
     });
   }
+
+  /**
+   * Discovers available drones by querying ROS topics via rosapi.
+   *
+   * Looks for topics matching the pattern `/<namespace>/drone_state` and
+   * extracts the namespace to identify available drones.
+   *
+   * **How it works:**
+   * 1. Calls /rosapi/topics service to get all ROS topics
+   * 2. Filters for topics ending with `/drone_state`
+   * 3. Extracts namespace (e.g., `/drone1/drone_state` → `drone1`)
+   * 4. Returns list of discovered drone namespaces
+   *
+   * **Requirements:**
+   * - rosbridge_suite must be running with rosapi enabled
+   * - Drones must publish to `/<namespace>/drone_state` topics
+   *
+   * @public
+   * @async
+   * @returns {Promise<string[]>} Array of drone namespaces (e.g., ['drone1', 'drone2'])
+   *
+   * @example
+   * ```typescript
+   * const drones = await serviceManager.discoverDrones();
+   * console.log('Found drones:', drones);  // ['drone1', 'drone2', 'px4_1']
+   * ```
+   */
+  async discoverDrones(): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      const ros = this.client.getRos();
+      if (!ros || !this.client.getConnectionStatus()) {
+        reject(new Error('Not connected to rosbridge'));
+        return;
+      }
+
+      // Use rosapi service to get all topics
+      const topicsClient = new ROSLIB.Service({
+        ros: ros,
+        name: '/rosapi/topics',
+        serviceType: 'rosapi/Topics'
+      });
+
+      const request = new ROSLIB.ServiceRequest({});
+
+      topicsClient.callService(request, (result: any) => {
+        try {
+          // result.topics is an array of topic names
+          const topics: string[] = result.topics || [];
+
+          // Filter for drone_state topics and extract namespaces
+          const droneNamespaces = topics
+            .filter(topic => topic.endsWith('/drone_state'))
+            .map(topic => {
+              // Extract namespace from topic like "/drone1/drone_state"
+              const parts = topic.split('/');
+              return parts[1]; // Returns "drone1"
+            })
+            .filter(ns => ns && ns.length > 0); // Remove empty strings
+
+          console.log('[ServiceManager] Discovered drones:', droneNamespaces);
+          resolve(droneNamespaces);
+        } catch (error) {
+          reject(new Error(`Failed to parse topics: ${error}`));
+        }
+      }, (error: string) => {
+        reject(new Error(`Failed to get topics from rosapi: ${error}`));
+      });
+    });
+  }
 }

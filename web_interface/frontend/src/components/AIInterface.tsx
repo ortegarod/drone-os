@@ -146,7 +146,7 @@ const AIInterface: React.FC<AIInterfaceProps> = ({ droneAPI, droneStatus }) => {
         fontSize: '0.75rem'
       }}>
         <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Current Context:</div>
-        <div>Drone: {droneStatus.drone_name}</div>
+        <div>Drone: {droneStatus.drone_name || 'No drone selected'}</div>
         <div>Status: {droneStatus.armed ? 'Armed' : 'Disarmed'} • {droneStatus.flight_mode}</div>
         <div>Position: ({droneStatus.position.x.toFixed(1)}, {droneStatus.position.y.toFixed(1)}, {droneStatus.position.z.toFixed(1)})</div>
       </div>

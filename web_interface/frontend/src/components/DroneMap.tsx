@@ -397,7 +397,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
     }
 
     setIsLoading(true);
-    setMessage(`Moving ${droneStatus.drone_name} to clicked location...`);
+    setMessage(`Moving ${droneStatus.drone_name || 'drone'} to clicked location...`);
 
     try {
       const state = await droneAPI.getState();
@@ -418,7 +418,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
       const result = await droneAPI.setPositionAutoYaw(targetX, targetY, targetZ);
       
       if (result.success) {
-        setMessage(`✓ Move command sent to ${droneStatus.drone_name}`);
+        setMessage(`✓ Move command sent to ${droneStatus.drone_name || 'drone'}`);
         setTimeout(() => {
           setMessage('');
           // Remove target pin after successful move
@@ -559,7 +559,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
         color: '#888',
         borderTop: '1px solid #444'
       }}>
-        Click on map to drop a waypoint pin and move {droneStatus.drone_name} • Red marker = current target • Blue markers = other drones • Real-time position updates at 10Hz
+        Click on map to drop a waypoint pin and move {droneStatus.drone_name || 'selected drone'} • Red marker = current target • Blue markers = other drones • Real-time position updates at 10Hz
       </div>
     </div>
   );

@@ -284,7 +284,7 @@ export const RealTimeStatusBar: React.FC<StatusBarProps> = ({
           )}
           
           <div className="text-xs text-gray-500">
-            {droneState.drone_name}
+            {droneState.drone_name || 'No drone'}
           </div>
         </div>
       </div>

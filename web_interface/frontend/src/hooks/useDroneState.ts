@@ -3,11 +3,14 @@ import { rosbridgeClient } from '../services/rosbridgeClient';
 import { DroneStatus } from '../types/drone';
 
 /**
- * Custom hook to manage drone state and subscriptions
+ * Custom hook to manage drone state and subscriptions.
+ *
+ * Drone name is set dynamically by useDroneDiscovery when drones are discovered.
+ * Initial state has empty drone_name until discovery completes.
  */
 export const useDroneState = (isConnected: boolean) => {
   const [droneStatus, setDroneStatus] = useState<DroneStatus>({
-    drone_name: 'drone1',
+    drone_name: '',  // Will be set by discovery
     connected: false,
     armed: false,
     flight_mode: 'UNKNOWN',
@@ -43,19 +46,32 @@ export const useDroneState = (isConnected: boolean) => {
     }
   }, [droneStatus.drone_name]);
 
-  // Function to start subscription to drone state
-  const startDroneStateSubscription = useCallback(() => {
+  // Handle drone name changes - restart subscription for new drone
+  useEffect(() => {
+    if (!isConnected || !droneStatus.drone_name) {
+      return;
+    }
+
     // Clear any existing subscription
     if (droneStateSub) {
       rosbridgeClient.unsubscribeFromDroneState(droneStateSub);
     }
 
+    console.log(`[useDroneState] Subscribing to drone state for: ${droneStatus.drone_name}`);
+
     // Subscribe to drone state updates
     const subscriptionId = rosbridgeClient.subscribeToDroneState(
       droneStatus.drone_name,
       (state) => {
+        console.log(`[useDroneState] Received state update for ${droneStatus.drone_name}:`, {
+          armed: state.arming_state,
+          mode: state.nav_state,
+          battery: state.battery_remaining,
+          pos_z: state.local_z
+        });
         setDroneStatus(prev => ({
           ...prev,
+          drone_name: droneStatus.drone_name, // Ensure drone_name stays set
           connected: true,
           armed: state.arming_state === 'ARMED',
           flight_mode: state.nav_state || 'UNKNOWN',
@@ -72,13 +88,13 @@ export const useDroneState = (isConnected: boolean) => {
     );
 
     setDroneStateSub(subscriptionId);
-  }, [droneStatus.drone_name, droneStateSub]);
 
-  // Handle drone name changes - restart subscription for new drone
-  useEffect(() => {
-    if (isConnected) {
-      startDroneStateSubscription();
-    }
+    // Cleanup on unmount or when drone changes
+    return () => {
+      if (subscriptionId) {
+        rosbridgeClient.unsubscribeFromDroneState(subscriptionId);
+      }
+    };
   }, [isConnected, droneStatus.drone_name]);
 
   // Function to set target drone

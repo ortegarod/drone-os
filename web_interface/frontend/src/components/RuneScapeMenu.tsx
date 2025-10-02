@@ -197,7 +197,7 @@ const RuneScapeMenu: React.FC<RuneScapeMenuProps> = ({ droneAPI, droneStatus, av
             <div className="drone-header">
               <span className="drone-icon">🎯</span>
               <div className="drone-info">
-                <div className="drone-name">{droneStatus.drone_name}</div>
+                <div className="drone-name">{droneStatus.drone_name || 'No drone selected'}</div>
                 <div className="drone-subtitle">Current Target</div>
               </div>
               <div className={`drone-status ${droneStatus.connected ? 'online' : 'offline'}`}>

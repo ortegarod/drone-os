@@ -15,7 +15,9 @@ const TargetStatusDisplay: React.FC<TargetStatusDisplayProps> = ({ droneStatus }
     }}>
       <div className="status-section">
         <span className="status-label">Target:</span>
-        <span className="status-value">{droneStatus.drone_name}</span>
+        <span className="status-value">
+          {droneStatus.drone_name || 'Discovering drones...'}
+        </span>
       </div>
       <div className="status-section">
         <span className="status-label">Mode:</span>
