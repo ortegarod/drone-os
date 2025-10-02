@@ -1,5 +1,6 @@
 import React from 'react';
 import { DroneStatus } from '../types/drone';
+import styles from './TopStatusBar.module.css';
 
 interface TopStatusBarProps {
   droneStatus: DroneStatus;
@@ -7,44 +8,44 @@ interface TopStatusBarProps {
 
 const TopStatusBar: React.FC<TopStatusBarProps> = ({ droneStatus }) => {
   return (
-    <div className="top-status-bar">
-      <div className="status-row">
-        <div className="status-section">
-          <span className="status-label">Last Update:</span>
-          <span className="status-value">
+    <div className={styles.statusBar}>
+      <div className={styles.statusRow}>
+        <div className={styles.statusSection}>
+          <span className={styles.statusLabel}>Last Update:</span>
+          <span className={styles.statusValue}>
             {droneStatus.timestamp ? new Date(droneStatus.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'NEVER'}
           </span>
         </div>
 
-        <div className="status-section">
-          <span className="status-label">Connection:</span>
-          <span className={`status-value ${droneStatus.connected ? 'status-connected' : 'status-disconnected'}`}>
+        <div className={styles.statusSection}>
+          <span className={styles.statusLabel}>Connection:</span>
+          <span className={`${styles.statusValue} ${droneStatus.connected ? styles.statusConnected : styles.statusDisconnected}`}>
             {droneStatus.connected ? 'ACTIVE' : 'INACTIVE'}
           </span>
         </div>
 
-        <div className="status-section">
-          <span className="status-label">Armed:</span>
-          <span className={`status-value ${droneStatus.armed ? 'status-armed' : 'status-disarmed'}`}>
+        <div className={styles.statusSection}>
+          <span className={styles.statusLabel}>Armed:</span>
+          <span className={`${styles.statusValue} ${droneStatus.armed ? styles.statusArmed : styles.statusDisarmed}`}>
             {droneStatus.armed ? 'ARMED' : 'DISARMED'}
           </span>
         </div>
 
-        <div className="status-section">
-          <span className="status-label">Mode:</span>
-          <span className="status-value">{droneStatus.flight_mode}</span>
+        <div className={styles.statusSection}>
+          <span className={styles.statusLabel}>Mode:</span>
+          <span className={styles.statusValue}>{droneStatus.flight_mode}</span>
         </div>
 
-        <div className="status-section">
-          <span className="status-label">Position:</span>
-          <span className="status-value">
+        <div className={styles.statusSection}>
+          <span className={styles.statusLabel}>Position:</span>
+          <span className={styles.statusValue}>
             ({droneStatus.position.x.toFixed(2)}, {droneStatus.position.y.toFixed(2)}, {Math.abs(droneStatus.position.z).toFixed(2)}) m
           </span>
         </div>
 
-        <div className="status-section">
-          <span className="status-label">Heading:</span>
-          <span className="status-value">{droneStatus.position.yaw.toFixed(2)} RAD</span>
+        <div className={styles.statusSection}>
+          <span className={styles.statusLabel}>Heading:</span>
+          <span className={styles.statusValue}>{droneStatus.position.yaw.toFixed(2)} RAD</span>
         </div>
       </div>
     </div>

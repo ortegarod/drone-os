@@ -1,0 +1,56 @@
+/* Status Bar - Compact Military Style */
+.statusBar {
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #555;
+  padding: 0.2rem 1rem;
+  font-family: monospace;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.1rem 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-wrap: wrap;
+}
+
+.statusSection {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid #444;
+  background-color: #333;
+  border-radius: 2px;
+  font-family: monospace;
+  font-size: 0.7rem;
+}
+
+.statusLabel {
+  color: #aaa;
+  font-weight: 500;
+}
+
+.statusValue {
+  color: #fff;
+  font-weight: 600;
+}
+
+.statusConnected {
+  color: #fff !important;
+}
+
+.statusDisconnected {
+  color: #999 !important;
+}
+
+.statusArmed {
+  color: #fff !important;
+}
+
+.statusDisarmed {
+  color: #999 !important;
+}
