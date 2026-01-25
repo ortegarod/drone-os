@@ -211,7 +211,6 @@ services:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - ROS_DOMAIN_ID=0
       - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
-      - FASTRTPS_WHITELIST_INTERFACES=all
     volumes:
       - ../../fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
       - ../../install:/root/ws_droneOS/install:ro

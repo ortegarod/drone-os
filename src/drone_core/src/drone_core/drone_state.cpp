@@ -102,7 +102,7 @@ DroneState::DroneState(rclcpp::Node* node, const std::string& ns, const std::str
     // Create publisher for aggregated drone state
     std::string state_topic = "/" + name_ + "/drone_state";
     state_pub_ = node_->create_publisher<drone_interfaces::msg::DroneState>(
-        state_topic, rclcpp::QoS(10).reliable());
+        state_topic, rclcpp::QoS(10).best_effort());
     RCLCPP_INFO(node_->get_logger(), "[%s][State] Publishing to %s", name_.c_str(), state_topic.c_str());
 
     // Create timer to publish state at 10Hz
