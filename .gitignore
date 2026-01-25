@@ -19,6 +19,9 @@ venv
 web_interface/frontend/build/
 web_interface/frontend/install/
 
+# PX4 Autopilot (local reference only)
+PX4-Autopilot/
+
 # Python cache files
 __pycache__/
 *.py[cod]

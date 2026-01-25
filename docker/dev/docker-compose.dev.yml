@@ -166,6 +166,65 @@ services:
           # Start camera node
           ros2 run camera_ros camera_node --ros-args -p camera:=0 -p width:=1280 -p height:=720 -p format:=XRGB8888 -p frame_id:="drone1_camera_link" -p camera_info_url:="file:///root/.ros/camera_info/drone1_camera.yaml"
 
+  # --- Simulated Camera Service (for SITL/Gazebo) ---
+  # Bridges Gazebo camera to ROS2 and serves MJPEG stream
+  # Use this instead of camera_service when running simulation
+  sim_camera:
+    build:
+      context: .
+      dockerfile: sim_camera.dev.Dockerfile
+    container_name: sim_camera_node
+    network_mode: "host"
+    restart: unless-stopped
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      - FASTRTPS_WHITELIST_INTERFACES=all
+      # Gazebo camera topic to bridge (default: /camera)
+      - GZ_CAMERA_TOPIC=/camera
+    volumes:
+      - ../../fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
+    command:
+      - bash
+      - -c
+      - |
+        . /opt/ros/humble/setup.bash
+        # Start web_video_server in background
+        ros2 run web_video_server web_video_server --ros-args \
+          -p port:=8080 \
+          -p default_stream_type:='mjpeg' \
+          -p quality:=80 \
+          -p framerate:=30 &
+        # Bridge Gazebo camera topic to ROS2
+        # The topic name comes from the Gazebo model (x500_mono_cam uses /camera)
+        ros2 run ros_gz_image image_bridge ${GZ_CAMERA_TOPIC:-/camera}
+
+  # --- Rosbridge Server (for Web UI) ---
+  # Provides WebSocket/JSON interface to ROS2 for the web frontend
+  rosbridge:
+    image: ros:humble
+    container_name: rosbridge_server
+    network_mode: "host"
+    restart: unless-stopped
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+      - FASTRTPS_WHITELIST_INTERFACES=all
+    volumes:
+      - ../../fastdds_config.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../install:/root/ws_droneOS/install:ro
+    command:
+      - bash
+      - -c
+      - |
+        apt-get update && apt-get install -y ros-humble-rosbridge-suite
+        . /opt/ros/humble/setup.bash
+        . /root/ws_droneOS/install/setup.bash 2>/dev/null || true
+        echo 'Starting rosbridge on port 9090...'
+        ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090
+
   # --- AI Agent System Service ---
   agent_system:
     env_file:
