@@ -98,6 +98,16 @@ DroneState::DroneState(rclcpp::Node* node, const std::string& ns, const std::str
     
     // Initialize flight timer
     flight_start_time_ = std::chrono::steady_clock::now();
+
+    // Create publisher for aggregated drone state
+    std::string state_topic = "/" + name_ + "/drone_state";
+    state_pub_ = node_->create_publisher<drone_interfaces::msg::DroneState>(
+        state_topic, rclcpp::QoS(10).reliable());
+    RCLCPP_INFO(node_->get_logger(), "[%s][State] Publishing to %s", name_.c_str(), state_topic.c_str());
+
+    // Create timer to publish state at 10Hz
+    publish_timer_ = node_->create_wall_timer(
+        100ms, std::bind(&DroneState::publish_state, this));
 }
 
 /**
@@ -636,4 +646,109 @@ uint32_t DroneState::get_flight_time_elapsed() const {
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - flight_start_time_);
     return static_cast<uint32_t>(elapsed.count());
+}
+
+void DroneState::publish_state() {
+    drone_interfaces::msg::DroneState msg;
+
+    msg.header.stamp = node_->get_clock()->now();
+    msg.header.frame_id = "base_link";
+    msg.drone_name = name_;
+
+    // Position
+    float x, y, z;
+    msg.position_valid = get_latest_local_position(x, y, z);
+    msg.local_x = x;
+    msg.local_y = y;
+    msg.local_z = z;
+    msg.local_yaw = std::isnan(get_latest_local_yaw()) ? 0.0f : get_latest_local_yaw();
+    msg.compass_heading = get_latest_compass_heading();
+
+    // Velocity
+    float vx, vy, vz;
+    msg.velocity_valid = get_latest_local_velocity(vx, vy, vz);
+    msg.velocity_x = vx;
+    msg.velocity_y = vy;
+    msg.velocity_z = vz;
+
+    // State
+    msg.nav_state = nav_state_enum_to_string(get_nav_state());
+    msg.arming_state = arming_state_enum_to_string(get_arming_state());
+    msg.landing_state = landing_state_enum_to_string(get_landing_state());
+
+    // Global position
+    double lat, lon;
+    float alt;
+    msg.global_position_valid = get_latest_global_position(lat, lon, alt);
+    msg.latitude = lat;
+    msg.longitude = lon;
+    msg.altitude = alt;
+
+    // Battery
+    BatteryData battery;
+    if (get_battery_data(battery)) {
+        msg.battery_voltage = battery.voltage;
+        msg.battery_current = battery.current;
+        msg.battery_remaining = battery.remaining;
+        msg.battery_time_remaining = battery.time_remaining;
+        msg.battery_temperature = battery.temperature;
+        msg.battery_warning = battery.warning;
+        msg.battery_valid = battery.valid;
+    } else {
+        msg.battery_valid = false;
+        msg.battery_warning = "UNKNOWN";
+    }
+
+    // GPS
+    GpsData gps;
+    if (get_gps_data(gps)) {
+        msg.gps_fix_type = gps.fix_type;
+        msg.gps_satellites_used = gps.satellites_used;
+        msg.gps_hdop = gps.hdop;
+        msg.gps_vdop = gps.vdop;
+        msg.gps_accuracy_horizontal = gps.accuracy_horizontal;
+        msg.gps_accuracy_vertical = gps.accuracy_vertical;
+        msg.gps_jamming_detected = gps.jamming_detected;
+        msg.gps_spoofing_detected = gps.spoofing_detected;
+    }
+
+    // Failsafe
+    FailsafeData failsafe;
+    if (get_failsafe_data(failsafe)) {
+        msg.system_health_score = failsafe.system_health_score;
+        msg.active_warnings = failsafe.active_warnings;
+        msg.critical_failures = failsafe.critical_failures;
+        msg.can_arm = !failsafe.battery_unhealthy && !failsafe.manual_control_lost;
+        msg.manual_control_lost = failsafe.manual_control_lost;
+        msg.gcs_connection_lost = failsafe.gcs_connection_lost;
+        msg.geofence_breached = failsafe.geofence_breached;
+        msg.geofence_status = failsafe.geofence_breached ? "OUTSIDE" : "INSIDE";
+    } else {
+        msg.system_health_score = 0.0f;
+        msg.can_arm = false;
+        msg.geofence_status = "UNKNOWN";
+    }
+
+    // Telemetry
+    TelemetryData telemetry;
+    if (get_telemetry_data(telemetry)) {
+        msg.rc_signal_strength = telemetry.rc_signal_strength;
+        msg.rc_signal_valid = telemetry.rc_signal_valid;
+        msg.telemetry_link_quality = telemetry.telemetry_link_quality;
+        msg.packet_loss_rate = telemetry.packet_loss_rate;
+    }
+
+    // Wind
+    WindData wind;
+    if (get_wind_data(wind)) {
+        msg.wind_speed = wind.speed;
+        msg.wind_direction = wind.direction;
+    }
+
+    // Flight time
+    msg.altitude_rate = vz;
+    msg.flight_time_elapsed = get_flight_time_elapsed();
+    msg.flight_time_limit = 1800;
+
+    state_pub_->publish(msg);
 } 

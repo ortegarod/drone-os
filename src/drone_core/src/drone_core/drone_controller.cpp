@@ -116,7 +116,7 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), get_mission_status_service_->get_service_name());
 
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] All services created.", name_.c_str());
-    
+
     // Set offboard control reference in mission manager for waypoint execution
     mission_manager_->set_offboard_control(offboard_control_.get());
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Mission manager configured with offboard control.", name_.c_str());

@@ -189,7 +189,7 @@ private:
     rclcpp::Service<drone_interfaces::srv::UploadMission>::SharedPtr upload_mission_service_;
     rclcpp::Service<drone_interfaces::srv::MissionControl>::SharedPtr mission_control_service_;
     rclcpp::Service<drone_interfaces::srv::GetMissionStatus>::SharedPtr get_mission_status_service_;
-    
+
     // TODO: Add services for RTL, SetBehavior, etc. later
 
     /**

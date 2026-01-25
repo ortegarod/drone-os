@@ -19,6 +19,7 @@
 
 // Include shared state enums
 #include "drone_core/utils/state_enums.hpp"
+#include <drone_interfaces/msg/drone_state.hpp>
 
 /**
  * @class DroneState
@@ -162,10 +163,15 @@ public:
     uint32_t get_flight_time_elapsed() const;
 
 private:
-    // --- ROS Communication --- 
+    // --- ROS Communication ---
     rclcpp::Node* node_; ///< Pointer to the parent ROS node
     std::string ns_;     ///< PX4 namespace
     std::string name_;   ///< Drone name for logging
+
+    // Publisher for aggregated drone state (for web UI via rosbridge)
+    rclcpp::Publisher<drone_interfaces::msg::DroneState>::SharedPtr state_pub_;
+    rclcpp::TimerBase::SharedPtr publish_timer_;
+    void publish_state();
 
     // Subscriptions
     rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr status_sub_;

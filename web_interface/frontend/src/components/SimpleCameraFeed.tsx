@@ -29,12 +29,12 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
   const imgRef = useRef<HTMLImageElement>(null);
   const [status, setStatus] = useState<string>('Connecting...');
   const [currentPreset, setCurrentPreset] = useState<VideoSettings>(videoPresets[1]); // Default to 240p Low
-  const [streamUrl, setStreamUrl] = useState<string>(`http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera/image_raw&type=mjpeg&width=320&height=240&quality=30&qos_profile=sensor_data`);
+  const [streamUrl, setStreamUrl] = useState<string>(`http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera&type=mjpeg&width=320&height=240&quality=30`);
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
   // Update stream URL when preset changes
   const updateStreamUrl = (preset: VideoSettings) => {
-    const newUrl = `http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera/image_raw&type=mjpeg&width=${preset.width}&height=${preset.height}&quality=${preset.quality}&qos_profile=sensor_data`;
+    const newUrl = `http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera&type=mjpeg&width=${preset.width}&height=${preset.height}&quality=${preset.quality}`;
     setStreamUrl(newUrl);
     setCurrentPreset(preset);
   };

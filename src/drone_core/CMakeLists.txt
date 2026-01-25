@@ -22,7 +22,6 @@ add_library(drone_core_lib
   src/drone_core/drone_agent.cpp
   src/drone_core/offboard_control.cpp
   src/drone_core/drone_state.cpp
-  src/drone_core/drone_state_publisher.cpp
   src/drone_core/mission_manager.cpp
   src/drone_core/failsafe_monitor.cpp
   src/utils/state_enums.cpp
@@ -46,19 +45,6 @@ target_link_libraries(drone_core
     drone_core_lib # Links against DroneController implementation
 )
 
-# --- Telemetry Publisher Node (For Rosbridge Integration) ---
-add_executable(telemetry_publisher
-    src/telemetry_publisher_node.cpp
-)
-target_include_directories(telemetry_publisher PUBLIC include)
-ament_target_dependencies(telemetry_publisher
-    rclcpp
-    drone_interfaces
-)
-target_link_libraries(telemetry_publisher
-    drone_core_lib
-)
-
 # Install targets
 install(TARGETS
   drone_core_lib
@@ -68,7 +54,6 @@ install(TARGETS
 )
 install(TARGETS
   drone_core
-  telemetry_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
 

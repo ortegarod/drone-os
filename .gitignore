@@ -26,3 +26,6 @@ PX4-Autopilot/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Claude
+CLAUDE.md
