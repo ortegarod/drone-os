@@ -189,6 +189,13 @@ export class RosbridgeClient {
     return this.topics.getActiveSubscriptions();
   }
 
+  /**
+   * Returns the raw ROSLIB.Ros instance.
+   */
+  getRos(): any {
+    return this.core.getRos();
+  }
+
   // ========== Service Methods ==========
 
   /**

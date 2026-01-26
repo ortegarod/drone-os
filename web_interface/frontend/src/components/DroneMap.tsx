@@ -156,7 +156,7 @@ const DroneMap: React.FC<DroneMapProps> = ({ droneAPI, droneStatus, availableDro
 
     // Subscribe to each drone's state topic
     availableDrones.forEach(droneName => {
-      const namespace = droneName === 'drone1' ? 'px4_1' : `px4_${droneName.replace('drone', '')}`;
+      const namespace = droneName;
       const topicName = `/${namespace}/drone_state`;
       
       console.log(`DroneMap: Subscribing to ${topicName} for ${droneName}`);

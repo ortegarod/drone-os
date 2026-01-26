@@ -7,7 +7,7 @@ export interface DroneAPIConfig {
 }
 
 export const createDroneAPI = (config: DroneAPIConfig) => ({
-  ros: null, // Keep null to indicate we're using rosbridgeClient instead of ROSLIB
+  get ros() { return rosbridgeClient.getRos(); }, // Return actual ROSLIB.Ros instance
 
   // Basic flight commands using our rosbridgeClient
   arm: async () => {

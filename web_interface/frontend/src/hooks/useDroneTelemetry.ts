@@ -34,7 +34,7 @@ export interface TelemetryActions {
 }
 
 const DEFAULT_OPTIONS: Required<TelemetryOptions> = {
-  droneNamespace: 'px4_1',
+  droneNamespace: 'drone1',
   autoConnect: true,
   retryOnError: true,
   cacheData: true,

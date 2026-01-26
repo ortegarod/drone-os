@@ -76,7 +76,7 @@ const ConnectionIndicator: React.FC<{ status: ConnectionStatus }> = ({ status })
 };
 
 export const RealTimeStatusBar: React.FC<StatusBarProps> = ({
-  droneNamespace = 'px4_1',
+  droneNamespace = 'drone1',
   className = '',
   showDetailedStatus = false
 }) => {

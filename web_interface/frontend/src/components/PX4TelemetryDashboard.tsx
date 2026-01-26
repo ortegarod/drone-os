@@ -152,7 +152,7 @@ interface FailsafeFlags {
   fd_motor_failure: boolean;
 }
 
-const PX4TelemetryDashboard: React.FC<PX4TelemetryProps> = ({ droneAPI, droneName = 'px4_1' }) => {
+const PX4TelemetryDashboard: React.FC<PX4TelemetryProps> = ({ droneAPI, droneName = 'drone1' }) => {
   const [vehicleStatus, setVehicleStatus] = useState<VehicleStatus | null>(null);
   const [localPosition, setLocalPosition] = useState<VehicleLocalPosition | null>(null);
   const [batteryStatus, setBatteryStatus] = useState<BatteryStatus | null>(null);

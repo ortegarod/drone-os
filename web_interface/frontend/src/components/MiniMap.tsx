@@ -192,7 +192,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
 
     // Subscribe to each drone's state topic
     availableDrones.forEach(droneName => {
-      const namespace = droneName === 'drone1' ? 'px4_1' : `px4_${droneName.replace('drone', '')}`;
+      const namespace = droneName;
       const topicName = `/${namespace}/drone_state`;
       
       logger.debug(`MiniMap: Subscribing to ${topicName} for ${droneName}`);
