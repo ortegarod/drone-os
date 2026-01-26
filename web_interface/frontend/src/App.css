@@ -127,6 +127,42 @@
   min-width: 0;
 }
 
+.view-toggle {
+  display: flex;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.view-toggle-btn {
+  padding: 4px 16px;
+  border: none;
+  background: none;
+  color: #555;
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 2px solid transparent;
+}
+
+.view-toggle-btn:hover {
+  color: #aaa;
+}
+
+.view-toggle-btn.active {
+  color: #fff;
+  border-bottom-color: #4a90a4;
+}
+
+.view-content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
 .dashboard-sidebar {
   width: 320px;
   flex-shrink: 0;

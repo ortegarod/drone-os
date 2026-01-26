@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import AIInterface from './components/AIInterface';
-import SimpleCameraFeed from './components/SimpleCameraFeed';
+import DroneGameWindow from './components/DroneGameWindow';
 import TelemetryPage from './components/TelemetryPage';
 import MiniMap from './components/MiniMap';
 import DroneMap from './components/DroneMap';
@@ -16,8 +16,9 @@ import './App.css';
 const App: React.FC = () => {
 
   // Altitude control state for map clicks
-  const [targetAltitude, setTargetAltitude] = useState(15); // Default 15m altitude
-  const [maxAltitude, setMaxAltitude] = useState(50); // Default 50m max altitude
+  const [targetAltitude, setTargetAltitude] = useState(15);
+  const [maxAltitude, setMaxAltitude] = useState(50);
+
 
   // Rosbridge connection
   const { isConnected } = useRosbridgeConnection();
@@ -69,9 +70,9 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={
             <div className="dashboard">
-              {/* Camera feed fills left side */}
+              {/* 3D view + camera PiP */}
               <div className="dashboard-camera">
-                <SimpleCameraFeed
+                <DroneGameWindow
                   droneAPI={droneAPI}
                   isConnected={isConnected}
                   droneStatus={droneStatus}

@@ -190,15 +190,13 @@ services:
       - -c
       - |
         . /opt/ros/humble/setup.bash
-        # Start web_video_server in background
+        # Only run web_video_server - image_bridge runs on host
+        # (Gazebo Transport doesn't work across host/container boundary)
         ros2 run web_video_server web_video_server --ros-args \
           -p port:=8080 \
           -p default_stream_type:='mjpeg' \
           -p quality:=80 \
-          -p framerate:=30 &
-        # Bridge Gazebo camera topic to ROS2
-        # The topic name comes from the Gazebo model (x500_mono_cam uses /camera)
-        ros2 run ros_gz_image image_bridge ${GZ_CAMERA_TOPIC:-/camera}
+          -p framerate:=30
 
   # --- Rosbridge Server (for Web UI) ---
   # Provides WebSocket/JSON interface to ROS2 for the web frontend

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "drone-control": {
+      "command": "uv",
+      "args": ["run", "/Users/rodrigo/ws_droneOS/drone_mcp_server.py"],
+      "env": {
+        "ROSBRIDGE_HOST": "192.168.0.48"
+      }
+    }
+  }
+}

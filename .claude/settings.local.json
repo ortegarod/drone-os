@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(curl:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(npm run build:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "drone-control"
+  ]
 }
