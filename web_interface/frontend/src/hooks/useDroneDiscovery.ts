@@ -1,67 +1,50 @@
 import { useState, useEffect, useCallback } from 'react';
-import { rosbridgeClient } from '../services/rosbridgeClient';
+// @ts-ignore
+import ROSLIB from 'roslib';
+import { ros, isConnected } from '../ros';
 
-/**
- * Custom hook to manage dynamic drone discovery via ROS topics.
- *
- * Discovers drones by querying ROS for topics matching `/<namespace>/drone_state`.
- * Automatically switches to first discovered drone if current drone is unavailable.
- *
- * @param {boolean} isConnected - Whether rosbridge is connected
- * @param {string} currentDroneName - Currently selected drone namespace
- * @param {Function} setTargetDrone - Callback to change target drone
- * @returns {{ availableDrones: string[] }} List of discovered drone namespaces
- */
-export const useDroneDiscovery = (isConnected: boolean, currentDroneName: string, setTargetDrone: (name: string) => void) => {
+export const useDroneDiscovery = (connected: boolean, currentDroneName: string, setTargetDrone: (name: string) => void) => {
   const [availableDrones, setAvailableDrones] = useState<string[]>([]);
 
-  const discoverAvailableDrones = useCallback(async () => {
-    if (!isConnected) {
-      console.log('[useDroneDiscovery] Not connected, skipping discovery');
-      return;
-    }
+  const discoverDrones = useCallback(async () => {
+    if (!isConnected()) return;
 
-    try {
-      console.log('[useDroneDiscovery] Starting drone discovery...');
+    const topicsClient = new ROSLIB.Service({
+      ros,
+      name: '/rosapi/topics',
+      serviceType: 'rosapi/Topics'
+    });
 
-      // Query ROS for all drone_state topics
-      const discoveredDrones = await rosbridgeClient.discoverDrones();
+    topicsClient.callService(new ROSLIB.ServiceRequest({}), (result: any) => {
+      const topics: string[] = result.topics || [];
+      const drones = topics
+        .filter((t: string) => t.endsWith('/drone_state'))
+        .map((t: string) => t.split('/')[1])
+        .filter((ns: string) => ns && ns.length > 0);
 
-      console.log('[useDroneDiscovery] Discovered drones:', discoveredDrones);
-      setAvailableDrones(discoveredDrones);
+      console.log('[useDroneDiscovery] Found drones:', drones);
+      setAvailableDrones(drones);
 
-      // If drones found and current drone is not in list, switch to first available
-      if (discoveredDrones.length > 0 && currentDroneName && !discoveredDrones.includes(currentDroneName)) {
-        console.log(`[useDroneDiscovery] Current drone '${currentDroneName}' not found, switching to '${discoveredDrones[0]}'`);
-        setTargetDrone(discoveredDrones[0]);
-      } else if (discoveredDrones.length > 0 && !currentDroneName) {
-        // No current drone set, select first discovered
-        console.log(`[useDroneDiscovery] No current drone, selecting '${discoveredDrones[0]}'`);
-        setTargetDrone(discoveredDrones[0]);
-      } else if (discoveredDrones.length === 0) {
-        // No drones found - UI will show empty state
-        console.warn('[useDroneDiscovery] No drones discovered in ROS');
+      // Auto-select first drone if none selected
+      if (drones.length > 0 && !currentDroneName) {
+        console.log(`[useDroneDiscovery] Selecting first drone: ${drones[0]}`);
+        setTargetDrone(drones[0]);
+      } else if (drones.length > 0 && !drones.includes(currentDroneName)) {
+        console.log(`[useDroneDiscovery] Current drone gone, switching to ${drones[0]}`);
+        setTargetDrone(drones[0]);
       }
-    } catch (error) {
+    }, (error: any) => {
       console.error('[useDroneDiscovery] Discovery error:', error);
-      // Don't set fallback - let UI handle empty state
-      setAvailableDrones([]);
-    }
-  }, [isConnected, currentDroneName, setTargetDrone]);
+    });
+  }, [currentDroneName, setTargetDrone]);
 
   useEffect(() => {
-    if (isConnected) {
-      // Initial discovery
-      discoverAvailableDrones();
-
-      // Periodic re-discovery (every 5 seconds) to detect new drones
-      const intervalId = setInterval(() => {
-        discoverAvailableDrones();
-      }, 5000);
-
-      return () => clearInterval(intervalId);
+    if (connected) {
+      discoverDrones();
+      const interval = setInterval(discoverDrones, 5000);
+      return () => clearInterval(interval);
     }
-  }, [isConnected, discoverAvailableDrones]);
+  }, [connected, discoverDrones]);
 
   return { availableDrones };
 };

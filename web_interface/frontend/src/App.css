@@ -7,42 +7,77 @@
 }
 
 .app-header {
-  background-color: #2d2d2d;
-  padding: 0.5rem 1rem;
+  background-color: #222;
+  padding: 0 0.5rem;
   display: flex;
-  justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #444;
+  height: 36px;
+  gap: 1rem;
+  flex-shrink: 0;
 }
 
-.app-header h1 {
-  margin: 0;
-  font-size: 1.2rem;
-  color: #4a90a4;
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 11px;
+  font-family: monospace;
+  color: #888;
+  margin-left: auto;
 }
 
-/* Navigation buttons - Military Style */
+.header-stat {
+  color: #aaa;
+}
+
+.header-stat.armed {
+  color: #ff4444;
+  font-weight: 700;
+}
+
+.header-stat.bat-good { color: #00ff88; }
+.header-stat.bat-warn { color: #ff8800; }
+.header-stat.bat-crit { color: #ff4444; }
+.header-stat.conn-on { color: #00ff88; }
+.header-stat.conn-off { color: #ff4444; }
+
+.header-stat-divider {
+  color: #444;
+}
+
+/* Navigation */
+.header-nav {
+  display: flex;
+  height: 100%;
+}
+
 .nav-btn {
-  padding: 0.4rem 0.8rem;
-  border: 1px solid #555;
-  background-color: #333;
-  color: #fff;
+  padding: 0 0.7rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #888;
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: 11px;
   font-family: monospace;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 500;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
 .nav-btn:hover {
-  background-color: #444;
-  border-color: #666;
+  color: #fff;
+  background: rgba(255,255,255,0.05);
 }
 
 .nav-btn.active {
-  background-color: #444;
-  border-color: #666;
+  color: #fff;
+  border-bottom-color: #4a90a4;
 }
 
 /* Old layout (keeping for other pages) */
@@ -78,37 +113,26 @@
   border-right: 3px solid #ff8800;
 }
 
-/* New layout */
-.app-main-new {
+/* Dashboard layout - RuneScape style */
+.dashboard {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.dashboard-camera {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
-.main-content {
-  flex: 1;
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  padding-bottom: 0;
-  position: relative;
-}
-
-.center-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-/* Right panel container for MiniMap and RuneScape menu */
-.right-panel-container {
+.dashboard-sidebar {
   width: 320px;
-  height: calc(100vh - 200px); /* Fixed height - adjust as needed */
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  position: relative;
+  overflow: hidden;
 }
 
 .minimap-container {
@@ -116,18 +140,12 @@
   width: 320px;
   position: relative;
   flex-shrink: 0;
-  min-height: 240px;
 }
 
-.right-menu {
-  background-color: #2d2d2d;
-  border-radius: 6px;
-  border-right: 3px solid #ff8800;
+.sidebar-controls {
   flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* Allow flex child to shrink */
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .hotbar-container {
@@ -1299,57 +1317,24 @@
   border: 1px solid #00ff88;
 }
 
-/* Responsive MiniMap scaling */
+/* Responsive sidebar scaling */
 @media (min-width: 1400px) {
-  .right-panel-container {
+  .dashboard-sidebar {
     width: 380px;
   }
-  
   .minimap-container {
-    height: 320px;
+    height: 300px;
     width: 380px;
   }
 }
 
 @media (min-width: 1600px) {
-  .right-panel-container {
+  .dashboard-sidebar {
     width: 420px;
   }
-  
   .minimap-container {
-    height: 360px;
+    height: 340px;
     width: 420px;
-  }
-}
-
-@media (max-width: 900px) {
-  .app-main {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-  }
-  
-  .left-panel,
-  .right-panel {
-    height: 300px;
-  }
-
-  .status-bar-left {
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-  
-  .status-item {
-    font-size: 0.75rem;
-  }
-  
-  /* Make MiniMap smaller on mobile */
-  .right-panel-container {
-    width: 280px;
-  }
-  
-  .minimap-container {
-    height: 240px;
-    width: 280px;
   }
 }
 
@@ -1403,48 +1388,7 @@
   font-size: 0.875rem;
 }
 
-/* Header navigation styles */
-.header-nav-container {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-}
-
-.header-nav {
-  display: flex;
-  gap: 1rem;
-}
-
-.nav-beta-label {
-  font-size: 0.75rem;
-  opacity: 0.7;
-}
-
-.connection-status {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.unit-selector-container {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.unit-selector-label {
-  font-size: 0.875rem;
-  color: #ccc;
-}
-
-.unit-selector {
-  padding: 0.25rem 0.5rem;
-  background-color: #2d2d2d;
-  color: #fff;
-  border: 1px solid #555;
-  border-radius: 4px;
-  font-size: 0.875rem;
-}
+/* Unused legacy - kept for non-dashboard pages */
 
 /* Page main container */
 .page-main {
