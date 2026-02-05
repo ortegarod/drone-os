@@ -2,6 +2,67 @@
 
 A real-time web-based ground control station for monitoring and controlling PX4 drones. Features live telemetry visualization, interactive maps, and AI-powered drone control.
 
+## System Dependencies
+
+The frontend requires these services to be running:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     FRONTEND (:3000)                            │
+│                  DroneOS Command Center                         │
+└───────────────────────┬─────────────────────┬───────────────────┘
+                        │                     │
+                        ▼                     ▼
+        ┌───────────────────────┐   ┌─────────────────────┐
+        │  rosbridge (:9090)    │   │ web_video_server    │
+        │  WebSocket → ROS2     │   │ (:8080) MJPEG       │
+        └───────────┬───────────┘   └──────────┬──────────┘
+                    │                          │
+                    ▼                          │
+        ┌───────────────────────┐              │
+        │     drone_core        │              │
+        │  /drone1/arm          │              │
+        │  /drone1/takeoff      │              │
+        │  /drone1/get_state    │              │
+        │  /drone1/set_position │              │
+        └───────────┬───────────┘              │
+                    │                          │
+                    ▼                          ▼
+        ┌───────────────────────┐   ┌─────────────────────┐
+        │   micro_agent (DDS)   │   │  /camera topic      │
+        │       (:8888)         │   │  (from Gazebo)      │
+        └───────────┬───────────┘   └──────────┬──────────┘
+                    │                          │
+                    ▼                          ▼
+        ┌─────────────────────────────────────────────────┐
+        │              PX4 SITL + Gazebo                  │
+        │           (runs on HOST, needs GPU)             │
+        └─────────────────────────────────────────────────┘
+```
+
+### Service Summary
+
+| Service | Port | Container | Purpose |
+|---------|------|-----------|---------|
+| Frontend | 3000 | `frontend_node` | React web UI |
+| rosbridge | 9090 | `rosbridge_server` | WebSocket → ROS2 bridge |
+| web_video_server | 8080 | `sim_camera_node` | MJPEG camera stream |
+| drone_core | - | `drone_core_node` | Drone control services |
+| micro_agent | 8888 | `micro_agent_service` | PX4 ↔ ROS2 DDS bridge |
+| PX4 SITL | - | **HOST** | Flight controller simulation |
+| Gazebo | - | **HOST** | 3D simulation (needs GPU) |
+| ros_gz_bridge | - | **HOST** | Gazebo camera → ROS2 |
+
+### What Happens If Services Are Missing
+
+| Missing Service | Symptom in Frontend |
+|-----------------|---------------------|
+| rosbridge | "Disconnected" status, no telemetry |
+| drone_core | Service calls fail, "get_state failed" |
+| PX4 SITL | drone_core returns stale/zero data |
+| web_video_server | "Loading video stream..." forever |
+| ros_gz_bridge | Camera shows black/no signal |
+
 ## Architecture
 
 ### Frontend (React + TypeScript)
@@ -152,52 +213,71 @@ const stateTopic = new ROSLIB.Topic({
 
 ### Quick Start
 
-1. **Start PX4 SITL (in separate terminal):**
+**Step 1: Start Docker services**
 ```bash
-cd PX4-Autopilot
-HEADLESS=1 make px4_sitl gz_x500
+cd ~/ws_droneOS
+docker compose -f docker/dev/docker-compose.dev.yml up -d
 ```
 
-2. **Start core drone services:**
+This starts: `frontend_node`, `rosbridge_server`, `drone_core_node`, `micro_agent_service`, `sim_camera_node`
+
+**Step 2: Start PX4 SITL + Gazebo (HOST - needs GPU)**
 ```bash
-cd ws_droneOS
-docker compose -f docker/dev/docker-compose.dev.yml up -d --build drone_core micro_agent
+cd ~/PX4-Autopilot
+
+# For NVIDIA GPU (required on srv01):
+DISPLAY=:0 __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia \
+make px4_sitl gz_x500_mono_cam
+
+# For integrated graphics or headless:
+# HEADLESS=1 make px4_sitl gz_x500_mono_cam
 ```
 
-3. **Start web interface services:**
-```bash
-# Start rosbridge_suite for frontend communication
-docker compose -f docker/dev/docker-compose.dev.yml up -d rosbridge_server
+Wait for: `[commander] Ready for takeoff!`
 
-# Start custom web bridge (optional, for REST API)
-docker compose -f docker/dev/docker-compose.web.yml up -d web_interface
+**Step 3: Start camera bridge (HOST - same terminal or new one)**
+```bash
+source /opt/ros/humble/setup.bash
+ros2 run ros_gz_bridge parameter_bridge /camera@sensor_msgs/msg/Image@gz.msgs.Image
 ```
 
-4. **Start frontend (React development server):**
+**Step 4: Verify**
 ```bash
-cd web_interface/frontend
-npm install
-npm start
+# Check all containers running
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+# Test frontend
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000  # Should return 200
+
+# Test camera stream
+curl -s "http://localhost:8080/snapshot?topic=/camera" -o /tmp/test.jpg && file /tmp/test.jpg
 ```
 
 **Access Points:**
-- **Web Interface**: `http://localhost:3000` (React frontend)
-- **rosbridge WebSocket**: `ws://localhost:9090` (Used by frontend)
-- **Custom API**: `http://localhost:8000` (Available but unused by frontend)
-
-**Note**: If port 3000 is in use, the frontend will automatically use the next available port (e.g., 3001). Check the npm start output for the actual URL.
+- **Web Interface**: `http://<server-ip>:3000`
+- **Camera Stream**: `http://<server-ip>:8080/stream?topic=/camera&type=mjpeg`
+- **rosbridge WebSocket**: `ws://<server-ip>:9090`
 
 ### Development Mode
 
-**Frontend Development (with hot reload):**
+**Frontend runs in Docker** with hot reload (source is mounted):
+```bash
+# Start frontend container
+docker compose -f docker/dev/docker-compose.dev.yml up -d frontend
+
+# View logs
+docker logs -f frontend_node
+
+# Restart after changes (usually auto-reloads)
+docker restart frontend_node
+```
+
+**Alternative: Run frontend on host** (if you prefer):
 ```bash
 cd web_interface/frontend
 npm install
 npm start
 ```
-- Frontend runs on host machine for faster development
-- Hot reload enabled for code changes
-- Connects to rosbridge_suite running in Docker
 
 **Backend Development:**
 ```bash

@@ -283,6 +283,24 @@ services:
       - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
       - PYTHONUNBUFFERED=1
 
+
+  # --- Frontend Development Server ---
+  # React web UI with hot reload
+  frontend:
+    build:
+      context: ../..
+      dockerfile: docker/dev/frontend.dev.Dockerfile
+    container_name: frontend_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../../web_interface/frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_SERVER_HOST=localhost
+    working_dir: /app
+    command: npm start
+
 volumes:
   logs: # Declares that the host path './logs' is expected
     driver: local
