@@ -2,7 +2,8 @@
 // @ts-ignore
 import ROSLIB from 'roslib';
 
-const SERVER_HOST = process.env.REACT_APP_SERVER_HOST || 'localhost';
+// Use the same host the browser used to load the page (works from any machine)
+const SERVER_HOST = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const ROSBRIDGE_URL = `ws://${SERVER_HOST}:9090`;
 
 // Connection state
