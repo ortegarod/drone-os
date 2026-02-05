@@ -8,5 +8,6 @@
   },
   "enabledMcpjsonServers": [
     "drone-control"
-  ]
+  ],
+  "outputStyle": "Explanatory"
 }

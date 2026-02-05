@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import AIInterface from './components/AIInterface';
-import DroneGameWindow from './components/DroneGameWindow';
+import SimpleCameraFeed from './components/SimpleCameraFeed';
 import TelemetryPage from './components/TelemetryPage';
 import MiniMap from './components/MiniMap';
 import DroneMap from './components/DroneMap';
@@ -70,9 +70,9 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={
             <div className="dashboard">
-              {/* 3D view + camera PiP */}
+              {/* Camera feed */}
               <div className="dashboard-camera">
-                <DroneGameWindow
+                <SimpleCameraFeed
                   droneAPI={droneAPI}
                   isConnected={isConnected}
                   droneStatus={droneStatus}
