@@ -27,17 +27,17 @@ Docker services (drone_core, rosbridge, etc.) should already be running.
 
 ## Flight Sequence (Tested Working)
 
+⚠️ **CRITICAL: Offboard mode MUST be set BEFORE arming, or drone auto-disarms!**
+
 ```python
-drone_control.arm()               # 1. Arm motors
-drone_control.takeoff()           # 2. Auto takeoff
-# wait ~3s for stable hover
-drone_control.set_offboard()      # 3. Enter offboard mode
-drone_control.set_position(x,y,z,yaw)  # 4. Position commands
-drone_control.land()              # 5. Land (auto-descent)
-# disarm may not work in AUTO_LAND - minor sim quirk
+drone_control.set_offboard()      # 1. FIRST - enable offboard mode
+drone_control.arm()               # 2. Arm motors  
+drone_control.set_position(0, 0, -30, 0)  # 3. Fly to 30m (z=-30 = UP)
+# ... do stuff ...
+drone_control.land()              # 4. Land (auto-descent)
 ```
 
-**Note:** The auto-disarm issue only affects simulation at final touchdown.
+**Note:** `takeoff()` is a placeholder — use `set_position()` for altitude control.
 
 ## Coordinate System (NED)
 
