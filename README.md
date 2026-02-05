@@ -1,6 +1,6 @@
 # What is DroneOS?
 
-> **🤖 AI Agents:** Read [`droneos/SKILL.md`](droneos/SKILL.md) first for flight commands and SDK usage.
+> **🤖 AI Agents:** Read the `droneos` skill (`~/.openclaw/skills/droneos/SKILL.md`) for flight commands and SDK usage. If not installed, copy from [`droneos/`](droneos/) to your skills folder.
 
 DroneOS is a framework for autonomous drone control, built on open-source ROS 2 and PX4 Autopilot. 
 
