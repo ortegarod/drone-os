@@ -14,11 +14,10 @@ interface VideoSettings {
 }
 
 const videoPresets: VideoSettings[] = [
-  { width: 160, height: 120, quality: 20, label: '160p Ultra Low' },
   { width: 320, height: 240, quality: 30, label: '240p Low' },
   { width: 640, height: 480, quality: 50, label: '480p Medium' },
+  { width: 800, height: 600, quality: 60, label: '600p Good' },
   { width: 1280, height: 720, quality: 70, label: '720p High' },
-  { width: 1920, height: 1080, quality: 85, label: '1080p Full' }
 ];
 
 // Server host where backend services run (rosbridge, camera, etc.)
@@ -29,13 +28,13 @@ const CAMERA_PORT = '8080';
 const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnected, droneStatus }) => {
   const imgRef = useRef<HTMLImageElement>(null);
   const [status, setStatus] = useState<string>('Connecting...');
-  const [currentPreset, setCurrentPreset] = useState<VideoSettings>(videoPresets[1]); // Default to 240p Low
-  const [streamUrl, setStreamUrl] = useState<string>(`http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera&type=mjpeg&width=320&height=240&quality=30`);
+  const [currentPreset, setCurrentPreset] = useState<VideoSettings>(videoPresets[1]); // Default to 480p Medium
+  const [streamUrl, setStreamUrl] = useState<string>(`http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera&type=mjpeg&width=640&height=480&quality=50&qos_profile=sensor_data`);
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
   // Update stream URL when preset changes
   const updateStreamUrl = (preset: VideoSettings) => {
-    const newUrl = `http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera&type=mjpeg&width=${preset.width}&height=${preset.height}&quality=${preset.quality}`;
+    const newUrl = `http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera&type=mjpeg&width=${preset.width}&height=${preset.height}&quality=${preset.quality}&qos_profile=sensor_data`;
     setStreamUrl(newUrl);
     setCurrentPreset(preset);
   };
