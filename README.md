@@ -438,3 +438,28 @@ Standard ROS 2 discovery and direct communication often fail across the public i
 
 - **How it Works**: Tailscale creates a secure, encrypted peer-to-peer mesh network over the public internet (like 4G). You install the Tailscale client on the drone's onboard computer (RPi 5) and the GCS machine, authenticate them to your private network ("tailnet"), and they are assigned stable virtual IP addresses.
 - **Benefit (Application Transparency)**: To ROS 2, the GCS and the drone now appear to be on the same local network via their Tailscale IP addresses. **Crucially, this means no code changes are needed in `
+
+---
+
+## Gazebo Worlds
+
+Available worlds in PX4:
+- `default` — Empty world with ground plane
+- `baylands` — Outdoor environment with terrain
+- `lawn` — Grassy area
+- `windy` — World with wind effects
+
+### Loading a World
+
+```bash
+# Via environment variable
+PX4_GZ_WORLD=baylands make px4_sitl gz_x500_mono_cam
+
+# The systemd service defaults to baylands:
+# Edit ~/.config/systemd/user/px4-sitl.service to change
+```
+
+### World Files Location
+```
+~/PX4-Autopilot/Tools/simulation/gz/worlds/
+```

@@ -380,3 +380,35 @@ interface DroneState {
 - Basic mapping functionality
 - Docker containerization
 - Development environment setup
+---
+
+## Camera Streaming
+
+### Current Setup
+```
+Gazebo (640x480 @ 30fps) → ros_gz_bridge → ROS2 /camera → web_video_server → MJPEG → Browser
+```
+
+**Note:** Raw camera data (~28MB/s) flows through ROS2 regardless of frontend resolution request. web_video_server compresses after receiving full frames.
+
+### Stream URL Parameters
+```
+http://host:8080/stream?topic=/camera&type=mjpeg&width=640&height=480&quality=50&qos_profile=sensor_data
+```
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `type` | mjpeg | Stream format (mjpeg, vp8, h264, png) |
+| `width/height` | 0 (original) | Output resolution |
+| `quality` | 95 | JPEG quality (1-100) |
+| `qos_profile` | default | Use `sensor_data` for smoother streaming |
+
+### Optimization Options (Not Yet Implemented)
+
+If streaming is still choppy, consider:
+
+1. **Reduce Gazebo camera resolution** — Edit `PX4-Autopilot/Tools/simulation/gz/models/mono_cam/model.sdf`
+2. **Use gstreamer** — Hardware-accelerated encoding
+3. **Skip ROS2 entirely** — Gazebo has native streaming capabilities
+4. **Use compressed image transport** — Compress at ros_gz_bridge level
+
