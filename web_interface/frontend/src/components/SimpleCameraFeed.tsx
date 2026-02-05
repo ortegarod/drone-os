@@ -22,7 +22,8 @@ const videoPresets: VideoSettings[] = [
 ];
 
 // Server host where backend services run (rosbridge, camera, etc.)
-const SERVER_HOST = process.env.REACT_APP_SERVER_HOST || 'localhost';
+// Use the same host the browser used to load the page (works from any machine)
+const SERVER_HOST = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const CAMERA_PORT = '8080';
 
 const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnected, droneStatus }) => {
