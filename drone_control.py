@@ -240,3 +240,20 @@ def build_local_waypoints(points: list[dict]) -> list[dict]:
             "autocontinue": True,
         })
     return waypoints
+
+
+# ---------------------------------------------------------------------------
+# Quick test / example usage
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    print("DroneOS Control Library - Quick Test")
+    print("=" * 40)
+    
+    state = get_state()
+    print(f"Drone: {get_drone_name()}")
+    print(f"Armed: {state.get('arming_state')}")
+    print(f"Mode: {state.get('nav_state')}")
+    print(f"Altitude: {-state.get('local_z', 0):.1f}m")
+    print(f"Battery: {state.get('battery_remaining', 0) * 100:.0f}%")
+    print(f"Position valid: {state.get('position_valid')}")
