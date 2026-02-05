@@ -48,6 +48,13 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
       return null;
     }
 
+    // Don't try if not connected yet - this is normal on initial load
+    const { isConnected } = await import('../ros');
+    if (!isConnected()) {
+      logger.debug('MiniMap: Waiting for rosbridge connection...');
+      return null;
+    }
+
     try {
       const state = await droneAPI.getState();
       
