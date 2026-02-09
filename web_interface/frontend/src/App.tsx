@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import AIInterface from './components/AIInterface';
-import SimpleCameraFeed from './components/SimpleCameraFeed';
 import TelemetryPage from './components/TelemetryPage';
 import MiniMap from './components/MiniMap';
 import DroneMap from './components/DroneMap';
 import DevPage from './components/DevPage';
 import DroneMenu from './components/DroneMenu';
+import DroneViewer3D from './components/DroneViewer3D';
 import { createDroneAPI } from './api/droneAPI';
 import { useRosbridgeConnection } from './hooks/useRosbridgeConnection';
 import { useDroneState } from './hooks/useDroneState';
@@ -91,40 +91,63 @@ const App: React.FC = () => {
 
         <Routes>
           <Route path="/" element={
-            <div className="dashboard">
-              {/* Camera feed */}
-              <div className="dashboard-camera">
-                <SimpleCameraFeed
-                  droneAPI={droneAPI}
-                  isConnected={isConnected}
-                  droneStatus={droneStatus}
-                />
-              </div>
+            <div className="ops-layout">
+              <aside className="ops-left">
+                <Card className="h-full border-border bg-card">
+                  <CardContent className="p-3 h-full flex flex-col gap-3">
+                    <div className="drone-switch-row">
+                      <span className="drone-switch-label">Active Drone</span>
+                      <select
+                        className="drone-switch-select"
+                        value={droneStatus.drone_name || ''}
+                        onChange={(e) => setTargetDrone(e.target.value)}
+                      >
+                        {availableDrones.map((drone) => (
+                          <option key={drone} value={drone}>{drone}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="chat-panel">
+                      <AIInterface droneAPI={droneAPI} droneStatus={droneStatus} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </aside>
 
-              {/* Right panel: minimap + controls */}
-              <div className="dashboard-sidebar">
-                <div className="minimap-container">
-                  <MiniMap
-                    droneAPI={droneAPI}
-                    droneStatus={droneStatus}
-                    availableDrones={availableDrones}
-                    targetAltitude={targetAltitude}
-                  />
-                </div>
+              <main className="ops-middle">
+                <Card className="h-full border-border bg-card">
+                  <CardContent className="h-full p-2">
+                    <DroneViewer3D droneStatus={droneStatus} isConnected={isConnected} />
+                  </CardContent>
+                </Card>
+              </main>
 
-                <div className="sidebar-controls">
-                  <DroneMenu
-                    droneAPI={droneAPI}
-                    droneStatus={droneStatus}
-                    availableDrones={availableDrones}
-                    isConnected={isConnected}
-                    targetAltitude={targetAltitude}
-                    setTargetAltitude={setTargetAltitude}
-                    maxAltitude={maxAltitude}
-                    setMaxAltitude={setMaxAltitude}
-                  />
-                </div>
-              </div>
+              <aside className="ops-right">
+                <Card className="h-full border-border bg-card">
+                  <CardContent className="h-full p-2 flex flex-col gap-2">
+                    <div className="right-map-wrap">
+                      <MiniMap
+                        droneAPI={droneAPI}
+                        droneStatus={droneStatus}
+                        availableDrones={availableDrones}
+                        targetAltitude={targetAltitude}
+                      />
+                    </div>
+                    <div className="right-controls-wrap">
+                      <DroneMenu
+                        droneAPI={droneAPI}
+                        droneStatus={droneStatus}
+                        availableDrones={availableDrones}
+                        isConnected={isConnected}
+                        targetAltitude={targetAltitude}
+                        setTargetAltitude={setTargetAltitude}
+                        maxAltitude={maxAltitude}
+                        setMaxAltitude={setMaxAltitude}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </aside>
             </div>
           } />
 
