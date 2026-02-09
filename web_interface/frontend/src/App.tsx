@@ -6,7 +6,7 @@ import MiniMap from './components/MiniMap';
 import DroneMap from './components/DroneMap';
 import DevPage from './components/DevPage';
 import DroneMenu from './components/DroneMenu';
-import DroneViewer3D from './components/DroneViewer3D';
+import SimpleCameraFeed from './components/SimpleCameraFeed';
 import { createDroneAPI } from './api/droneAPI';
 import { useRosbridgeConnection } from './hooks/useRosbridgeConnection';
 import { useDroneState } from './hooks/useDroneState';
@@ -96,7 +96,11 @@ const App: React.FC = () => {
                 <Card className="h-full border-border bg-card">
                   <CardContent className="h-full p-2 flex flex-col gap-2">
                     <div className="left-camera-wrap">
-                      <DroneViewer3D droneStatus={droneStatus} isConnected={isConnected} />
+                      <SimpleCameraFeed
+                        droneAPI={droneAPI}
+                        isConnected={isConnected}
+                        droneStatus={droneStatus}
+                      />
                     </div>
                     <div className="left-console-wrap">
                       <AIInterface droneAPI={droneAPI} droneStatus={droneStatus} />
