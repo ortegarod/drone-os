@@ -13,6 +13,22 @@ import { useDroneState } from './hooks/useDroneState';
 import { useDroneDiscovery } from './hooks/useDroneDiscovery';
 import './App.css';
 
+type OpsState = 'OFFLINE' | 'STANDBY' | 'READY' | 'EXECUTING' | 'AIRBORNE' | 'UNKNOWN';
+
+const getOpsState = (isConnected: boolean, armed: boolean, flightMode: string): OpsState => {
+  if (!isConnected) return 'OFFLINE';
+
+  const mode = (flightMode || '').toUpperCase();
+  const autonomousModes = ['OFFBOARD', 'MISSION', 'AUTO_MISSION', 'AUTO_LOITER', 'AUTO'];
+
+  if (armed && autonomousModes.some(m => mode.includes(m))) return 'EXECUTING';
+  if (armed) return 'AIRBORNE';
+  if (!armed && mode.includes('OFFBOARD')) return 'READY';
+  if (!armed) return 'STANDBY';
+
+  return 'UNKNOWN';
+};
+
 const App: React.FC = () => {
 
   // Altitude control state for map clicks
@@ -35,6 +51,8 @@ const App: React.FC = () => {
     onRefreshState: refreshDroneState,
     onSetTargetDrone: setTargetDrone
   }), [droneStatus.drone_name, refreshDroneState, setTargetDrone]);
+
+  const opsState = getOpsState(isConnected, droneStatus.armed, droneStatus.flight_mode);
 
   return (
     <Router>
@@ -66,6 +84,12 @@ const App: React.FC = () => {
             </span>
           </div>
         </header>
+
+        <div className={`ops-state-banner ops-${opsState.toLowerCase()}`}>
+          <span className="ops-state-label">OPS STATE</span>
+          <span className="ops-state-value">{opsState}</span>
+          <span className="ops-state-meta">mode: {droneStatus.flight_mode}</span>
+        </div>
 
         <Routes>
           <Route path="/" element={
