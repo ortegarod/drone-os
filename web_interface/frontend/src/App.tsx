@@ -67,13 +67,7 @@ const App: React.FC = () => {
             <NavLink to="/dev" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Dev</NavLink>
           </nav>
           <div className="header-status">
-            <span className="header-stat">{droneStatus.drone_name || '...'}</span>
-            <span className="header-stat-divider">|</span>
-            <span className={`header-stat ${droneStatus.armed ? 'armed' : ''}`}>{droneStatus.armed ? 'ARMED' : 'DISARMED'}</span>
-            <span className="header-stat-divider">|</span>
-            <span className="header-stat">{droneStatus.flight_mode}</span>
-            <span className="header-stat-divider">|</span>
-            <span className="header-stat">Pos: ({droneStatus.position.x.toFixed(1)}, {droneStatus.position.y.toFixed(1)}, {Math.abs(droneStatus.position.z).toFixed(1)})m</span>
+            <span className="header-stat">{droneStatus.drone_name || 'drone'}</span>
             <span className="header-stat-divider">|</span>
             <span className={`header-stat ${droneStatus.battery > 50 ? 'bat-good' : droneStatus.battery > 25 ? 'bat-warn' : 'bat-crit'}`}>
               BAT {droneStatus.battery}%

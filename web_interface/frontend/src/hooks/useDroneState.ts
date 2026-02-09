@@ -4,6 +4,16 @@ import ROSLIB from 'roslib';
 import { ros, isConnected } from '../ros';
 import { DroneStatus } from '../types/drone';
 
+const deriveArmed = (src: any): boolean => {
+  if (typeof src?.armed === 'boolean') return src.armed;
+  if (typeof src?.arming_state === 'string') return src.arming_state.toUpperCase() === 'ARMED';
+  return false;
+};
+
+const deriveFlightMode = (src: any): string => {
+  return src?.flight_mode || src?.nav_state || 'UNKNOWN';
+};
+
 export const useDroneState = (connected: boolean) => {
   const [droneStatus, setDroneStatus] = useState<DroneStatus>({
     drone_name: '',
@@ -31,8 +41,8 @@ export const useDroneState = (connected: boolean) => {
         setDroneStatus(prev => ({
           drone_name: prev.drone_name,
           connected: true,
-          armed: result.armed || false,
-          flight_mode: result.flight_mode || 'UNKNOWN',
+          armed: deriveArmed(result),
+          flight_mode: deriveFlightMode(result),
           position: {
             x: result.local_x || 0,
             y: result.local_y || 0,
@@ -70,8 +80,8 @@ export const useDroneState = (connected: boolean) => {
       setDroneStatus(prev => ({
         drone_name: prev.drone_name,
         connected: true,
-        armed: msg.armed || false,
-        flight_mode: msg.flight_mode || 'UNKNOWN',
+        armed: deriveArmed(msg),
+        flight_mode: deriveFlightMode(msg),
         position: {
           x: msg.local_x || 0,
           y: msg.local_y || 0,
