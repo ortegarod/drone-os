@@ -6,51 +6,34 @@
   color: #ffffff;
 }
 
-.ops-state-banner {
-  height: 32px;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0 0.75rem;
-  border-bottom: 1px solid #333;
-  font-family: monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .ops-state-label {
   color: #95a0aa;
   font-size: 11px;
-}
-
-.ops-state-value {
-  font-size: 14px;
-  font-weight: 700;
+  font-family: monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .ops-state-meta {
   margin-left: auto;
   color: #aab6c1;
   font-size: 11px;
+  font-family: monospace;
+  text-transform: uppercase;
 }
 
-.ops-offline { background: #2a1313; }
-.ops-offline .ops-state-value { color: #ff6363; }
+.ops-badge {
+  font-family: monospace;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
 
-.ops-standby { background: #1f2430; }
-.ops-standby .ops-state-value { color: #9fb3c8; }
-
-.ops-ready { background: #1d2a1f; }
-.ops-ready .ops-state-value { color: #8bf0a4; }
-
-.ops-executing { background: #10243a; }
-.ops-executing .ops-state-value { color: #6cc8ff; }
-
-.ops-airborne { background: #2b2415; }
-.ops-airborne .ops-state-value { color: #ffcf70; }
-
-.ops-unknown { background: #252525; }
-.ops-unknown .ops-state-value { color: #d0d0d0; }
+.ops-badge.ops-offline { background: #ff6363; color: #220b0b; }
+.ops-badge.ops-standby { background: #9fb3c8; color: #10141b; }
+.ops-badge.ops-ready { background: #8bf0a4; color: #0f1f13; }
+.ops-badge.ops-executing { background: #6cc8ff; color: #081625; }
+.ops-badge.ops-airborne { background: #ffcf70; color: #221604; }
+.ops-badge.ops-unknown { background: #d0d0d0; color: #1a1a1a; }
 
 .app-header {
   background-color: #222;

@@ -11,6 +11,8 @@ import { createDroneAPI } from './api/droneAPI';
 import { useRosbridgeConnection } from './hooks/useRosbridgeConnection';
 import { useDroneState } from './hooks/useDroneState';
 import { useDroneDiscovery } from './hooks/useDroneDiscovery';
+import { Badge } from './components/ui/badge';
+import { Card, CardContent } from './components/ui/card';
 import './App.css';
 
 type OpsState = 'OFFLINE' | 'STANDBY' | 'READY' | 'EXECUTING' | 'AIRBORNE' | 'UNKNOWN';
@@ -79,11 +81,13 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className={`ops-state-banner ops-${opsState.toLowerCase()}`}>
-          <span className="ops-state-label">OPS STATE</span>
-          <span className="ops-state-value">{opsState}</span>
-          <span className="ops-state-meta">mode: {droneStatus.flight_mode}</span>
-        </div>
+        <Card className="mx-2 my-1 border-border bg-card">
+          <CardContent className="flex h-10 items-center gap-3 p-2">
+            <span className="ops-state-label">OPS STATE</span>
+            <Badge className={`ops-badge ops-${opsState.toLowerCase()}`}>{opsState}</Badge>
+            <span className="ops-state-meta">mode: {droneStatus.flight_mode}</span>
+          </CardContent>
+        </Card>
 
         <Routes>
           <Route path="/" element={

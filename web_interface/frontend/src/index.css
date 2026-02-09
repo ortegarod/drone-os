@@ -1,28 +1,34 @@
 @import "tailwindcss";
 
-/* Dark theme variables */
 :root {
   --background: #1a1a1a;
   --foreground: #ffffff;
-  --card: #2d2d2d;
+  --card: #222222;
   --card-foreground: #ffffff;
   --primary: #4a90a4;
   --primary-foreground: #ffffff;
-  --secondary: #333333;
-  --secondary-foreground: #ffffff;
+  --secondary: #30343a;
+  --secondary-foreground: #f1f5f9;
   --muted: #888888;
-  --muted-foreground: #666666;
-  --accent: #444444;
-  --border: #444444;
-  --input: #333333;
+  --muted-foreground: #9ca3af;
+  --accent: #3b4250;
+  --border: #3f4652;
+  --input: #2f3540;
   --ring: #4a90a4;
   --success: #00ff88;
-  --warning: #ff8800;
-  --danger: #ff4444;
-  --radius: 0.375rem;
+  --warning: #ffb020;
+  --danger: #ff5a5f;
+  --radius: 0.5rem;
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    margin: 0;
+  }
 }
