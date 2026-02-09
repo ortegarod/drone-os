@@ -91,10 +91,23 @@ const App: React.FC = () => {
 
         <Routes>
           <Route path="/" element={
-            <div className="ops-layout">
-              <aside className="ops-left">
+            <div className="ops-layout two-column">
+              <main className="ops-main-left">
                 <Card className="h-full border-border bg-card">
-                  <CardContent className="p-3 h-full flex flex-col gap-3">
+                  <CardContent className="h-full p-2 flex flex-col gap-2">
+                    <div className="left-camera-wrap">
+                      <DroneViewer3D droneStatus={droneStatus} isConnected={isConnected} />
+                    </div>
+                    <div className="left-console-wrap">
+                      <AIInterface droneAPI={droneAPI} droneStatus={droneStatus} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </main>
+
+              <aside className="ops-right">
+                <Card className="h-full border-border bg-card">
+                  <CardContent className="h-full p-2 flex flex-col gap-2">
                     <div className="drone-switch-row">
                       <span className="drone-switch-label">Active Drone</span>
                       <select
@@ -107,24 +120,6 @@ const App: React.FC = () => {
                         ))}
                       </select>
                     </div>
-                    <div className="chat-panel">
-                      <AIInterface droneAPI={droneAPI} droneStatus={droneStatus} />
-                    </div>
-                  </CardContent>
-                </Card>
-              </aside>
-
-              <main className="ops-middle">
-                <Card className="h-full border-border bg-card">
-                  <CardContent className="h-full p-2">
-                    <DroneViewer3D droneStatus={droneStatus} isConnected={isConnected} />
-                  </CardContent>
-                </Card>
-              </main>
-
-              <aside className="ops-right">
-                <Card className="h-full border-border bg-card">
-                  <CardContent className="h-full p-2 flex flex-col gap-2">
                     <div className="right-map-wrap">
                       <MiniMap
                         droneAPI={droneAPI}

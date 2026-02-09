@@ -142,22 +142,38 @@
   border-right: 3px solid #ff8800;
 }
 
-/* Mission control 3-column layout */
+/* Mission control layout */
 .ops-layout {
   flex: 1;
   display: grid;
-  grid-template-columns: 320px 1fr 360px;
   gap: 8px;
   padding: 8px;
   overflow: hidden;
   min-height: 0;
 }
 
-.ops-left,
-.ops-middle,
+.ops-layout.two-column {
+  grid-template-columns: minmax(0, 1fr) 380px;
+}
+
+.ops-main-left,
 .ops-right {
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+}
+
+.left-camera-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.left-console-wrap {
+  height: 220px;
+  min-height: 180px;
+  border-top: 1px solid #2e3642;
+  padding-top: 8px;
   overflow: hidden;
 }
 
