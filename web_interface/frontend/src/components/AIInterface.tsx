@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DroneStatus } from '../types/drone';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 interface AIMessage {
   id: string;
@@ -72,85 +74,60 @@ const AIInterface: React.FC<AIInterfaceProps> = ({ droneAPI, droneStatus }) => {
   };
 
   return (
-    <div className="ai-chat">
-      <h2>AI Assistant</h2>
-      
-      {/* Chat Messages */}
-      <div className="ai-messages">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`ai-message ${message.type}`}
-          >
-            <div style={{ 
-              fontSize: '0.75rem', 
-              opacity: 0.7, 
-              marginBottom: '0.25rem' 
-            }}>
-              {message.type === 'user' ? 'You' : 'AI Assistant'} • {formatTime(message.timestamp)}
+    <Card className="h-full border-border bg-card">
+      <CardHeader className="pb-2">
+        <CardTitle>AI Assistant</CardTitle>
+      </CardHeader>
+      <CardContent className="h-[calc(100%-56px)] flex flex-col gap-2 p-3 pt-0">
+        <div className="flex-1 overflow-y-auto rounded-md border border-border bg-[#2a2f38] p-2 min-h-0">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`mb-2 rounded-md p-2 text-sm ${message.type === 'user' ? 'bg-[#2f6fb2] text-white ml-8' : 'bg-[#3a4250] text-white mr-8'}`}
+            >
+              <div className="mb-1 text-[11px] opacity-70">
+                {message.type === 'user' ? 'You' : 'AI Assistant'} • {formatTime(message.timestamp)}
+              </div>
+              <div>{message.content}</div>
             </div>
-            <div>{message.content}</div>
-          </div>
-        ))}
-        
-        {isLoading && (
-          <div className="ai-message assistant">
-            <div style={{ 
-              fontSize: '0.75rem', 
-              opacity: 0.7, 
-              marginBottom: '0.25rem' 
-            }}>
-              AI Assistant • {formatTime(new Date())}
-            </div>
-            <div style={{ fontStyle: 'italic', opacity: 0.8 }}>
-              🤖 Processing...
-            </div>
-          </div>
-        )}
-        
-        <div ref={messagesEndRef} />
-      </div>
+          ))}
 
-      {/* Input Area */}
-      <form onSubmit={handleSubmit} className="ai-input-area">
-        <textarea
-          className="ai-input"
-          value={inputMessage}
-          onChange={(e) => setInputMessage(e.target.value)}
-          placeholder="Ask me to control the drone: 'arm the drone', 'take off', 'fly to coordinates 10,5,15'..."
-          disabled={isLoading}
-          rows={2}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit(e);
-            }
-          }}
-        />
-        <button
-          type="submit"
-          className="btn primary"
-          disabled={!inputMessage.trim() || isLoading}
-          style={{ minWidth: '60px', height: 'fit-content' }}
-        >
-          {isLoading ? '...' : 'Send'}
-        </button>
-      </form>
+          {isLoading && (
+            <div className="mb-2 rounded-md bg-[#3a4250] p-2 text-sm text-white mr-8">
+              <div className="mb-1 text-[11px] opacity-70">AI Assistant • {formatTime(new Date())}</div>
+              <div className="italic opacity-80">Processing...</div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-      {/* Status */}
-      <div style={{ 
-        marginTop: '1rem', 
-        padding: '0.75rem', 
-        backgroundColor: '#3d3d3d', 
-        borderRadius: '4px',
-        fontSize: '0.75rem'
-      }}>
-        <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Current Context:</div>
-        <div>Drone: {droneStatus.drone_name || 'No drone selected'}</div>
-        <div>Status: {droneStatus.armed ? 'Armed' : 'Disarmed'} • {droneStatus.flight_mode}</div>
-        <div>Position: ({droneStatus.position.x.toFixed(1)}, {droneStatus.position.y.toFixed(1)}, {droneStatus.position.z.toFixed(1)})</div>
-      </div>
-    </div>
+        <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+          <textarea
+            className="flex-1 rounded-md border border-border bg-[#252b35] text-white p-2 text-sm min-h-[64px]"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            placeholder="Ask me to control the drone..."
+            disabled={isLoading}
+            rows={2}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
+          />
+          <Button type="submit" disabled={!inputMessage.trim() || isLoading} className="h-10 w-20">
+            {isLoading ? '...' : 'Send'}
+          </Button>
+        </form>
+
+        <div className="rounded-md border border-border bg-[#2a2f38] p-2 text-xs text-[#cbd5e1]">
+          <div>Drone: {droneStatus.drone_name || 'No drone selected'}</div>
+          <div>Status: {droneStatus.armed ? 'Armed' : 'Disarmed'} • {droneStatus.flight_mode}</div>
+          <div>Position: ({droneStatus.position.x.toFixed(1)}, {droneStatus.position.y.toFixed(1)}, {droneStatus.position.z.toFixed(1)})</div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
