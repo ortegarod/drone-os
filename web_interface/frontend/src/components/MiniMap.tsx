@@ -509,6 +509,8 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
   const miniMapStyle: React.CSSProperties = {
     width: '100%',
     height: '100%',
+    position: 'relative',
+    overflow: 'hidden',
     border: '2px solid #2c3e50',
     borderRadius: '4px',
     backgroundColor: '#1a1a1a',
