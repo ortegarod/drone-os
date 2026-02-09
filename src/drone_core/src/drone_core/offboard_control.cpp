@@ -8,6 +8,7 @@
  */
 
 #include "drone_core/offboard_control.hpp"
+#include <rmw/qos_profiles.h>
 using namespace std::chrono_literals;
 
 /**
@@ -22,9 +23,17 @@ using namespace std::chrono_literals;
 OffboardControl::OffboardControl(rclcpp::Node* node, const std::string& px4_namespace)
     : node_(node), ns_(px4_namespace)
 {
-    offboard_control_mode_pub_ = node_->create_publisher<px4_msgs::msg::OffboardControlMode>(ns_ + "in/offboard_control_mode", 10);
-    trajectory_setpoint_pub_ = node_->create_publisher<px4_msgs::msg::TrajectorySetpoint>(ns_ + "in/trajectory_setpoint", 10);
-    RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Initialized publishers for OffboardControlMode and TrajectorySetpoint.");
+    // Fix: Use BEST_EFFORT reliability to match PX4's QoS requirements
+    // PX4 expects BEST_EFFORT reliability, not default RELIABLE
+    auto qos = rclcpp::QoS(
+        rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_LAST, 5),
+        rclcpp::QoSReliabilityPolicy::BestEffort,
+        rclcpp::QoSDurabilityPolicy::Volatile
+    );
+
+    offboard_control_mode_pub_ = node_->create_publisher<px4_msgs::msg::OffboardControlMode>(ns_ + "in/offboard_control_mode", qos);
+    trajectory_setpoint_pub_ = node_->create_publisher<px4_msgs::msg::TrajectorySetpoint>(ns_ + "in/trajectory_setpoint", qos);
+    RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Initialized publishers for OffboardControlMode and TrajectorySetpoint (QoS: BEST_EFFORT).");
 }
 
 /**
