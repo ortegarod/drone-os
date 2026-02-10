@@ -60,6 +60,11 @@ docker --version
 docker compose version
 openclaw --version || echo "⚠️  OpenClaw not in PATH yet - may need to restart shell"
 
+# Initialize OpenClaw (will be overwritten by migration)
+echo ""
+echo "📋 Initializing OpenClaw (this will be replaced by srv01 state)..."
+openclaw init || echo "⚠️  OpenClaw init failed - will be fixed by migration"
+
 # Clone DroneOS repo (if not already done)
 if [ ! -d "$HOME/ws_droneOS" ]; then
     echo "📂 Cloning DroneOS repository..."
@@ -84,8 +89,22 @@ echo "✅ VPS setup complete!"
 echo ""
 echo "Next steps:"
 echo "1. Log out and back in (or run: newgrp docker)"
-echo "2. Configure OpenClaw: openclaw init"
-echo "3. Start services: cd ~/ws_droneOS && docker compose -f docker/vps/docker-compose.vps.yml up -d"
-echo "4. Start OpenClaw gateway: openclaw gateway start"
 echo ""
-echo "Access frontend at: http://$(curl -s ifconfig.me):3000"
+echo "2. Migrate OpenClaw from srv01:"
+echo "   On srv01:"
+echo "     openclaw gateway stop"
+echo "     cd ~ && tar -czf openclaw-state.tgz .openclaw"
+echo "     scp openclaw-state.tgz user@$(curl -s ifconfig.me):~/"
+echo ""
+echo "   On VPS:"
+echo "     cd ~ && tar -xzf openclaw-state.tgz"
+echo "     chown -R \$USER:\$USER ~/.openclaw"
+echo "     openclaw doctor"
+echo "     openclaw gateway start"
+echo ""
+echo "3. Start Docker services:"
+echo "   cd ~/ws_droneOS && docker compose -f docker/vps/docker-compose.vps.yml up -d"
+echo ""
+echo "4. Verify:"
+echo "   openclaw status"
+echo "   Access frontend at: http://$(curl -s ifconfig.me):3000"
