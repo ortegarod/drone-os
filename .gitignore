@@ -27,5 +27,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Claude
+# Internal planning docs
 CLAUDE.md
+ROADMAP.md
