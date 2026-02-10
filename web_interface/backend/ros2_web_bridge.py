@@ -21,6 +21,11 @@ from pydantic import BaseModel
 import uvicorn
 from std_srvs.srv import Trigger
 
+try:
+    from ai_orchestrator import get_ai_orchestrator
+except Exception:
+    get_ai_orchestrator = None
+
 # Import DroneOS service types
 try:
     from drone_interfaces.srv import SetPosition, GetState, MissionControl, GetMissionStatus, UploadMission
@@ -314,6 +319,10 @@ class ROS2WebBridge(Node):
             
         class AICommand(BaseModel):
             message: str
+
+        class OpenClawCommand(BaseModel):
+            message: str
+            session_key: Optional[str] = None
         
         # API Routes
         @app.get("/")
@@ -477,6 +486,166 @@ class ROS2WebBridge(Node):
                 "old_target": old_target,
                 "new_target": cmd.drone_name
             }
+
+        @app.get('/api/ai/status')
+        async def ai_status():
+            if get_ai_orchestrator is None:
+                return {"success": False, "message": "AI orchestrator module unavailable"}
+            try:
+                orchestrator = get_ai_orchestrator()
+                return {"success": True, "status": orchestrator.get_status()}
+            except Exception as e:
+                return {"success": False, "message": str(e)}
+
+        @app.post('/api/ai/command')
+        async def ai_command(cmd: AICommand):
+            if get_ai_orchestrator is None:
+                return {
+                    "success": False,
+                    "response": "AI orchestrator module unavailable. Start backend with AI dependencies."
+                }
+            try:
+                orchestrator = get_ai_orchestrator()
+                result = await orchestrator.process_command(cmd.message)
+                return result
+            except Exception as e:
+                return {
+                    "success": False,
+                    "response": f"AI command failed: {str(e)}"
+                }
+
+        # --- OpenClaw Chat Proxy (server-side WS -> HTTP) ---
+        async def _openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict[str, Any]:
+            """Send a message to OpenClaw gateway via WS and wait for the final assistant reply."""
+            import websockets
+
+            gateway_ws_url = os.environ.get('OPENCLAW_GATEWAY_WS_URL', 'ws://127.0.0.1:18789')
+            gateway_token = os.environ.get('OPENCLAW_GATEWAY_TOKEN')
+
+            # If not provided, try reading local OpenClaw config (server-side only).
+            if not gateway_token:
+                try:
+                    cfg_path = os.path.expanduser('~/.openclaw/openclaw.json')
+                    with open(cfg_path, 'r', encoding='utf-8') as f:
+                        cfg = json.load(f)
+                    gateway_token = (((cfg.get('gateway') or {}).get('auth') or {}).get('token'))
+                except Exception:
+                    gateway_token = None
+
+            # Best-effort: allow running without token if gateway auth is disabled.
+            auth_obj = {"token": gateway_token} if gateway_token else None
+
+            async with websockets.connect(gateway_ws_url, max_size=8 * 1024 * 1024) as ws:
+                # 1) connect handshake
+                req_id = f"connect-{int(time.time()*1000)}"
+                await ws.send(json.dumps({
+                    "type": "req",
+                    "id": req_id,
+                    "method": "connect",
+                    "params": {
+                        "minProtocol": 2,
+                        "maxProtocol": 3,
+                        "client": {
+                            "id": "droneos-backend",
+                            "displayName": "DroneOS Backend",
+                            "version": "dev",
+                            "platform": "backend",
+                            "mode": "webhook-proxy"
+                        },
+                        "auth": auth_obj
+                    }
+                }))
+
+                connect_ok = False
+                main_session_key = session_key
+
+                # 2) wait for connect response
+                connect_deadline = time.time() + 5
+                while time.time() < connect_deadline:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=5)
+                    msg = json.loads(raw)
+                    if msg.get('type') == 'res' and msg.get('id') == req_id:
+                        if not msg.get('ok'):
+                            raise Exception(msg.get('error', {}).get('message', 'OpenClaw connect failed'))
+                        connect_ok = True
+                        sk = (((msg.get('payload') or {}).get('snapshot') or {}).get('sessionDefaults') or {}).get('mainSessionKey')
+                        if sk and not main_session_key:
+                            main_session_key = sk
+                        break
+
+                if not connect_ok:
+                    raise Exception('OpenClaw connect timeout')
+
+                if not main_session_key:
+                    main_session_key = 'main'
+
+                # 3) send chat.send
+                send_id = f"chat.send-{int(time.time()*1000)}"
+                await ws.send(json.dumps({
+                    "type": "req",
+                    "id": send_id,
+                    "method": "chat.send",
+                    "params": {
+                        "sessionKey": main_session_key,
+                        "message": message,
+                        "idempotencyKey": f"webui-{int(time.time()*1000)}",
+                        "deliver": False
+                    }
+                }))
+
+                run_id = None
+                send_deadline = time.time() + 10
+                while time.time() < send_deadline:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=10)
+                    msg = json.loads(raw)
+                    if msg.get('type') == 'res' and msg.get('id') == send_id:
+                        if not msg.get('ok'):
+                            raise Exception(msg.get('error', {}).get('message', 'chat.send failed'))
+                        run_id = (msg.get('payload') or {}).get('runId')
+                        break
+
+                if not run_id:
+                    raise Exception('chat.send ack missing runId')
+
+                # 4) wait for final
+                text = ''
+                final_deadline = time.time() + 60
+                while time.time() < final_deadline:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=60)
+                    msg = json.loads(raw)
+                    if msg.get('type') == 'event' and msg.get('event') == 'chat':
+                        p = msg.get('payload') or {}
+                        if p.get('runId') != run_id:
+                            continue
+                        state = p.get('state')
+                        if state == 'delta' and isinstance(p.get('message'), str):
+                            text += p.get('message')
+                        elif state == 'final':
+                            m = p.get('message')
+                            if isinstance(m, str):
+                                return {"ok": True, "sessionKey": main_session_key, "text": m or text}
+                            return {"ok": True, "sessionKey": main_session_key, "text": text}
+                        elif state == 'error':
+                            raise Exception(p.get('errorMessage') or 'OpenClaw run error')
+
+                raise Exception('OpenClaw run timeout')
+
+        @app.get('/api/openclaw/status')
+        async def openclaw_status():
+            try:
+                # quick connect check
+                r = await _openclaw_chat('ping', session_key='main')
+                return {"ok": True, "note": "reachable", "sample": r.get('text', '')}
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
+
+        @app.post('/api/openclaw/chat')
+        async def openclaw_chat(cmd: OpenClawCommand):
+            try:
+                r = await _openclaw_chat(cmd.message, session_key=cmd.session_key)
+                return r
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
         
         # ROS2 Network Discovery Endpoints (for debugging/monitoring)
         @app.get("/api/ros2/network")

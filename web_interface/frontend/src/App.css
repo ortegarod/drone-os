@@ -170,8 +170,8 @@
 }
 
 .left-console-wrap {
-  height: 220px;
-  min-height: 180px;
+  height: 340px;
+  min-height: 260px;
   border-top: 1px solid #2e3642;
   padding-top: 8px;
   overflow: hidden;

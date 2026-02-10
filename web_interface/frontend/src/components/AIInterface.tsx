@@ -1,133 +1,146 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { DroneStatus } from '../types/drone';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-
-interface AIMessage {
-  id: string;
-  type: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  ThreadPrimitive,
+  ComposerPrimitive,
+  MessagePrimitive,
+  AuiIf
+} from '@assistant-ui/react';
 
 interface AIInterfaceProps {
   droneAPI: any;
   droneStatus: DroneStatus;
 }
 
-const AIInterface: React.FC<AIInterfaceProps> = ({ droneAPI, droneStatus }) => {
-  const [messages, setMessages] = useState<AIMessage[]>([
-    {
-      id: '1',
-      type: 'assistant',
-      content: 'AI Assistant ready. I can help you control the drone using natural language commands.',
-      timestamp: new Date()
-    }
-  ]);
-  
-  const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+// NOTE: This webpack setup does not polyfill `process` in the browser.
+// Keep this runtime-safe by deriving the endpoint from the current location.
+const OPENCLAW_HTTP_ENDPOINT =
+  `${typeof window !== 'undefined' ? window.location.protocol : 'http:'}//${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3031/api/openclaw/chat`;
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+const UserMessage = () => (
+  <MessagePrimitive.Root className="mx-auto w-full max-w-[760px] py-2" data-role="user">
+    <div className="ml-8 rounded-md bg-[#2f6fb2] px-3 py-2 text-white">
+      <MessagePrimitive.Content />
+    </div>
+  </MessagePrimitive.Root>
+);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+const AssistantMessage = () => (
+  <MessagePrimitive.Root className="mx-auto w-full max-w-[760px] py-2" data-role="assistant">
+    <div className="mr-8 rounded-md bg-[#3a4250] px-3 py-2 text-white">
+      <MessagePrimitive.Content />
+    </div>
+  </MessagePrimitive.Root>
+);
 
-  const addMessage = (type: 'user' | 'assistant', content: string) => {
-    const newMessage: AIMessage = {
-      id: Date.now().toString(),
-      type,
-      content,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, newMessage]);
-  };
+const SystemMessage = () => (
+  <MessagePrimitive.Root className="mx-auto w-full max-w-[760px] py-2" data-role="system">
+    <div className="rounded-md bg-[#4b5563] px-3 py-2 text-white">
+      <MessagePrimitive.Content />
+    </div>
+  </MessagePrimitive.Root>
+);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
+const AIInterface: React.FC<AIInterfaceProps> = ({ droneStatus }) => {
+  const [isConnected, setIsConnected] = useState(true);
+  const [sessionKey, setSessionKey] = useState('hook:webui');
 
-    const userMessage = inputMessage.trim();
-    setInputMessage('');
-    
-    // Add user message
-    addMessage('user', userMessage);
-    
-    setIsLoading(true);
-    
-    try {
-      // Simple response for now - this would connect to the AI agent system
-      addMessage('assistant', 'AI agent system not yet connected. Use the Manual Controls panel for drone operations.');
-    } catch (error) {
-      addMessage('assistant', `Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const runtime = useLocalRuntime(
+    useMemo(
+      () => ({
+        run: async function* ({ messages }: any) {
+          const lastUser = [...messages].reverse().find((m: any) => m.role === 'user');
+          const userText =
+            lastUser?.content?.find?.((p: any) => p.type === 'text')?.text ||
+            lastUser?.content?.[0]?.text ||
+            '';
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+          if (!userText) {
+            yield { content: [{ type: 'text', text: 'No input message.' }] };
+            return;
+          }
+
+          try {
+            const res = await fetch(OPENCLAW_HTTP_ENDPOINT, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: userText, session_key: sessionKey })
+            });
+
+            if (!res.ok) {
+              setIsConnected(false);
+              yield { content: [{ type: 'text', text: `Error: backend returned ${res.status}` }] };
+              return;
+            }
+
+            const data = await res.json();
+            if (data?.sessionKey) setSessionKey(data.sessionKey);
+            setIsConnected(Boolean(data?.ok));
+
+            yield { content: [{ type: 'text', text: data?.text || data?.error || 'No response.' }] };
+          } catch (e: any) {
+            setIsConnected(false);
+            yield { content: [{ type: 'text', text: `Error: ${e?.message || 'failed'}` }] };
+          }
+        }
+      }),
+      [sessionKey]
+    )
+  );
 
   return (
-    <Card className="h-full border-border bg-card">
-      <CardHeader className="pb-2">
-        <CardTitle>AI Assistant</CardTitle>
-      </CardHeader>
-      <CardContent className="h-[calc(100%-56px)] flex flex-col gap-2 p-3 pt-0">
-        <div className="flex-1 overflow-y-auto rounded-md border border-border bg-[#2a2f38] p-2 min-h-0">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`mb-2 rounded-md p-2 text-sm ${message.type === 'user' ? 'bg-[#2f6fb2] text-white ml-8' : 'bg-[#3a4250] text-white mr-8'}`}
-            >
-              <div className="mb-1 text-[11px] opacity-70">
-                {message.type === 'user' ? 'You' : 'AI Assistant'} • {formatTime(message.timestamp)}
-              </div>
-              <div>{message.content}</div>
+    <div className="h-full min-h-0 flex flex-col">
+      <AssistantRuntimeProvider runtime={runtime}>
+        <ThreadPrimitive.Root className="flex h-full flex-col">
+          <ThreadPrimitive.Viewport className="flex-1 overflow-y-auto p-2">
+            <ThreadPrimitive.Messages
+              components={{
+                UserMessage: ({ children }: any) => (
+                  <MessagePrimitive.Root className="py-2" data-role="user">
+                    <MessagePrimitive.Content />
+                    {children}
+                  </MessagePrimitive.Root>
+                ),
+                AssistantMessage: ({ children }: any) => (
+                  <MessagePrimitive.Root className="py-2" data-role="assistant">
+                    <MessagePrimitive.Content />
+                    {children}
+                  </MessagePrimitive.Root>
+                ),
+                SystemMessage: ({ children }: any) => (
+                  <MessagePrimitive.Root className="py-2" data-role="system">
+                    <MessagePrimitive.Content />
+                    {children}
+                  </MessagePrimitive.Root>
+                )
+              }}
+            />
+          </ThreadPrimitive.Viewport>
+
+          <ComposerPrimitive.Root className="border-t border-border p-2">
+            <div className="flex items-end gap-2">
+              <ComposerPrimitive.Input
+                placeholder={isConnected ? 'Message…' : 'Offline'}
+                className="min-h-[40px] flex-1 resize-none rounded-md border border-border bg-[#252b35] p-2 text-sm text-white outline-none"
+                rows={1}
+                disabled={!isConnected}
+              />
+              <ComposerPrimitive.Send asChild>
+                <button
+                  className="h-10 w-20 rounded-md bg-primary text-primary-foreground disabled:opacity-50"
+                  type="submit"
+                  disabled={!isConnected}
+                >
+                  Send
+                </button>
+              </ComposerPrimitive.Send>
             </div>
-          ))}
-
-          {isLoading && (
-            <div className="mb-2 rounded-md bg-[#3a4250] p-2 text-sm text-white mr-8">
-              <div className="mb-1 text-[11px] opacity-70">AI Assistant • {formatTime(new Date())}</div>
-              <div className="italic opacity-80">Processing...</div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex gap-2 items-end">
-          <textarea
-            className="flex-1 rounded-md border border-border bg-[#252b35] text-white p-2 text-sm min-h-[64px]"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Ask me to control the drone..."
-            disabled={isLoading}
-            rows={2}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-          />
-          <Button type="submit" disabled={!inputMessage.trim() || isLoading} className="h-10 w-20">
-            {isLoading ? '...' : 'Send'}
-          </Button>
-        </form>
-
-        <div className="rounded-md border border-border bg-[#2a2f38] p-2 text-xs text-[#cbd5e1]">
-          <div>Drone: {droneStatus.drone_name || 'No drone selected'}</div>
-          <div>Status: {droneStatus.armed ? 'Armed' : 'Disarmed'} • {droneStatus.flight_mode}</div>
-          <div>Position: ({droneStatus.position.x.toFixed(1)}, {droneStatus.position.y.toFixed(1)}, {droneStatus.position.z.toFixed(1)})</div>
-        </div>
-      </CardContent>
-    </Card>
+          </ComposerPrimitive.Root>
+        </ThreadPrimitive.Root>
+      </AssistantRuntimeProvider>
+    </div>
   );
 };
 

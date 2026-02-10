@@ -9,6 +9,7 @@
     "dev": "webpack serve --mode development --open"
   },
   "dependencies": {
+    "@assistant-ui/react": "^0.12.9",
     "@radix-ui/react-slot": "^1.2.4",
     "@types/leaflet": "^1.9.19",
     "@types/three": "^0.182.0",

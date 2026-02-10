@@ -65,7 +65,7 @@ const App: React.FC = () => {
             <NavLink to="/" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Dashboard</NavLink>
             <NavLink to="/telemetry" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Status</NavLink>
             <NavLink to="/map" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Map</NavLink>
-            <NavLink to="/ai" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>AI</NavLink>
+            {/* AI panel removed (chat is embedded on Dashboard) */}
             <NavLink to="/dev" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Dev</NavLink>
           </nav>
           <div className="header-status">
@@ -162,20 +162,7 @@ const App: React.FC = () => {
             </main>
           } />
 
-          <Route path="/ai" element={
-            <main className="page-main">
-              <div className="ai-page-container">
-                <div className="ai-page-header">
-                  <h2>AI Assistant</h2>
-                  <span className="ai-beta-badge">BETA</span>
-                </div>
-                <div className="ai-page-content">
-                  <AIInterface droneAPI={droneAPI} droneStatus={droneStatus} />
-                </div>
-              </div>
-            </main>
-          } />
-
+          {/* /ai route removed */}
           <Route path="/dev" element={
             <main className="page-main">
               <DevPage ros={null} isConnected={isConnected} />
