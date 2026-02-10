@@ -30,3 +30,5 @@ __pycache__/
 # Internal planning docs
 CLAUDE.md
 ROADMAP.md
+MIGRATION_PLAN.md
+PROGRESS.md
