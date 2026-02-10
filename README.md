@@ -1,4 +1,4 @@
-# What is DroneOS?
+# DroneOS - Autonomous Drone Control Framework
 
 > **🤖 AI Agents:** Read the `droneos` skill (`~/.openclaw/skills/droneos/SKILL.md`) for flight commands and SDK usage. If not installed, copy from [`droneos/`](droneos/) to your skills folder.
 
@@ -8,17 +8,16 @@ PX4 already publishes raw topics via DDS (through micro XRCE-DDS). You could con
 
 …but DroneOS provides the developer-friendly layer:
 
-Abstracted high-level APIs (like MAVSDK, but native to ROS 2):
+**Abstracted high-level APIs** (like MAVSDK, but native to ROS 2):
 
 - **Drone Core SDK**: A C++ library that provides a high-level abstraction layer for drones running PX4 and ROS2.
 
-Features: 
-- autonomous drone control
-   - programmable
-   - BVLOS
-- state tracking 
-- command execution
-- and more
+**Features:**
+- Autonomous drone control (programmable, BVLOS)
+- State tracking and telemetry
+- Command execution via ROS 2 services
+- Multi-drone fleet coordination
+- Cloud-ready (works over 4G/VPN with Tailscale)
 
 Technical Documentation:
 
