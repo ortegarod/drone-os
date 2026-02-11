@@ -35,6 +35,14 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
   const [consoleOutput, setConsoleOutput] = useState<Array<{ text: string; type: 'cmd' | 'ok' | 'err' | 'info' }>>([
     { text: 'DroneOS Console v1.0 — type "help" for commands', type: 'info' },
   ]);
+  const [commandOverlay, setCommandOverlay] = useState<{
+    state?: string;
+    message?: string;
+    target?: { label?: string; x?: number; y?: number; z?: number };
+    telemetry?: { x?: number; y?: number; z?: number };
+    mode?: string;
+    armed?: boolean;
+  }>({});
   const consoleOutputRef = useRef<HTMLDivElement>(null);
 
   const executeCommand = useCallback(async (cmd: string) => {
@@ -197,10 +205,15 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
               droneAPI={droneAPI}
               isConnected={isConnected}
               droneStatus={droneStatus}
+              commandOverlay={commandOverlay}
             />
           </div>
           <div className="viewport-chat">
-            <AIInterface droneAPI={droneAPI} droneStatus={droneStatus} />
+            <AIInterface
+              droneAPI={droneAPI}
+              droneStatus={droneStatus}
+              onCommandUpdate={(update) => setCommandOverlay(update)}
+            />
           </div>
         </main>
 

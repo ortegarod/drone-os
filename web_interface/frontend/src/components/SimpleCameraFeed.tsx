@@ -4,6 +4,14 @@ interface SimpleCameraFeedProps {
   droneAPI: any;
   isConnected: boolean;
   droneStatus: any;
+  commandOverlay?: {
+    state?: string;
+    message?: string;
+    target?: { label?: string; x?: number; y?: number; z?: number };
+    telemetry?: { x?: number; y?: number; z?: number };
+    mode?: string;
+    armed?: boolean;
+  };
 }
 
 interface VideoSettings {
@@ -20,51 +28,40 @@ const videoPresets: VideoSettings[] = [
   { width: 1280, height: 720, quality: 70, label: '720p High' },
 ];
 
-// Server host where backend services run (rosbridge, camera, etc.)
-// Use the same host the browser used to load the page (works from any machine)
 const SERVER_HOST = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const CAMERA_PORT = '8080';
 
-const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnected, droneStatus }) => {
+const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ isConnected, droneStatus, commandOverlay }) => {
   const imgRef = useRef<HTMLImageElement>(null);
-  const [status, setStatus] = useState<string>('Connecting...');
-  const [currentPreset, setCurrentPreset] = useState<VideoSettings>(videoPresets[1]); // Default to 480p Medium
+  const [streamStatus, setStreamStatus] = useState<string>('connecting');
+  const [currentPreset, setCurrentPreset] = useState<VideoSettings>(videoPresets[1]);
   const [streamUrl, setStreamUrl] = useState<string>(`http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera&type=mjpeg&width=640&height=480&quality=50&qos_profile=sensor_data`);
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
-  // Update stream URL when preset changes
   const updateStreamUrl = (preset: VideoSettings) => {
     const newUrl = `http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera&type=mjpeg&width=${preset.width}&height=${preset.height}&quality=${preset.quality}&qos_profile=sensor_data`;
     setStreamUrl(newUrl);
     setCurrentPreset(preset);
   };
 
-  // Handle preset selection
   const handlePresetChange = (preset: VideoSettings) => {
     updateStreamUrl(preset);
     setShowSettings(false);
-    setStatus('Loading new resolution...');
+    setStreamStatus('loading');
   };
 
   useEffect(() => {
     if (!imgRef.current) return;
 
     const img = imgRef.current;
-    
-    const handleLoad = () => {
-      setStatus('Live • Native video stream');
-    };
 
-    const handleError = () => {
-      setStatus('Stream error - check camera service');
-    };
+    const handleLoad = () => setStreamStatus('live');
+    const handleError = () => setStreamStatus('error');
 
     img.addEventListener('load', handleLoad);
     img.addEventListener('error', handleError);
-    
-    // Set the stream URL
     img.src = streamUrl;
-    setStatus('Loading video stream...');
+    setStreamStatus('loading');
 
     return () => {
       img.removeEventListener('load', handleLoad);
@@ -72,78 +69,89 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
     };
   }, [streamUrl]);
 
+  const altitude = (-droneStatus?.position?.z || 0).toFixed(1);
+  const x = (droneStatus?.position?.x || 0).toFixed(2);
+  const y = (droneStatus?.position?.y || 0).toFixed(2);
+  const mode = commandOverlay?.mode || droneStatus?.flight_mode || 'unknown';
+  const armed = typeof commandOverlay?.armed === 'boolean' ? commandOverlay.armed : Boolean(droneStatus?.armed);
+  const state = commandOverlay?.state || 'idle';
+
+  const targetLabel = commandOverlay?.target?.label ||
+    (commandOverlay?.target ? `x=${commandOverlay.target.x ?? '-'}, y=${commandOverlay.target.y ?? '-'}, z=${commandOverlay.target.z ?? '-'}` : 'none');
+
+  const streamColor =
+    streamStatus === 'live' ? '#3fb950' : streamStatus === 'error' ? '#f85149' : '#f39c12';
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Status bar similar to hotbar */}
-      <div style={{
-        backgroundColor: '#1a1a1a',
-        borderBottom: '1px solid #444',
-        padding: '8px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '12px'
-      }}>
-        <div style={{
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative', backgroundColor: '#1a1a1a' }}>
+      <div
+        style={{
+          position: 'absolute',
+          top: 8,
+          left: 8,
+          right: 8,
+          zIndex: 100,
+          pointerEvents: 'none',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px'
-        }}>
-          <div style={{
-            fontSize: '12px',
-            fontWeight: '600',
-            color: '#888',
-            fontFamily: 'Segoe UI, system-ui, sans-serif'
-          }}>
-            📹 CAMERA
-          </div>
-          <div style={{
-            fontSize: '11px',
-            color: status.includes('Live') ? '#00ff41' : status.includes('error') ? '#e74c3c' : '#f39c12',
-            fontFamily: 'monospace'
-          }}>
-            {status}
-          </div>
-          <div style={{
-            fontSize: '10px',
-            color: '#666',
-            fontFamily: 'monospace'
-          }}>
-            {currentPreset.label}
-          </div>
+          justifyContent: 'space-between',
+          gap: 8,
+          background: 'rgba(10, 14, 18, 0.56)',
+          border: '1px solid rgba(85, 95, 110, 0.65)',
+          borderRadius: 6,
+          padding: '6px 8px',
+          backdropFilter: 'blur(4px)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, color: '#8b949e', fontFamily: 'monospace' }}>drone {droneStatus?.drone_name || 'none'}</span>
+          <span style={{ fontSize: 11, color: '#c9d1d9', fontFamily: 'monospace' }}>mode {mode}</span>
+          <span style={{ fontSize: 11, color: armed ? '#f85149' : '#8b949e', fontFamily: 'monospace' }}>armed {armed ? 'yes' : 'no'}</span>
+          <span style={{ fontSize: 11, color: '#c9d1d9', fontFamily: 'monospace' }}>alt {altitude}m</span>
+          <span style={{ fontSize: 11, color: '#8b949e', fontFamily: 'monospace' }}>x {x} y {y}</span>
+          <span style={{ fontSize: 11, color: '#8b949e', fontFamily: 'monospace' }}>target {targetLabel}</span>
+          <span style={{ fontSize: 11, color: '#c9d1d9', fontFamily: 'monospace' }}>state {state}</span>
+          <span style={{ fontSize: 11, color: streamColor, fontFamily: 'monospace' }}>stream {streamStatus}</span>
+          {!isConnected && (
+            <span style={{ fontSize: 11, color: '#f39c12', fontFamily: 'monospace' }}>ros offline</span>
+          )}
+          {commandOverlay?.message && (
+            <span style={{ fontSize: 11, color: '#c9d1d9', fontFamily: 'monospace' }}>| {commandOverlay.message}</span>
+          )}
         </div>
-        
-        <div style={{ position: 'relative' }}>
+
+        <div style={{ position: 'relative', pointerEvents: 'auto' }}>
           <button
             onClick={() => setShowSettings(!showSettings)}
             style={{
-              background: 'none',
-              border: '1px solid #444',
-              color: '#888',
+              background: 'rgba(18, 22, 27, 0.9)',
+              border: '1px solid #3f4652',
+              color: '#c9d1d9',
               padding: '4px 8px',
               fontSize: '10px',
               cursor: 'pointer',
-              borderRadius: '2px',
-              fontFamily: 'monospace'
+              borderRadius: '4px',
+              fontFamily: 'monospace',
             }}
           >
-            ⚙️ QUALITY
+            quality {currentPreset.label}
           </button>
-          
+
           {showSettings && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              background: '#2a2a2a',
-              border: '1px solid #444',
-              borderRadius: '4px',
-              padding: '8px',
-              zIndex: 1000,
-              minWidth: '150px',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.5)'
-            }}>
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: 4,
+                background: 'rgba(22, 28, 35, 0.96)',
+                border: '1px solid #3f4652',
+                borderRadius: 4,
+                padding: 6,
+                zIndex: 1000,
+                minWidth: 150,
+              }}
+            >
               {videoPresets.map((preset) => (
                 <button
                   key={preset.label}
@@ -151,7 +159,7 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
                   style={{
                     display: 'block',
                     width: '100%',
-                    background: currentPreset.label === preset.label ? '#444' : 'none',
+                    background: currentPreset.label === preset.label ? '#2f3946' : 'transparent',
                     border: 'none',
                     color: '#fff',
                     padding: '6px 8px',
@@ -159,18 +167,8 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
                     cursor: 'pointer',
                     textAlign: 'left',
                     fontFamily: 'monospace',
-                    borderRadius: '2px',
-                    marginBottom: '2px'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPreset.label !== preset.label) {
-                      (e.target as HTMLElement).style.background = '#333';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPreset.label !== preset.label) {
-                      (e.target as HTMLElement).style.background = 'none';
-                    }
+                    borderRadius: 2,
+                    marginBottom: 2,
                   }}
                 >
                   {preset.label}
@@ -179,27 +177,15 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ droneAPI, isConnect
             </div>
           )}
         </div>
-        
       </div>
-      
-      <div style={{ 
-        flex: 1, 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        backgroundColor: '#1a1a1a'
-      }}>
+
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <img
           ref={imgRef}
-          style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-            objectFit: 'contain'
-          }}
+          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
           alt="Camera feed"
         />
       </div>
-      
     </div>
   );
 };

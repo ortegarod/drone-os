@@ -6,43 +6,54 @@ import {
   ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
-  AuiIf
 } from '@assistant-ui/react';
 
 interface AIInterfaceProps {
   droneAPI: any;
   droneStatus: DroneStatus;
+  onCommandUpdate?: (update: {
+    state?: string;
+    message?: string;
+    target?: { label?: string; x?: number; y?: number; z?: number };
+    telemetry?: { x?: number; y?: number; z?: number };
+    mode?: string;
+    armed?: boolean;
+  }) => void;
 }
 
-// NOTE: This webpack setup does not polyfill `process` in the browser.
-// Keep this runtime-safe by deriving the endpoint from the current location.
 const OPENCLAW_HTTP_ENDPOINT = '/api/openclaw/chat';
 
-const UserMessage = () => (
-  <MessagePrimitive.Root className="mx-auto w-full max-w-[760px] py-2" data-role="user">
-    <div className="ml-8 rounded-md bg-[#2f6fb2] px-3 py-2 text-white">
-      <MessagePrimitive.Content />
-    </div>
-  </MessagePrimitive.Root>
-);
+function parseStructuredResponse(text: string): any | null {
+  if (!text || typeof text !== 'string') return null;
 
-const AssistantMessage = () => (
-  <MessagePrimitive.Root className="mx-auto w-full max-w-[760px] py-2" data-role="assistant">
-    <div className="mr-8 rounded-md bg-[#3a4250] px-3 py-2 text-white">
-      <MessagePrimitive.Content />
-    </div>
-  </MessagePrimitive.Root>
-);
+  const fenced = text.match(/```json\s*([\s\S]*?)```/i);
+  const candidates = [fenced?.[1], text].filter(Boolean) as string[];
 
-const SystemMessage = () => (
-  <MessagePrimitive.Root className="mx-auto w-full max-w-[760px] py-2" data-role="system">
-    <div className="rounded-md bg-[#4b5563] px-3 py-2 text-white">
-      <MessagePrimitive.Content />
-    </div>
-  </MessagePrimitive.Root>
-);
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate.trim());
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch {
+      // continue
+    }
+  }
 
-const AIInterface: React.FC<AIInterfaceProps> = ({ droneStatus }) => {
+  return null;
+}
+
+function toConciseText(parsed: any, fallback: string): string {
+  const msg = parsed?.message;
+  if (typeof msg === 'string' && msg.trim()) return msg.trim();
+
+  const state = parsed?.state;
+  const intent = parsed?.intent;
+  if (intent && state) return `${intent}: ${state}`;
+  if (state) return String(state);
+
+  return fallback.split('\n')[0].trim().slice(0, 220) || 'No response.';
+}
+
+const AIInterface: React.FC<AIInterfaceProps> = ({ onCommandUpdate }) => {
   const [isConnected, setIsConnected] = useState(true);
   const [sessionKey, setSessionKey] = useState('hook:webui');
 
@@ -61,11 +72,20 @@ const AIInterface: React.FC<AIInterfaceProps> = ({ droneStatus }) => {
             return;
           }
 
+          const wiredPrompt = [
+            'WEB UI MODE: return concise output.',
+            'If command/action related, prefer JSON object with keys:',
+            '{"intent","state","message","target":{"label","x","y","z"},"status":{"mode","armed"},"telemetry":{"x","y","z"}}',
+            'No emoji. No decorative symbols. Keep message short.',
+            '',
+            `User command: ${userText}`,
+          ].join('\n');
+
           try {
             const res = await fetch(OPENCLAW_HTTP_ENDPOINT, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: userText, session_key: sessionKey })
+              body: JSON.stringify({ message: wiredPrompt, session_key: sessionKey }),
             });
 
             if (!res.ok) {
@@ -78,14 +98,28 @@ const AIInterface: React.FC<AIInterfaceProps> = ({ droneStatus }) => {
             if (data?.sessionKey) setSessionKey(data.sessionKey);
             setIsConnected(Boolean(data?.ok));
 
-            yield { content: [{ type: 'text', text: data?.text || data?.error || 'No response.' }] };
+            const rawText = data?.text || data?.error || 'No response.';
+            const parsed = parseStructuredResponse(rawText);
+
+            if (parsed) {
+              onCommandUpdate?.({
+                state: parsed?.state,
+                message: parsed?.message,
+                target: parsed?.target,
+                telemetry: parsed?.telemetry,
+                mode: parsed?.status?.mode,
+                armed: parsed?.status?.armed,
+              });
+            }
+
+            yield { content: [{ type: 'text', text: parsed ? toConciseText(parsed, rawText) : rawText }] };
           } catch (e: any) {
             setIsConnected(false);
             yield { content: [{ type: 'text', text: `Error: ${e?.message || 'failed'}` }] };
           }
-        }
+        },
       }),
-      [sessionKey]
+      [sessionKey, onCommandUpdate]
     )
   );
 
@@ -96,24 +130,30 @@ const AIInterface: React.FC<AIInterfaceProps> = ({ droneStatus }) => {
           <ThreadPrimitive.Viewport className="flex-1 overflow-y-auto p-2">
             <ThreadPrimitive.Messages
               components={{
-                UserMessage: ({ children }: any) => (
-                  <MessagePrimitive.Root className="py-2" data-role="user">
-                    <MessagePrimitive.Content />
-                    {children}
+                UserMessage: () => (
+                  <MessagePrimitive.Root className="mx-auto w-full max-w-[760px] py-2" data-role="user">
+                    <div className="ml-8 rounded-md border border-[#355b83] bg-[#223445] px-3 py-2 text-white">
+                      <div className="mb-1 text-xs text-[#8ea4bb]">You</div>
+                      <MessagePrimitive.Content />
+                    </div>
                   </MessagePrimitive.Root>
                 ),
-                AssistantMessage: ({ children }: any) => (
-                  <MessagePrimitive.Root className="py-2" data-role="assistant">
-                    <MessagePrimitive.Content />
-                    {children}
+                AssistantMessage: () => (
+                  <MessagePrimitive.Root className="mx-auto w-full max-w-[760px] py-2" data-role="assistant">
+                    <div className="mr-8 rounded-md border border-[#3a4250] bg-[#1f242d] px-3 py-2 text-white">
+                      <div className="mb-1 text-xs text-[#8b949e]">DroneOS</div>
+                      <MessagePrimitive.Content />
+                    </div>
                   </MessagePrimitive.Root>
                 ),
-                SystemMessage: ({ children }: any) => (
-                  <MessagePrimitive.Root className="py-2" data-role="system">
-                    <MessagePrimitive.Content />
-                    {children}
+                SystemMessage: () => (
+                  <MessagePrimitive.Root className="mx-auto w-full max-w-[760px] py-2" data-role="system">
+                    <div className="rounded-md border border-[#4b5563] bg-[#2a313d] px-3 py-2 text-white">
+                      <div className="mb-1 text-xs text-[#a1a1aa]">System</div>
+                      <MessagePrimitive.Content />
+                    </div>
                   </MessagePrimitive.Root>
-                )
+                ),
               }}
             />
           </ThreadPrimitive.Viewport>
@@ -121,7 +161,7 @@ const AIInterface: React.FC<AIInterfaceProps> = ({ droneStatus }) => {
           <ComposerPrimitive.Root className="border-t border-border p-2">
             <div className="flex items-end gap-2">
               <ComposerPrimitive.Input
-                placeholder={isConnected ? 'Message…' : 'Offline'}
+                placeholder={isConnected ? 'Enter command…' : 'Offline'}
                 className="min-h-[40px] flex-1 resize-none rounded-md border border-border bg-[#252b35] p-2 text-sm text-white outline-none"
                 rows={1}
                 disabled={!isConnected}
