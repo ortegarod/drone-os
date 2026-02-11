@@ -47,10 +47,8 @@ services:
       - ROS_LOG_SEVERITY_THRESHOLD=debug
       # DDS Domain ID (must match across all containers)
       - ROS_DOMAIN_ID=0
-      # DDS Discovery settings
+      # DDS Discovery settings (use SIMPLE to match other containers on srv01)
       - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
-      # Whitelist all interfaces for Fast-RTPS (temporary for testing)
-      - FASTRTPS_WHITELIST_INTERFACES=all
     depends_on:
       # Ensure the agent starts before the core logic
       - micro_agent

@@ -27,8 +27,8 @@ OffboardControl::OffboardControl(rclcpp::Node* node, const std::string& px4_name
     // PX4 expects BEST_EFFORT reliability, not default RELIABLE
     auto qos = rclcpp::QoS(
         rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_LAST, 5),
-        rclcpp::QoSReliabilityPolicy::BestEffort,
-        rclcpp::QoSDurabilityPolicy::Volatile
+        rclcpp::ReliabilityPolicy::BestEffort,
+        rclcpp::DurabilityPolicy::Volatile
     );
 
     offboard_control_mode_pub_ = node_->create_publisher<px4_msgs::msg::OffboardControlMode>(ns_ + "in/offboard_control_mode", qos);
