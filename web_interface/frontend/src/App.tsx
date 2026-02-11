@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
-import AIInterface from './components/AIInterface';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import TelemetryPage from './components/TelemetryPage';
-import MiniMap from './components/MiniMap';
 import DroneMap from './components/DroneMap';
 import DevPage from './components/DevPage';
-import DroneMenu from './components/DroneMenu';
-import SimpleCameraFeed from './components/SimpleCameraFeed';
 import { createDroneAPI } from './api/droneAPI';
 import { useRosbridgeConnection } from './hooks/useRosbridgeConnection';
 import { useDroneState } from './hooks/useDroneState';
 import { useDroneDiscovery } from './hooks/useDroneDiscovery';
+import FleetDashboard from './components/FleetDashboard';
 import { Badge } from './components/ui/badge';
-import { Card, CardContent } from './components/ui/card';
 import './App.css';
 
 type OpsState = 'OFFLINE' | 'STANDBY' | 'READY' | 'EXECUTING' | 'AIRBORNE' | 'UNKNOWN';
@@ -59,15 +55,11 @@ const App: React.FC = () => {
   return (
     <Router>
       <div className="app">
-        {/* Compact header: nav + status in one row */}
+        {/* Single consolidated header */}
         <header className="app-header">
-          <nav className="header-nav">
-            <NavLink to="/" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Dashboard</NavLink>
-            <NavLink to="/telemetry" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Status</NavLink>
-            <NavLink to="/map" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Map</NavLink>
-            {/* AI panel removed (chat is embedded on Dashboard) */}
-            <NavLink to="/dev" className={({ isActive }) => `nav-btn ${isActive ? 'active' : ''}`}>Dev</NavLink>
-          </nav>
+          <span className="header-brand">DRONEOS</span>
+          <Badge className={`ops-badge ops-${opsState.toLowerCase()}`}>{opsState}</Badge>
+          <span className="ops-state-meta">mode: {droneStatus.flight_mode}</span>
           <div className="header-status">
             <span className="header-stat">{droneStatus.drone_name || 'drone'}</span>
             <span className="header-stat-divider">|</span>
@@ -81,73 +73,19 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <Card className="mx-2 my-1 border-border bg-card">
-          <CardContent className="flex h-10 items-center gap-3 p-2">
-            <span className="ops-state-label">OPS STATE</span>
-            <Badge className={`ops-badge ops-${opsState.toLowerCase()}`}>{opsState}</Badge>
-            <span className="ops-state-meta">mode: {droneStatus.flight_mode}</span>
-          </CardContent>
-        </Card>
-
         <Routes>
           <Route path="/" element={
-            <div className="ops-layout two-column">
-              <main className="ops-main-left">
-                <Card className="h-full border-border bg-card">
-                  <CardContent className="h-full p-2 flex flex-col gap-2">
-                    <div className="left-camera-wrap">
-                      <SimpleCameraFeed
-                        droneAPI={droneAPI}
-                        isConnected={isConnected}
-                        droneStatus={droneStatus}
-                      />
-                    </div>
-                    <div className="left-console-wrap">
-                      <AIInterface droneAPI={droneAPI} droneStatus={droneStatus} />
-                    </div>
-                  </CardContent>
-                </Card>
-              </main>
-
-              <aside className="ops-right">
-                <Card className="h-full border-border bg-card">
-                  <CardContent className="h-full p-2 flex flex-col gap-2">
-                    <div className="drone-switch-row">
-                      <span className="drone-switch-label">Active Drone</span>
-                      <select
-                        className="drone-switch-select"
-                        value={droneStatus.drone_name || ''}
-                        onChange={(e) => setTargetDrone(e.target.value)}
-                      >
-                        {availableDrones.map((drone) => (
-                          <option key={drone} value={drone}>{drone}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="right-map-wrap">
-                      <MiniMap
-                        droneAPI={droneAPI}
-                        droneStatus={droneStatus}
-                        availableDrones={availableDrones}
-                        targetAltitude={targetAltitude}
-                      />
-                    </div>
-                    <div className="right-controls-wrap">
-                      <DroneMenu
-                        droneAPI={droneAPI}
-                        droneStatus={droneStatus}
-                        availableDrones={availableDrones}
-                        isConnected={isConnected}
-                        targetAltitude={targetAltitude}
-                        setTargetAltitude={setTargetAltitude}
-                        maxAltitude={maxAltitude}
-                        setMaxAltitude={setMaxAltitude}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </aside>
-            </div>
+            <FleetDashboard
+              droneAPI={droneAPI}
+              droneStatus={droneStatus}
+              availableDrones={availableDrones}
+              isConnected={isConnected}
+              setTargetDrone={setTargetDrone}
+              targetAltitude={targetAltitude}
+              setTargetAltitude={setTargetAltitude}
+              maxAltitude={maxAltitude}
+              setMaxAltitude={setMaxAltitude}
+            />
           } />
 
           <Route path="/telemetry" element={

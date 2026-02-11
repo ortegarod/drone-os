@@ -1,0 +1,280 @@
+/* Fleet dashboard layout */
+.fleet-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.fleet-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 240px 1fr 380px;
+  gap: 8px;
+  padding: 8px 8px 0 8px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Left: fleet list */
+.fleet-sidebar {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.fleet-list-header {
+  padding: 10px 14px;
+  color: #8b949e;
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-bottom: 1px solid #21262d;
+  flex-shrink: 0;
+}
+
+.fleet-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  min-height: 0;
+}
+
+.fleet-drone-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  border: 1px solid transparent;
+}
+
+.fleet-drone-card:hover {
+  background-color: #21262d;
+}
+
+.fleet-drone-card.active {
+  background-color: #1c2633;
+  border-color: #1f6feb;
+}
+
+.drone-card-indicator {
+  width: 4px;
+  height: 32px;
+  border-radius: 2px;
+  background-color: #30363d;
+  flex-shrink: 0;
+}
+
+.fleet-drone-card.active .drone-card-indicator {
+  background-color: #1f6feb;
+}
+
+.drone-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.drone-card-name {
+  color: #c9d1d9;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fleet-drone-card.active .drone-card-name {
+  color: #fff;
+}
+
+.drone-card-stats {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.drone-card-armed,
+.drone-card-alt {
+  font-size: 10px;
+  font-family: monospace;
+  color: #8b949e;
+  letter-spacing: 0.5px;
+}
+
+.drone-card-armed {
+  text-transform: uppercase;
+}
+
+.drone-card-armed.yes {
+  color: #f85149;
+}
+
+.drone-card-status {
+  flex-shrink: 0;
+  font-size: 10px;
+}
+
+.drone-card-status.online {
+  color: #3fb950;
+}
+
+.drone-card-status.idle {
+  color: #484f58;
+}
+
+.fleet-empty {
+  color: #484f58;
+  font-size: 12px;
+  font-family: monospace;
+  text-align: center;
+  padding: 20px 10px;
+}
+
+/* Center: camera + chat */
+.fleet-viewport {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.viewport-camera,
+.viewport-chat {
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  overflow: hidden;
+}
+
+.viewport-camera {
+  flex: 1;
+  min-height: 0;
+  background-color: #0d1117;
+}
+
+.viewport-chat {
+  height: 300px;
+  flex-shrink: 0;
+}
+
+/* Right: map + controls */
+.fleet-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.control-map,
+.control-menu {
+  border-radius: 6px;
+  border: 1px solid #30363d;
+}
+
+.control-map {
+  height: 280px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.control-menu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Shared controls */
+.drone-switch-select {
+  width: 100%;
+  background: #1d232d;
+  color: #fff;
+  border: 1px solid #3f4652;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+/* Footer console */
+.fleet-console {
+  background-color: #0d1117;
+  border-top: 1px solid #30363d;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 160px;
+}
+
+.console-output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 0;
+  max-height: 120px;
+}
+
+.console-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.console-cmd { color: #c9d1d9; }
+.console-ok { color: #3fb950; }
+.console-err { color: #f85149; }
+.console-info { color: #8b949e; }
+
+.console-input-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px 6px;
+  border-top: 1px solid #21262d;
+  gap: 8px;
+}
+
+.console-prompt {
+  color: #3fb950;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.console-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #c9d1d9;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  caret-color: #3fb950;
+}
+
+.console-input::placeholder {
+  color: #484f58;
+}
+
+.console-output::-webkit-scrollbar,
+.fleet-list::-webkit-scrollbar,
+.control-menu::-webkit-scrollbar {
+  width: 4px;
+}
+
+.console-output::-webkit-scrollbar-thumb,
+.fleet-list::-webkit-scrollbar-thumb,
+.control-menu::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 2px;
+}
