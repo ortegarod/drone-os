@@ -16,8 +16,7 @@ interface AIInterfaceProps {
 
 // NOTE: This webpack setup does not polyfill `process` in the browser.
 // Keep this runtime-safe by deriving the endpoint from the current location.
-const OPENCLAW_HTTP_ENDPOINT =
-  `${typeof window !== 'undefined' ? window.location.protocol : 'http:'}//${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3031/api/openclaw/chat`;
+const OPENCLAW_HTTP_ENDPOINT = '/api/openclaw/chat';
 
 const UserMessage = () => (
   <MessagePrimitive.Root className="mx-auto w-full max-w-[760px] py-2" data-role="user">

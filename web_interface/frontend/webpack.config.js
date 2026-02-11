@@ -47,5 +47,11 @@ module.exports = {
     hot: true,
     host: '0.0.0.0',
     allowedHosts: 'all',
+    proxy: {
+      '/api/openclaw': {
+        target: 'http://127.0.0.1:3031',
+        changeOrigin: true,
+      },
+    },
   },
 };

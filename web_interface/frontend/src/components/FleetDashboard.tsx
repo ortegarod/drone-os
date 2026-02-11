@@ -95,10 +95,9 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
 
         case 'state': {
           const r = await droneAPI.getState();
-          if (r.success && r.state) {
-            const s = r.state;
+          if (r.success) {
             setConsoleOutput(prev => [...prev,
-              { text: `Mode: ${s.nav_state || 'unknown'} | Armed: ${s.arming_state === 2 ? 'YES' : 'NO'} | Alt: ${(-s.local_z || 0).toFixed(1)}m | Bat: ${s.battery_pct?.toFixed(0) || '?'}%`, type: 'info' },
+              { text: `Mode: ${r.nav_state || 'unknown'} | Armed: ${r.arming_state || 'UNKNOWN'} | Alt: ${(-r.local_z || 0).toFixed(1)}m | Bat: ${((r.battery_remaining || 0) * 100).toFixed(0)}%`, type: 'info' },
             ]);
           } else {
             setConsoleOutput(prev => [...prev, { text: 'Failed to get state', type: 'err' }]);
@@ -153,7 +152,7 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
   return (
     <div className="fleet-wrapper">
       <div className="fleet-layout">
-        {/* Left Sidebar — Fleet List */}
+        {/* Left — Fleet List */}
         <aside className="fleet-sidebar">
           <div className="fleet-list-header">FLEET</div>
           <div className="fleet-list">
@@ -232,6 +231,7 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
 
       {/* Console Footer */}
       <footer className="fleet-console">
+        <div className="console-target">TARGET: {droneStatus.drone_name || 'none'}</div>
         <div className="console-output" ref={consoleOutputRef}>
           {consoleOutput.map((line, i) => (
             <div key={i} className={`console-line console-${line.type}`}>{line.text}</div>

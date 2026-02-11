@@ -214,6 +214,14 @@
   max-height: 160px;
 }
 
+.console-target {
+  padding: 3px 12px;
+  border-bottom: 1px solid #21262d;
+  color: #8b949e;
+  font-size: 11px;
+  font-family: monospace;
+}
+
 .console-output {
   flex: 1;
   overflow-y: auto;
@@ -222,7 +230,7 @@
   font-size: 12px;
   line-height: 1.5;
   min-height: 0;
-  max-height: 120px;
+  max-height: 105px;
 }
 
 .console-line {

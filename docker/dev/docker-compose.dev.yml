@@ -299,7 +299,7 @@ services:
     environment:
       - REACT_APP_SERVER_HOST=localhost
     working_dir: /app
-    command: npm start
+    command: node server.js
 
   # --- OpenClaw Web UI Proxy ---
   # Keeps the OpenClaw gateway token server-side; browser hits :3031 over HTTP.
@@ -317,6 +317,32 @@ services:
       - OPENCLAW_GATEWAY_WS_URL=ws://127.0.0.1:18789
       - OPENCLAW_PROXY_BIND=0.0.0.0
       - OPENCLAW_PROXY_PORT=3031
+
+  # --- Rosbridge WebSocket Relay (VPS only) ---
+  # Proxies WebSocket connections to srv01's rosbridge over Tailscale
+  # Use this on VPS instead of rosbridge service
+  rosbridge_relay:
+    build:
+      context: ../..
+      dockerfile: docker/dev/rosbridge_relay.dev.Dockerfile
+    container_name: rosbridge_relay_node
+    network_mode: "host"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # --- Camera MJPEG Stream Proxy (VPS only) ---
+  # Proxies camera stream from srv01 to VPS
+  # Use this on VPS to relay camera feed over Tailscale
+  camera_proxy:
+    build:
+      context: ../..
+      dockerfile: docker/dev/camera_proxy.dev.Dockerfile
+    container_name: camera_proxy_node
+    network_mode: "host"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
 
 volumes:
   logs: # Declares that the host path './logs' is expected
