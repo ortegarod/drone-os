@@ -354,16 +354,10 @@ void DroneController::takeoff() {
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Current Z=%.1f, Target Z=%.1f (%.0fm up)",
         name_.c_str(), cz, target_z, default_takeoff_height);
 
-    // Set target position and ensure offboard control is running
+    // Set target position — offboard control must already be running (call set_offboard first)
     offboard_control_->set_target_position(cx, cy, target_z, cyaw);
-    offboard_control_->start();
 
-    // Enter offboard mode if not already
-    if (get_nav_state() != NavState::OFFBOARD) {
-        set_mode(Px4CustomMode::OFFBOARD);
-    }
-
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff command sent: hold X=%.1f Y=%.1f, climb to Z=%.1f",
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff target set: hold X=%.1f Y=%.1f, climb to Z=%.1f",
         name_.c_str(), cx, cy, target_z);
 }
 
@@ -514,11 +508,17 @@ void DroneController::takeoff_callback(
 {
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff service called", name_.c_str());
 
-    // Basic check: Drone must be armed.
+    // Drone must be armed and in offboard mode
     if (get_arming_state() != ArmingState::ARMED) {
         RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Takeoff rejected: Drone must be ARMED first.", name_.c_str());
         response->success = false;
-        response->message = "Takeoff rejected: Drone must be ARMED first.";
+        response->message = "Takeoff rejected: Drone must be ARMED first. Call set_offboard then arm first.";
+        return;
+    }
+    if (get_nav_state() != NavState::OFFBOARD) {
+        RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Takeoff rejected: Must be in OFFBOARD mode.", name_.c_str());
+        response->success = false;
+        response->message = "Takeoff rejected: Must be in OFFBOARD mode. Call set_offboard first.";
         return;
     }
     
