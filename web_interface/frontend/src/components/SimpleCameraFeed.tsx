@@ -42,7 +42,7 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ isConnected, droneS
 
   const buildStreamUrl = (preset: VideoSettings, droneName: string) => {
     const topic = `/${droneName}/camera`;
-    return `http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=${encodeURIComponent(topic)}&type=mjpeg&width=${preset.width}&height=${preset.height}&quality=${preset.quality}&qos_profile=sensor_data`;
+    return `http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=${encodeURIComponent(topic)}&type=mjpeg&width=${preset.width}&height=${preset.height}&quality=${preset.quality}`;
   };
 
   // Update stream URL when drone or preset changes
