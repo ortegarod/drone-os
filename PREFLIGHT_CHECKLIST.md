@@ -68,12 +68,12 @@ If heartbeat drops, PX4 may exit offboard.
 Do not continue unless each gate passes:
 
 1. [ ] Set target drone (name/namespace)
-2. [ ] Request offboard
+2. [ ] `set_offboard()`
    - Gate: `nav_state == OFFBOARD`
-3. [ ] Arm
+3. [ ] `arm()`
    - Gate: `arming_state == ARMED`
-4. [ ] Command small climb (`z=-3` to `z=-5` in NED)
-   - Gate: altitude changes as expected
+4. [ ] `takeoff()` — climbs 10m above current position via offboard position control
+   - Gate: altitude increases ~10m within 15s
 
 If any gate fails:
 - [ ] Stop sequence immediately
@@ -102,10 +102,10 @@ Then this is typically **offboard precondition / failsafe gating**, not UI routi
 
 ## 8) Definition of Done (Preflight Pass)
 Preflight is considered passed only if:
-- [ ] Offboard accepted
-- [ ] Arm successful
-- [ ] First climb command changes altitude correctly
-- [ ] Land command works and vehicle disarms cleanly
+- [ ] `set_offboard()` accepted (`nav_state == OFFBOARD`)
+- [ ] `arm()` successful (`arming_state == ARMED`)
+- [ ] `takeoff()` climbs ~10m above starting position
+- [ ] `land()` works and vehicle disarms cleanly
 
 ---
 
