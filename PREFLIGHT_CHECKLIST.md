@@ -98,6 +98,15 @@ Then this is typically **offboard precondition / failsafe gating**, not UI routi
 - [ ] Start additional PX4 instances with `PX4_GZ_STANDALONE=1`, unique `-i`, unique pose
 - [ ] **All instances MUST set `PX4_GZ_WORLD=baylands`** (or matching world name) — without it, standalone instances fail to spawn silently
 - [ ] Verify each instance has expected namespace routing (`/fmu`, `/px4_1/fmu`, ...)
+- [ ] Verify camera topics are separate per drone (`/drone1/camera`, `/drone2/camera` should NOT share Gazebo publishers)
+
+**Camera namespace fix (applied 2026-02-12):**
+- Cherry-picked from PX4-gazebo-models PR #76 (commit `183cbee`)
+- Without this fix, all drone cameras publish to the same `/camera` Gazebo topic → mixed frames
+- Fix removes hardcoded `<topic>camera</topic>` from `mono_cam/model.sdf`, letting Gazebo auto-namespace per model instance
+- New Gazebo topics: `/world/baylands/model/x500_mono_cam_N/link/camera_link/sensor/imager/image`
+- ros-gz-bridge remaps these to `/drone1/camera` and `/drone2/camera`
+- **If PX4-gazebo-models submodule is updated to latest, this fix is included and no cherry-pick is needed**
 
 **Drone2 launch command (example):**
 ```bash
