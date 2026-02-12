@@ -35,12 +35,23 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ isConnected, droneS
   const imgRef = useRef<HTMLImageElement>(null);
   const [streamStatus, setStreamStatus] = useState<string>('connecting');
   const [currentPreset, setCurrentPreset] = useState<VideoSettings>(videoPresets[1]);
-  const [streamUrl, setStreamUrl] = useState<string>(`http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera&type=mjpeg&width=640&height=480&quality=50&qos_profile=sensor_data`);
+  const [streamUrl, setStreamUrl] = useState<string>('');
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
+  const selectedDrone = droneStatus?.drone_name || 'drone1';
+
+  const buildStreamUrl = (preset: VideoSettings, droneName: string) => {
+    const topic = `/${droneName}/camera`;
+    return `http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=${encodeURIComponent(topic)}&type=mjpeg&width=${preset.width}&height=${preset.height}&quality=${preset.quality}&qos_profile=sensor_data`;
+  };
+
+  // Update stream URL when drone or preset changes
+  useEffect(() => {
+    setStreamUrl(buildStreamUrl(currentPreset, selectedDrone));
+    setStreamStatus('loading');
+  }, [selectedDrone, currentPreset]);
+
   const updateStreamUrl = (preset: VideoSettings) => {
-    const newUrl = `http://${SERVER_HOST}:${CAMERA_PORT}/stream?topic=/camera&type=mjpeg&width=${preset.width}&height=${preset.height}&quality=${preset.quality}&qos_profile=sensor_data`;
-    setStreamUrl(newUrl);
     setCurrentPreset(preset);
   };
 
