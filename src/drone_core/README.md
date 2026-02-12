@@ -139,7 +139,7 @@ ros2 run drone_core drone_core --ros-args \
 # Basic commands
 ros2 service call /drone1/arm std_srvs/srv/Trigger {}
 ros2 service call /drone1/disarm std_srvs/srv/Trigger {}
-ros2 service call /drone1/takeoff std_srvs/srv/Trigger {}
+ros2 service call /drone1/takeoff std_srvs/srv/Trigger {}  # Requires offboard + armed
 ros2 service call /drone1/land std_srvs/srv/Trigger {}
 
 # Mode changes
