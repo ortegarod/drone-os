@@ -96,7 +96,16 @@ Then this is typically **offboard precondition / failsafe gating**, not UI routi
 ## 7) Multi-Drone Launch Order (Gazebo GZ)
 - [ ] Start first PX4 instance (starts gz-server) **without** `PX4_GZ_STANDALONE=1`
 - [ ] Start additional PX4 instances with `PX4_GZ_STANDALONE=1`, unique `-i`, unique pose
+- [ ] **All instances MUST set `PX4_GZ_WORLD=baylands`** (or matching world name) — without it, standalone instances fail to spawn silently
 - [ ] Verify each instance has expected namespace routing (`/fmu`, `/px4_1/fmu`, ...)
+
+**Drone2 launch command (example):**
+```bash
+cd ~/PX4-Autopilot
+PX4_GZ_STANDALONE=1 PX4_GZ_WORLD=baylands PX4_GZ_MODEL_POSE="0,2,0,0,0,0" \
+  PX4_SIM_MODEL=gz_x500_mono_cam HEADLESS=1 \
+  ./build/px4_sitl_default/bin/px4 -i 1
+```
 
 ---
 
@@ -138,7 +147,9 @@ HEADLESS=1 PX4_GZ_WORLD=baylands make px4_sitl gz_x500_mono_cam
 Optional drone2 after drone1 is up:
 ```bash
 cd ~/PX4-Autopilot
-PX4_GZ_STANDALONE=1 PX4_GZ_MODEL_POSE="0,2,0,0,0,0" PX4_SIM_MODEL=gz_x500_mono_cam HEADLESS=1 ./build/px4_sitl_default/bin/px4 -i 1
+PX4_GZ_STANDALONE=1 PX4_GZ_WORLD=baylands PX4_GZ_MODEL_POSE="0,2,0,0,0,0" \
+  PX4_SIM_MODEL=gz_x500_mono_cam HEADLESS=1 \
+  ./build/px4_sitl_default/bin/px4 -i 1
 ```
 
 **Critical service-file pitfall (srv01):**
