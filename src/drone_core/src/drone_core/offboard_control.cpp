@@ -25,11 +25,9 @@ OffboardControl::OffboardControl(rclcpp::Node* node, const std::string& px4_name
 {
     // Fix: Use BEST_EFFORT reliability to match PX4's QoS requirements
     // PX4 expects BEST_EFFORT reliability, not default RELIABLE
-    auto qos = rclcpp::QoS(
-        rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_LAST, 5),
-        rclcpp::ReliabilityPolicy::BestEffort,
-        rclcpp::DurabilityPolicy::Volatile
-    );
+    auto qos = rclcpp::QoS(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_LAST, 5))
+        .reliability(rclcpp::ReliabilityPolicy::BestEffort)
+        .durability(rclcpp::DurabilityPolicy::Volatile);
 
     offboard_control_mode_pub_ = node_->create_publisher<px4_msgs::msg::OffboardControlMode>(ns_ + "in/offboard_control_mode", qos);
     trajectory_setpoint_pub_ = node_->create_publisher<px4_msgs::msg::TrajectorySetpoint>(ns_ + "in/trajectory_setpoint", qos);
