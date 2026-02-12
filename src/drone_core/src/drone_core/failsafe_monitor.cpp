@@ -18,17 +18,17 @@ FailsafeMonitor::FailsafeMonitor(rclcpp::Node* node, const std::string& drone_na
     
     // Create subscribers
     failsafe_flags_sub_ = node_->create_subscription<px4_msgs::msg::FailsafeFlags>(
-        failsafe_topic, 10,
+        failsafe_topic, rclcpp::QoS(10).best_effort(),
         std::bind(&FailsafeMonitor::failsafeFlagsCallback, this, std::placeholders::_1)
     );
     
     battery_status_sub_ = node_->create_subscription<px4_msgs::msg::BatteryStatus>(
-        battery_topic, 10,
+        battery_topic, rclcpp::QoS(10).best_effort(),
         std::bind(&FailsafeMonitor::batteryStatusCallback, this, std::placeholders::_1)
     );
     
     vehicle_status_sub_ = node_->create_subscription<px4_msgs::msg::VehicleStatus>(
-        vehicle_status_topic, 10,
+        vehicle_status_topic, rclcpp::QoS(10).best_effort(),
         std::bind(&FailsafeMonitor::vehicleStatusCallback, this, std::placeholders::_1)
     );
 }
