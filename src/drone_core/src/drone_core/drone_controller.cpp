@@ -332,36 +332,39 @@ ArmingState DroneController::get_arming_state() const {
 }
 
 /**
- * @brief Initiates the takeoff sequence using VEHICLE_CMD_NAV_TAKEOFF
+ * @brief Initiates the takeoff sequence using offboard position control
  * 
- * Sends a MAVLink takeoff command to PX4 with a default altitude of 10m.
- * If currently in offboard mode, stops offboard control first so PX4
- * can handle the takeoff autonomously.
+ * Enters offboard mode and commands a position 10m above the current location.
+ * Uses local NED coordinates (z negative = up) which avoids AMSL altitude issues.
  */
 void DroneController::takeoff() {
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Initiating takeoff sequence...", name_.c_str());
-    if (!drone_agent_->is_service_ready()) {
-        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Takeoff command failed: Agent service not ready.", name_.c_str());
+    constexpr float default_takeoff_height = 10.0f;  // meters above current position
+
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Initiating takeoff sequence (target: %.0fm above current)...", name_.c_str(), default_takeoff_height);
+
+    // Get current position from drone state
+    float cx, cy, cz;
+    if (!drone_state_->get_latest_local_position(cx, cy, cz)) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Takeoff failed: no valid local position.", name_.c_str());
         return;
     }
+    float cyaw = drone_state_->get_latest_local_yaw();
+    float target_z = cz - default_takeoff_height;  // NED: more negative = higher
 
-    // If currently in offboard mode, stop the offboard controller first
-    if (get_nav_state() == NavState::OFFBOARD) {
-        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Was in Offboard mode, stopping OffboardControl before takeoff.", name_.c_str());
-        offboard_control_->stop();
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Current Z=%.1f, Target Z=%.1f (%.0fm up)",
+        name_.c_str(), cz, target_z, default_takeoff_height);
+
+    // Set target position and ensure offboard control is running
+    offboard_control_->set_target_position(cx, cy, target_z, cyaw);
+    offboard_control_->start();
+
+    // Enter offboard mode if not already
+    if (get_nav_state() != NavState::OFFBOARD) {
+        set_mode(Px4CustomMode::OFFBOARD);
     }
 
-    // param1 = minimum pitch (0 = default), param7 = altitude in meters
-    constexpr float default_takeoff_altitude = 10.0f;
-    drone_agent_->sendVehicleCommand(VehicleCommand::VEHICLE_CMD_NAV_TAKEOFF, 0.0f, 0.0f,
-        [this](uint8_t result) {
-            if (result == 0) {
-                RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff sequence initiated (Ack)", name_.c_str());
-            } else {
-                RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Failed to initiate takeoff (Ack)", name_.c_str());
-            }
-        }, default_takeoff_altitude);
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff command sent via NAV_TAKEOFF (alt=10m)", name_.c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff command sent: hold X=%.1f Y=%.1f, climb to Z=%.1f",
+        name_.c_str(), cx, cy, target_z);
 }
 
 // --- Private Helper Methods ---
@@ -522,7 +525,7 @@ void DroneController::takeoff_callback(
     try {
         this->takeoff();
         response->success = true;
-        response->message = "Takeoff command initiated (NAV_TAKEOFF, default 10m)";
+        response->message = "Takeoff command initiated (offboard climb, default 10m)";
         RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff command processed successfully.", name_.c_str());
 
     } catch (const std::exception& e) {
