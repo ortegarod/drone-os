@@ -4,7 +4,7 @@ Camera MJPEG Stream Proxy
 Relays camera stream from srv01 to VPS
 """
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote
 import requests
 import logging
@@ -55,7 +55,7 @@ class CameraProxyHandler(BaseHTTPRequestHandler):
             self.send_error(502, f"Bad Gateway: {e}")
 
 if __name__ == '__main__':
-    server = HTTPServer((LISTEN_HOST, LISTEN_PORT), CameraProxyHandler)
-    logger.info(f"Camera proxy listening on {LISTEN_HOST}:{LISTEN_PORT}")
+    server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), CameraProxyHandler)
+    logger.info(f"Camera proxy listening on {LISTEN_HOST}:{LISTEN_PORT} (threaded)")
     logger.info(f"Forwarding to {UPSTREAM_HOST}:{UPSTREAM_PORT}")
     server.serve_forever()
