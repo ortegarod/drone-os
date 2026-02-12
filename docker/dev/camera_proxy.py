@@ -5,6 +5,7 @@ Relays camera stream from srv01 to VPS
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import unquote
 import requests
 import logging
 import sys
@@ -26,12 +27,15 @@ class CameraProxyHandler(BaseHTTPRequestHandler):
         logger.info(f"{self.address_string()} - {format % args}")
     
     def do_GET(self):
-        upstream_url = f"http://{UPSTREAM_HOST}:{UPSTREAM_PORT}{self.path}"
+        # Decode URL-encoded path to avoid double-encoding (e.g. %2F -> /)
+        # web_video_server requires raw topic names, not URL-encoded
+        decoded_path = unquote(self.path)
+        upstream_url = f"http://{UPSTREAM_HOST}:{UPSTREAM_PORT}{decoded_path}"
         logger.info(f"Proxying request to {upstream_url}")
         
         try:
-            # Stream response from upstream
-            response = requests.get(upstream_url, stream=True, timeout=5)
+            # Stream response from upstream (no read timeout for MJPEG)
+            response = requests.get(upstream_url, stream=True, timeout=(5, None))
             
             # Forward status and headers
             self.send_response(response.status_code)
@@ -40,10 +44,11 @@ class CameraProxyHandler(BaseHTTPRequestHandler):
                     self.send_header(header, value)
             self.end_headers()
             
-            # Stream body chunks
+            # Stream body chunks — flush after each to push MJPEG frames immediately
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     self.wfile.write(chunk)
+                    self.wfile.flush()
                     
         except requests.RequestException as e:
             logger.error(f"Error proxying request: {e}")
