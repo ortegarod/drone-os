@@ -53,7 +53,8 @@ public:
      * @param callback Function to be called with the command result
      */
     void sendVehicleCommand(uint16_t command, float param1 = 0.0f, float param2 = 0.0f,
-              std::function<void(uint8_t)> callback = [](uint8_t){});
+              std::function<void(uint8_t)> callback = [](uint8_t){},
+              float param7 = NAN);
 
 private:
     /**

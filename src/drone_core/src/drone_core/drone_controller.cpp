@@ -332,14 +332,36 @@ ArmingState DroneController::get_arming_state() const {
 }
 
 /**
- * @brief Initiates the takeoff sequence (Placeholder)
+ * @brief Initiates the takeoff sequence using VEHICLE_CMD_NAV_TAKEOFF
  * 
- * Currently unimplemented. For autonomous takeoff, consider entering 
- * Offboard mode and using set_position() to command a position above ground.
+ * Sends a MAVLink takeoff command to PX4 with a default altitude of 10m.
+ * If currently in offboard mode, stops offboard control first so PX4
+ * can handle the takeoff autonomously.
  */
 void DroneController::takeoff() {
-    // TODO: Implement takeoff sequence for non-offboard modes (e.g., using VEHICLE_CMD_NAV_TAKEOFF)
-    RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Takeoff method called, but not implemented.", name_.c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Initiating takeoff sequence...", name_.c_str());
+    if (!drone_agent_->is_service_ready()) {
+        RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Takeoff command failed: Agent service not ready.", name_.c_str());
+        return;
+    }
+
+    // If currently in offboard mode, stop the offboard controller first
+    if (get_nav_state() == NavState::OFFBOARD) {
+        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Was in Offboard mode, stopping OffboardControl before takeoff.", name_.c_str());
+        offboard_control_->stop();
+    }
+
+    // param1 = minimum pitch (0 = default), param7 = altitude in meters
+    constexpr float default_takeoff_altitude = 10.0f;
+    drone_agent_->sendVehicleCommand(VehicleCommand::VEHICLE_CMD_NAV_TAKEOFF, 0.0f, 0.0f,
+        [this](uint8_t result) {
+            if (result == 0) {
+                RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff sequence initiated (Ack)", name_.c_str());
+            } else {
+                RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Failed to initiate takeoff (Ack)", name_.c_str());
+            }
+        }, default_takeoff_altitude);
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff command sent via NAV_TAKEOFF (alt=10m)", name_.c_str());
 }
 
 // --- Private Helper Methods ---
@@ -497,13 +519,11 @@ void DroneController::takeoff_callback(
         return;
     }
     
-    // Note: Takeoff logic itself is currently a placeholder.
-    // Consider using offboard mode + set_position as an alternative.
     try {
-        this->takeoff(); // Call the placeholder internal method
+        this->takeoff();
         response->success = true;
-        response->message = "Takeoff command initiated (NOTE: Implementation is placeholder)";
-        RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Takeoff command sent, but implementation is placeholder.", name_.c_str());
+        response->message = "Takeoff command initiated (NAV_TAKEOFF, default 10m)";
+        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Takeoff command processed successfully.", name_.c_str());
 
     } catch (const std::exception& e) {
         RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Exception during takeoff command: %s", name_.c_str(), e.what());

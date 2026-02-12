@@ -44,12 +44,13 @@ DroneAgent::~DroneAgent() {
  * @param callback Function to be called with the command result
  */
 void DroneAgent::sendVehicleCommand(uint16_t command, float param1, float param2,
-          std::function<void(uint8_t)> callback)
+          std::function<void(uint8_t)> callback, float param7)
 {
     auto request = std::make_shared<px4_msgs::srv::VehicleCommand::Request>();
     px4_msgs::msg::VehicleCommand msg{};
     msg.param1 = param1;
     msg.param2 = param2;
+    msg.param7 = param7;
     msg.command = command;
     msg.target_system = this->mav_sys_id_;
     msg.target_component = 1;
