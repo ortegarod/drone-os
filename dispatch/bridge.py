@@ -66,9 +66,9 @@ class DispatchBridge:
                         "minProtocol": 3,
                         "maxProtocol": 3,
                         "client": {
-                            "id": "dispatch-bridge",
+                            "id": "cli",
                             "displayName": "Dispatch Bridge",
-                            "version": "1.0",
+                            "version": "dev",
                             "platform": "backend",
                             "mode": "cli",
                         },
