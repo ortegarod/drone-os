@@ -56,6 +56,13 @@ class DispatchBridge:
 
         try:
             async with websockets.connect(GATEWAY_WS, max_size=8 * 1024 * 1024) as ws:
+                # 0) Wait for connect.challenge from gateway
+                raw = await asyncio.wait_for(ws.recv(), timeout=5)
+                challenge = json.loads(raw)
+                if challenge.get("event") != "connect.challenge":
+                    self.log(f"Expected challenge, got: {challenge}")
+                    return None
+
                 # 1) Connect
                 connect_id = f"connect-{int(time.time() * 1000)}"
                 await ws.send(json.dumps({
@@ -67,9 +74,8 @@ class DispatchBridge:
                         "maxProtocol": 3,
                         "client": {
                             "id": "cli",
-                            "displayName": "Dispatch Bridge",
-                            "version": "dev",
-                            "platform": "backend",
+                            "version": "1.0.0",
+                            "platform": "linux",
                             "mode": "cli",
                         },
                         "auth": auth_obj,
