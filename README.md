@@ -1,6 +1,47 @@
 # DroneOS - Autonomous Drone Control Framework
 
+> **🏆 Hackathon Submission:** [LaunchFund AI Meets Robotics](https://lablab.ai/ai-hackathons/launch-fund-ai-meets-robotics) — See [DRONE-HACKATHON.md](DRONE-HACKATHON.md) for demo details, setup, and submission materials.
+
 > **🤖 AI Agents:** Read the `droneos` skill (`~/.openclaw/skills/droneos/SKILL.md`) for flight commands and SDK usage. If not installed, copy from [`droneos/`](droneos/) to your skills folder.
+
+## 🎯 AI Emergency Drone Dispatch Demo
+
+**🚁 Autonomous 911 dispatch system where AI commands drones to respond to emergencies.**
+
+**Demo:** http://207.148.9.142:3000 (Live frontend)  
+**Hackathon:** LaunchFund AI Meets Robotics (Feb 14, 2026)
+
+### What This Does
+
+When a 911 call comes in:
+1. AI dispatcher receives incident details
+2. Evaluates priority and location
+3. Selects and dispatches available drone autonomously
+4. Monitors flight progress via live camera feed
+5. Updates incident status in real-time
+
+**No human pilot needed.** The AI makes decisions and flies the drones.
+
+---
+
+## 📚 Documentation
+
+**Get Started:**
+- **`DRONE-HACKATHON.md`** ⭐ — Hackathon demo setup (30 minutes)
+- `PREFLIGHT_CHECKLIST.md` — Pre-flight verification
+- `TESTING.md` — End-to-end test procedures
+
+**Architecture:**
+- `docs/DISPATCH_ARCHITECTURE.md` — How the dispatch system works
+- `docs/MULTI_DRONE_SETUP.md` — Multi-drone spawn and control
+- `docs/MULTI_DRONE_CAMERAS.md` — Camera setup for dual drones
+- `docs/COORDINATE_FRAMES.md` — Local vs global coordinates
+
+**Troubleshooting:**
+- `TROUBLESHOOTING.md` — Common issues and fixes
+- `ROADMAP.md` — Long-term development roadmap
+
+---
 
 DroneOS is a framework for autonomous drone control, built on open-source ROS 2 and PX4 Autopilot. 
 
@@ -456,6 +497,16 @@ PX4_GZ_WORLD=baylands make px4_sitl gz_x500_mono_cam
 
 # The systemd service defaults to baylands:
 # Edit ~/.config/systemd/user/px4-sitl.service to change
+```
+
+⚠️ **After changing worlds, restart the camera bridge:**
+
+The `ros_gz_bridge` subscribes to Gazebo camera topics that include the world name in the path (e.g., `/world/lawn/model/...`). Switching worlds without restarting the bridge breaks camera feeds.
+
+**Quick fix:**
+```bash
+ssh rodrigo@<tailscale-ip> 'pkill -f ros_gz_bridge'
+# Then restart with correct world name - see TROUBLESHOOTING.md section #8
 ```
 
 ### World Files Location

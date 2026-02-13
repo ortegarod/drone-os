@@ -173,6 +173,39 @@ These flags are **expected** in remote-offboard sim with no RC/GCS. They don't b
 
 ---
 
+## 8) Camera Feeds Broken After World Change
+
+**Symptom:** Switched Gazebo world (e.g., `default` → `lawn` → `windy`), camera feeds won't load in frontend.
+
+**Root cause:** `ros_gz_bridge` topic paths include the world name. When you change worlds, the bridge is still subscribed to camera topics from the old world.
+
+**Example:**
+- Started with `default` world → bridge listens to `/world/default/model/x500_mono_cam_0/.../image`
+- Switched to `lawn` world → Gazebo now publishes to `/world/lawn/model/x500_mono_cam_0/.../image`
+- Bridge still listening to `/world/default/...` → no data flow → cameras frozen
+
+**Fix:**
+
+1. **Kill the old bridge:**
+   ```bash
+   ssh rodrigo@<tailscale-ip> 'pkill -f ros_gz_bridge'
+   ```
+
+2. **Start bridge with correct world name:**
+   ```bash
+   ssh rodrigo@<tailscale-ip> 'bash -c "source /opt/ros/humble/setup.bash && nohup ros2 run ros_gz_bridge parameter_bridge /world/WORLDNAME/model/x500_mono_cam_0/link/camera_link/sensor/imager/image@sensor_msgs/msg/Image@gz.msgs.Image /world/WORLDNAME/model/x500_mono_cam_1/link/camera_link/sensor/imager/image@sensor_msgs/msg/Image@gz.msgs.Image --ros-args --remap /world/WORLDNAME/model/x500_mono_cam_0/link/camera_link/sensor/imager/image:=/drone1/camera --remap /world/WORLDNAME/model/x500_mono_cam_1/link/camera_link/sensor/imager/image:=/drone2/camera > /tmp/camera_bridge.log 2>&1 &"'
+   ```
+   Replace `WORLDNAME` with your world (e.g., `lawn`, `windy`, `baylands`).
+
+3. **Verify:**
+   ```bash
+   ssh rodrigo@<tailscale-ip> 'source /opt/ros/humble/setup.bash && timeout 2 ros2 topic echo /drone1/camera --once'
+   ```
+
+**Fixed:** 2026-02-13. Documented after switching from `default` to `lawn` broke camera feeds.
+
+---
+
 ## Lessons Learned
 
 ### Don't touch simulation to fix frontend bugs (2026-02-12)
