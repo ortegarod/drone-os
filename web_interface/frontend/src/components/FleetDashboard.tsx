@@ -3,6 +3,10 @@ import AIInterface from './AIInterface';
 import MiniMap from './MiniMap';
 import DroneMenu from './DroneMenu';
 import SimpleCameraFeed from './SimpleCameraFeed';
+import IncidentQueue from './IncidentQueue';
+import DispatchControls from './DispatchControls';
+import { useDispatchState } from '../hooks/useDispatchState';
+import { useBridgeState } from '../hooks/useBridgeState';
 import { DroneStatus } from '../types/drone';
 import './FleetDashboard.css';
 
@@ -29,7 +33,19 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
   maxAltitude,
   setMaxAltitude,
 }) => {
+  const { incidents, connected: dispatchConnected } = useDispatchState();
+  const { status: bridgeStatus, connected: bridgeConnected, toggle: toggleBridge } = useBridgeState();
+  const [isAuthed, setIsAuthed] = useState(false);
   const [consoleInput, setConsoleInput] = useState('');
+
+  const handleAuth = useCallback(() => {
+    const pass = window.prompt('Enter operator passkey:');
+    if (pass === 'dragonfly') {
+      setIsAuthed(true);
+    } else if (pass !== null) {
+      window.alert('Invalid passkey');
+    }
+  }, []);
   const [consoleHistory, setConsoleHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [consoleOutput, setConsoleOutput] = useState<Array<{ text: string; type: 'cmd' | 'ok' | 'err' | 'info' }>>([
@@ -160,7 +176,7 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
   return (
     <div className="fleet-wrapper">
       <div className="fleet-layout">
-        {/* Left — Fleet List */}
+        {/* Left — Fleet + Incidents */}
         <aside className="fleet-sidebar">
           <div className="fleet-list-header">FLEET</div>
           <div className="fleet-list">
@@ -196,6 +212,7 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
               <div className="fleet-empty">No drones discovered</div>
             )}
           </div>
+          <IncidentQueue incidents={incidents} connected={dispatchConnected} />
         </aside>
 
         {/* Center — Camera + AI Chat */}
@@ -208,7 +225,36 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
               commandOverlay={commandOverlay}
             />
           </div>
-          <div className="viewport-chat">
+          <div className="viewport-chat" style={{ position: 'relative' }}>
+            <DispatchControls
+              bridgeStatus={bridgeStatus}
+              bridgeConnected={bridgeConnected}
+              onToggle={toggleBridge}
+              isAuthed={isAuthed}
+              onAuth={handleAuth}
+            />
+            {!isAuthed && (
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '52px',
+                background: 'rgba(13,17,23,0.9)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+                borderTop: '1px solid #21262d',
+              }}>
+                <span style={{ color: '#484f58', fontFamily: 'monospace', fontSize: '12px' }}>
+                  🔒 Operator input locked — <button onClick={handleAuth} style={{
+                    background: 'none', border: 'none', color: '#58a6ff', cursor: 'pointer',
+                    fontFamily: 'monospace', fontSize: '12px', textDecoration: 'underline',
+                  }}>unlock</button>
+                </span>
+              </div>
+            )}
             <AIInterface
               droneAPI={droneAPI}
               droneStatus={droneStatus}

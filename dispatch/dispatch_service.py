@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+"""
+Dispatch Service — a minimal 911 CAD (Computer-Aided Dispatch) system.
+
+Generates simulated emergency incidents and exposes them via:
+  1. REST API (for AI agent / consumers to poll)
+  2. rosbridge (publishes to /dispatch/incidents for the frontend)
+
+This service does NOT know about drones or AI. It just manages incidents.
+Consumers decide what to do with them.
+"""
+
+import asyncio
+import json
+import random
+import time
+import uuid
+from datetime import datetime, timezone
+
+import roslibpy
+
+from incident_types import INCIDENT_TYPES
+from locations import LANDMARKS, ROADS, INTERSECTIONS
+
+# --- Config ---
+ROSBRIDGE_HOST = "localhost"
+ROSBRIDGE_PORT = 9090
+INCIDENT_INTERVAL_MIN = 30   # seconds between incidents (min)
+INCIDENT_INTERVAL_MAX = 90   # seconds between incidents (max)
+MAX_ACTIVE_INCIDENTS = 5     # cap to keep things manageable
+
+
+class Incident:
+    """A single 911 incident."""
+
+    def __init__(self, incident_type: dict, location: dict, description: str):
+        self.id = f"INC-{uuid.uuid4().hex[:6].upper()}"
+        self.type = incident_type["type"]
+        self.priority = incident_type["priority"]
+        self.description = description
+        self.location = location  # {"name": str, "x": float, "y": float}
+        self.status = "new"  # new → dispatched → on_scene → resolved
+        self.created_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = self.created_at
+        self.assigned_to = None  # consumer sets this
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "type": self.type,
+            "priority": self.priority,
+            "description": self.description,
+            "location": self.location,
+            "status": self.status,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "assigned_to": self.assigned_to,
+        }
+
+    def update_status(self, status: str, assigned_to: str = None):
+        self.status = status
+        self.updated_at = datetime.now(timezone.utc).isoformat()
+        if assigned_to:
+            self.assigned_to = assigned_to
+
+
+class DispatchService:
+    """Manages the incident queue and publishes state."""
+
+    def __init__(self):
+        self.incidents: dict[str, Incident] = {}
+        self.ros_client = None
+        self.incident_topic = None
+        self._running = False
+
+    def generate_incident(self) -> Incident:
+        """Generate a random 911 incident."""
+        itype = random.choice(INCIDENT_TYPES)
+        location = random.choice(LANDMARKS)
+
+        # Fill in template placeholders
+        template = random.choice(itype["templates"])
+        description = template.format(
+            location=location["name"],
+            age=random.randint(18, 85),
+            gender=random.choice(["male", "female"]),
+            road=random.choice(ROADS),
+            intersection=random.choice(INTERSECTIONS),
+        )
+
+        return Incident(itype, location, description)
+
+    def get_active_incidents(self) -> list[dict]:
+        """Return all non-resolved incidents."""
+        return [
+            inc.to_dict()
+            for inc in self.incidents.values()
+            if inc.status != "resolved"
+        ]
+
+    def get_all_incidents(self) -> list[dict]:
+        """Return all incidents."""
+        return [inc.to_dict() for inc in self.incidents.values()]
+
+    def update_incident(self, incident_id: str, status: str, assigned_to: str = None) -> bool:
+        """Update an incident's status. Called by consumers (AI agent)."""
+        if incident_id not in self.incidents:
+            return False
+        self.incidents[incident_id].update_status(status, assigned_to)
+        self._publish_state()
+        return True
+
+    def _publish_state(self):
+        """Publish current incident state to rosbridge."""
+        if not self.incident_topic or not self.ros_client or not self.ros_client.is_connected:
+            return
+        msg = roslibpy.Message({
+            "data": json.dumps(self.get_all_incidents())
+        })
+        self.incident_topic.publish(msg)
+
+    async def _connect_rosbridge(self):
+        """Connect to rosbridge and set up topics."""
+        try:
+            self.ros_client = roslibpy.Ros(host=ROSBRIDGE_HOST, port=ROSBRIDGE_PORT)
+            self.ros_client.run()
+            self.incident_topic = roslibpy.Topic(
+                self.ros_client,
+                "/dispatch/incidents",
+                "std_msgs/msg/String",
+            )
+            print(f"[dispatch] Connected to rosbridge at {ROSBRIDGE_HOST}:{ROSBRIDGE_PORT}")
+        except Exception as e:
+            print(f"[dispatch] Failed to connect to rosbridge: {e}")
+            print("[dispatch] Running without rosbridge (API-only mode)")
+
+    async def _incident_loop(self):
+        """Main loop: generate incidents on a timer."""
+        while self._running:
+            active_count = len([i for i in self.incidents.values() if i.status != "resolved"])
+
+            if active_count < MAX_ACTIVE_INCIDENTS:
+                incident = self.generate_incident()
+                self.incidents[incident.id] = incident
+                print(f"[dispatch] 🚨 NEW: {incident.id} — P{incident.priority} {incident.type}: {incident.description}")
+                self._publish_state()
+
+            delay = random.randint(INCIDENT_INTERVAL_MIN, INCIDENT_INTERVAL_MAX)
+            await asyncio.sleep(delay)
+
+    async def run(self):
+        """Start the dispatch service."""
+        print("[dispatch] Starting dispatch service...")
+        await self._connect_rosbridge()
+        self._running = True
+
+        # Generate first incident immediately
+        incident = self.generate_incident()
+        self.incidents[incident.id] = incident
+        print(f"[dispatch] 🚨 NEW: {incident.id} — P{incident.priority} {incident.type}: {incident.description}")
+        self._publish_state()
+
+        await self._incident_loop()
+
+    def stop(self):
+        """Stop the dispatch service."""
+        self._running = False
+        if self.ros_client:
+            self.ros_client.terminate()
+        print("[dispatch] Stopped.")
+
+
+# --- REST API (lightweight, using aiohttp) ---
+from aiohttp import web
+
+
+def create_api(dispatch: DispatchService) -> web.Application:
+    """Create a simple REST API for the dispatch service."""
+
+    def cors_response(data, status=200):
+        resp = web.json_response(data, status=status)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, PATCH, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return resp
+
+    async def get_incidents(request):
+        return cors_response(dispatch.get_all_incidents())
+
+    async def get_active_incidents(request):
+        return cors_response(dispatch.get_active_incidents())
+
+    async def update_incident(request):
+        data = await request.json()
+        incident_id = request.match_info["id"]
+        success = dispatch.update_incident(
+            incident_id,
+            data.get("status", ""),
+            data.get("assigned_to"),
+        )
+        if success:
+            return cors_response({"ok": True})
+        return cors_response({"ok": False, "error": "not found"}, status=404)
+
+    async def handle_options(request):
+        return cors_response({})
+
+    app = web.Application()
+    app.router.add_get("/api/incidents", get_incidents)
+    app.router.add_get("/api/incidents/active", get_active_incidents)
+    app.router.add_patch("/api/incidents/{id}", update_incident)
+    app.router.add_options("/api/incidents/{id}", handle_options)
+    return app
+
+
+async def main():
+    dispatch = DispatchService()
+
+    # Start REST API
+    app = create_api(dispatch)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", 8081)
+    await site.start()
+    print("[dispatch] REST API running on :8081")
+
+    # Start dispatch loop
+    try:
+        await dispatch.run()
+    except KeyboardInterrupt:
+        dispatch.stop()
+        await runner.cleanup()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
