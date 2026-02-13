@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import AIInterface from './AIInterface';
+import ActivityFeed from './ActivityFeed';
 import MiniMap from './MiniMap';
 import DroneMenu from './DroneMenu';
 import SimpleCameraFeed from './SimpleCameraFeed';
@@ -226,40 +227,7 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
             />
           </div>
           <div className="viewport-chat" style={{ position: 'relative' }}>
-            <DispatchControls
-              bridgeStatus={bridgeStatus}
-              bridgeConnected={bridgeConnected}
-              onToggle={toggleBridge}
-              isAuthed={isAuthed}
-              onAuth={handleAuth}
-            />
-            {!isAuthed && (
-              <div style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: '52px',
-                background: 'rgba(13,17,23,0.9)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10,
-                borderTop: '1px solid #21262d',
-              }}>
-                <span style={{ color: '#484f58', fontFamily: 'monospace', fontSize: '12px' }}>
-                  🔒 Operator input locked — <button onClick={handleAuth} style={{
-                    background: 'none', border: 'none', color: '#58a6ff', cursor: 'pointer',
-                    fontFamily: 'monospace', fontSize: '12px', textDecoration: 'underline',
-                  }}>unlock</button>
-                </span>
-              </div>
-            )}
-            <AIInterface
-              droneAPI={droneAPI}
-              droneStatus={droneStatus}
-              onCommandUpdate={(update) => setCommandOverlay(update)}
-            />
+            <ActivityFeed />
           </div>
         </main>
 

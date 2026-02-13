@@ -52,6 +52,14 @@ module.exports = {
         target: 'http://127.0.0.1:3031',
         changeOrigin: true,
       },
+      '/api/bridge': {
+        target: 'http://127.0.0.1:8082',
+        changeOrigin: true,
+      },
+      '/api/incidents': {
+        target: 'http://127.0.0.1:8081',
+        changeOrigin: true,
+      },
     },
   },
 };

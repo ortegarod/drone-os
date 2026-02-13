@@ -222,7 +222,7 @@ class DispatchBridge:
         response = await self.send_to_ai(message)
 
         if response:
-            self.log(f"🧠 AI responded for {inc_id}: {response[:150]}")
+            self.log(f"🧠 AI responded for {inc_id}: {response[:300]}")
             # Check if AI dispatched a drone
             resp_upper = response.upper()
             if "DISPATCHED:" in resp_upper:
