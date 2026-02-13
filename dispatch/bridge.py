@@ -2,96 +2,170 @@
 """
 Dispatch Bridge — connects the CAD system to the AI agent (OpenClaw).
 
-Polls for new incidents → sends to AI via gateway WebSocket → updates status.
+Polls for new incidents → sends to AI via gateway → updates status.
 Has pause/resume control via REST API on :8082.
 """
 
 import asyncio
 import json
+import os
 import time
 import aiohttp
 from aiohttp import web
 
 # --- Config ---
 DISPATCH_API = "http://localhost:8081"
-OPENCLAW_WS = "ws://localhost:18789"
 POLL_INTERVAL = 5  # seconds between polls
-AI_TIMEOUT = 120   # seconds to wait for AI response
+
+# --- Gateway config ---
+GATEWAY_WS = os.environ.get("OPENCLAW_GATEWAY_WS_URL", "ws://127.0.0.1:18789")
+
+def _load_gateway_token():
+    try:
+        cfg_path = os.path.expanduser("~/.openclaw/openclaw.json")
+        with open(cfg_path, "r") as f:
+            cfg = json.load(f)
+        t = (((cfg.get("gateway") or {}).get("auth") or {}).get("token"))
+        if isinstance(t, str) and t.strip():
+            return t.strip()
+    except Exception:
+        pass
+    return os.environ.get("OPENCLAW_GATEWAY_TOKEN", "").strip() or None
+
 
 class DispatchBridge:
     def __init__(self):
-        self.paused = True  # Start paused by default — no tokens wasted
+        self.paused = True  # Start paused — no tokens wasted
         self.running = False
-        self.seen_incidents = set()  # Track which incidents we've already sent to AI
-        self.ws = None
-        self.session = None
-        self.activity_log = []  # Recent activity for frontend
+        self.seen_incidents = set()
+        self.activity_log = []
 
     def log(self, msg: str):
         entry = {"time": time.time(), "message": msg}
         self.activity_log.append(entry)
-        # Keep last 50 entries
         if len(self.activity_log) > 50:
             self.activity_log = self.activity_log[-50:]
         print(f"[bridge] {msg}")
 
-    async def connect_gateway(self):
-        """Connect to OpenClaw gateway WebSocket."""
-        try:
-            if not self.session:
-                self.session = aiohttp.ClientSession()
-            self.ws = await self.session.ws_connect(OPENCLAW_WS)
-            self.log("Connected to OpenClaw gateway")
-            return True
-        except Exception as e:
-            self.log(f"Failed to connect to gateway: {e}")
-            return False
-
     async def send_to_ai(self, message: str) -> str | None:
-        """Send a message to the AI and wait for response."""
-        if not self.ws or self.ws.closed:
-            if not await self.connect_gateway():
+        """Send a message to AI via OpenClaw gateway WebSocket (full protocol)."""
+        import websockets
+
+        token = _load_gateway_token()
+        auth_obj = {"token": token} if token else None
+
+        try:
+            async with websockets.connect(GATEWAY_WS, max_size=8 * 1024 * 1024) as ws:
+                # 1) Connect
+                connect_id = f"connect-{int(time.time() * 1000)}"
+                await ws.send(json.dumps({
+                    "type": "req",
+                    "id": connect_id,
+                    "method": "connect",
+                    "params": {
+                        "minProtocol": 3,
+                        "maxProtocol": 3,
+                        "client": {
+                            "id": "dispatch-bridge",
+                            "displayName": "Dispatch Bridge",
+                            "version": "1.0",
+                            "platform": "backend",
+                            "mode": "cli",
+                        },
+                        "auth": auth_obj,
+                    },
+                }))
+
+                # Wait for connect response
+                deadline = time.time() + 8
+                while time.time() < deadline:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=8)
+                    frame = json.loads(raw)
+                    if frame.get("type") == "res" and frame.get("id") == connect_id:
+                        if not frame.get("ok"):
+                            self.log(f"Gateway connect failed: {frame}")
+                            return None
+                        break
+
+                # 2) Send agent request (uses main session)
+                run_id_str = f"agent-{int(time.time() * 1000)}"
+                await ws.send(json.dumps({
+                    "type": "req",
+                    "id": run_id_str,
+                    "method": "agent",
+                    "params": {
+                        "message": message,
+                        "sessionKey": "main",
+                        "deliver": False,
+                        "idempotencyKey": f"dispatch-{int(time.time() * 1000)}",
+                    },
+                }))
+
+                # Wait for accepted + get runId
+                run_id = None
+                deadline = time.time() + 10
+                while time.time() < deadline:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=10)
+                    frame = json.loads(raw)
+                    if frame.get("type") == "res" and frame.get("id") == run_id_str:
+                        if not frame.get("ok"):
+                            self.log(f"Agent request failed: {frame}")
+                            return None
+                        run_id = (frame.get("payload") or {}).get("runId")
+                        break
+
+                if not run_id:
+                    self.log("No runId from gateway")
+                    return None
+
+                # 3) Wait for lifecycle end
+                deadline = time.time() + 120
+                while time.time() < deadline:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=120)
+                    evt = json.loads(raw)
+                    if evt.get("type") != "event" or evt.get("event") != "agent":
+                        continue
+                    p = evt.get("payload") or {}
+                    if p.get("runId") != run_id or p.get("stream") != "lifecycle":
+                        continue
+                    data = p.get("data") or {}
+                    if isinstance(data, dict) and data.get("phase") == "error":
+                        self.log(f"AI run error: {data}")
+                        return None
+                    if isinstance(data, dict) and data.get("phase") == "end":
+                        break
+
+                # 4) Fetch last assistant reply
+                hist_id = f"hist-{int(time.time() * 1000)}"
+                await ws.send(json.dumps({
+                    "type": "req",
+                    "id": hist_id,
+                    "method": "chat.history",
+                    "params": {"sessionKey": "main", "limit": 5},
+                }))
+
+                deadline = time.time() + 10
+                while time.time() < deadline:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=10)
+                    frame = json.loads(raw)
+                    if frame.get("type") == "res" and frame.get("id") == hist_id:
+                        if frame.get("ok"):
+                            messages = (frame.get("payload") or {}).get("messages", [])
+                            for m in reversed(messages):
+                                if m.get("role") == "assistant":
+                                    content = m.get("content")
+                                    if isinstance(content, str):
+                                        return content
+                                    if isinstance(content, list):
+                                        texts = [p["text"] for p in content if isinstance(p, dict) and p.get("type") == "text"]
+                                        return "".join(texts)
+                        break
+
                 return None
 
-        try:
-            payload = {
-                "method": "chat.send",
-                "params": {"message": message},
-                "id": f"dispatch-{int(time.time())}",
-            }
-            await self.ws.send_json(payload)
-
-            # Wait for response
-            async for msg in self.ws:
-                if msg.type == aiohttp.WSMsgType.TEXT:
-                    data = json.loads(msg.data)
-                    if "result" in data:
-                        return data["result"].get("response", "")
-                elif msg.type in (aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSED):
-                    self.log("WebSocket closed/error during AI response")
-                    return None
-        except asyncio.TimeoutError:
-            self.log("AI response timed out")
-            return None
         except Exception as e:
-            self.log(f"Error communicating with AI: {e}")
+            self.log(f"Gateway error: {e}")
             return None
-
-    async def inject_to_ai(self, message: str):
-        """Inject a message into AI transcript without triggering a response."""
-        if not self.ws or self.ws.closed:
-            if not await self.connect_gateway():
-                return
-
-        try:
-            payload = {
-                "method": "chat.inject",
-                "params": {"message": message},
-                "id": f"inject-{int(time.time())}",
-            }
-            await self.ws.send_json(payload)
-        except Exception as e:
-            self.log(f"Error injecting to AI: {e}")
 
     async def update_incident(self, incident_id: str, status: str, assigned_to: str = None):
         """Update incident status in the dispatch service."""
@@ -110,7 +184,6 @@ class DispatchBridge:
             return False
 
     async def get_active_incidents(self) -> list:
-        """Get active incidents from dispatch service."""
         try:
             async with aiohttp.ClientSession() as s:
                 async with s.get(f"{DISPATCH_API}/api/incidents/active") as resp:
@@ -125,9 +198,6 @@ class DispatchBridge:
         inc_id = incident["id"]
         self.log(f"🚨 Sending {inc_id} to AI: P{incident['priority']} {incident['type']}")
 
-        # Get fleet status for context
-        fleet_info = "drone1: AVAILABLE, drone2: AVAILABLE"  # TODO: get real fleet state
-
         message = (
             f"DISPATCH ALERT — NEW INCIDENT:\n"
             f"  ID: {inc_id}\n"
@@ -136,29 +206,34 @@ class DispatchBridge:
             f"  Location: {incident['location']['name']} "
             f"(x={incident['location']['x']}, y={incident['location']['y']})\n"
             f"\n"
-            f"Fleet status: {fleet_info}\n"
-            f"\n"
-            f"Decide which drone to dispatch. Use drone_control.py to fly it there.\n"
-            f"When done, say DISPATCHED:<drone_name> so I can update the incident status."
+            f"You are the AI dispatcher. Dispatch a drone to this incident:\n"
+            f"1. Pick an available drone (drone1 or drone2)\n"
+            f"2. Fly it to the location using drone_control.py: set_offboard, arm, set_position(x, y, -15, 0)\n"
+            f"3. After dispatching, include DISPATCHED:<drone_name> in your response\n"
+            f"4. Monitor the drone's arrival, then after ~30s on scene, land it and return\n"
         )
 
         response = await self.send_to_ai(message)
 
         if response:
-            self.log(f"🧠 AI response for {inc_id}: {response[:200]}")
-
+            self.log(f"🧠 AI responded for {inc_id}: {response[:150]}")
             # Check if AI dispatched a drone
-            if "DISPATCHED:" in response.upper():
-                drone = response.upper().split("DISPATCHED:")[1].strip().split()[0]
+            resp_upper = response.upper()
+            if "DISPATCHED:" in resp_upper:
+                drone = resp_upper.split("DISPATCHED:")[1].strip().split()[0].strip(".,!;")
                 await self.update_incident(inc_id, "dispatched", drone.lower())
-                self.log(f"🛸 {inc_id} dispatched to {drone}")
+                self.log(f"🛸 Updated {inc_id} → dispatched to {drone.lower()}")
+            else:
+                # AI responded but didn't include the dispatch tag — still mark it
+                await self.update_incident(inc_id, "dispatched", "ai-pending")
+                self.log(f"⚠️ AI responded but no DISPATCHED tag — marked as ai-pending")
         else:
-            self.log(f"⚠️ No AI response for {inc_id}")
+            self.log(f"❌ No AI response for {inc_id}")
 
     async def poll_loop(self):
         """Main loop: poll for new incidents and send to AI."""
         self.running = True
-        self.log("Bridge started (PAUSED — toggle via API)")
+        self.log("Bridge started (PAUSED — toggle via /api/bridge/toggle)")
 
         while self.running:
             if not self.paused:
@@ -170,21 +245,17 @@ class DispatchBridge:
 
                 for inc in new_incidents:
                     self.seen_incidents.add(inc["id"])
+                    # Process one at a time to avoid flooding
                     await self.process_incident(inc)
 
             await asyncio.sleep(POLL_INTERVAL)
 
     def stop(self):
         self.running = False
-        if self.ws:
-            asyncio.create_task(self.ws.close())
-        if self.session:
-            asyncio.create_task(self.session.close())
 
 
 # --- Control API on :8082 ---
 def create_control_api(bridge: DispatchBridge) -> web.Application:
-    """REST API to control the bridge (pause/resume/status)."""
 
     def cors(resp):
         resp.headers["Access-Control-Allow-Origin"] = "*"
@@ -224,7 +295,6 @@ def create_control_api(bridge: DispatchBridge) -> web.Application:
     app.router.add_post("/api/bridge/pause", post_pause)
     app.router.add_post("/api/bridge/resume", post_resume)
     app.router.add_post("/api/bridge/toggle", post_toggle)
-    # CORS preflight
     app.router.add_options("/api/bridge/{path:.*}", handle_options)
     return app
 
@@ -232,7 +302,6 @@ def create_control_api(bridge: DispatchBridge) -> web.Application:
 async def main():
     bridge = DispatchBridge()
 
-    # Start control API
     app = create_control_api(bridge)
     runner = web.AppRunner(app)
     await runner.setup()
@@ -240,7 +309,6 @@ async def main():
     await site.start()
     print("[bridge] Control API running on :8082")
 
-    # Start poll loop
     try:
         await bridge.poll_loop()
     except KeyboardInterrupt:

@@ -25,9 +25,9 @@ from locations import LANDMARKS, ROADS, INTERSECTIONS
 # --- Config ---
 ROSBRIDGE_HOST = "localhost"
 ROSBRIDGE_PORT = 9090
-INCIDENT_INTERVAL_MIN = 30   # seconds between incidents (min)
-INCIDENT_INTERVAL_MAX = 90   # seconds between incidents (max)
-MAX_ACTIVE_INCIDENTS = 5     # cap to keep things manageable
+INCIDENT_INTERVAL_MIN = 120  # seconds between incidents (min)
+INCIDENT_INTERVAL_MAX = 180  # seconds between incidents (max)
+MAX_ACTIVE_INCIDENTS = 4     # cap to keep things manageable
 
 
 class Incident:

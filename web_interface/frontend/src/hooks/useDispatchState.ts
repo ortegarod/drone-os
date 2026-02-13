@@ -12,7 +12,7 @@ export interface Incident {
   assigned_to: string | null;
 }
 
-const DISPATCH_API = 'http://' + window.location.hostname + ':8081';
+const DISPATCH_API = '';
 const POLL_INTERVAL = 3000; // 3s
 
 export function useDispatchState() {

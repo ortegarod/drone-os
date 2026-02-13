@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const BRIDGE_API = 'http://' + window.location.hostname + ':8082';
+const BRIDGE_API = '';
 const POLL_INTERVAL = 3000;
 
 export interface BridgeStatus {

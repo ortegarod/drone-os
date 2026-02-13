@@ -13,6 +13,18 @@ app.use('/api/openclaw', createProxyMiddleware({
   },
 }));
 
+// Proxy dispatch service API
+app.use('/api/incidents', createProxyMiddleware({
+  target: 'http://127.0.0.1:8081',
+  changeOrigin: true,
+}));
+
+// Proxy bridge control API
+app.use('/api/bridge', createProxyMiddleware({
+  target: 'http://127.0.0.1:8082',
+  changeOrigin: true,
+}));
+
 // Serve static production build
 app.use(express.static(path.join(__dirname, 'dist')));
 
