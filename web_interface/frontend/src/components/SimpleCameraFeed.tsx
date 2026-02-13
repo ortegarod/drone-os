@@ -191,11 +191,14 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ isConnected, droneS
       </div>
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <img
-          ref={imgRef}
-          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-          alt="Camera feed"
-        />
+        {streamUrl && (
+          <img
+            key={streamUrl}
+            ref={imgRef}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+            alt="Camera feed"
+          />
+        )}
       </div>
     </div>
   );
