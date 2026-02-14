@@ -277,7 +277,7 @@ else:
     async def process_incident(self, incident: dict):
         """Send an incident to the AI for decision-making."""
         inc_id = incident["id"]
-        self.log(f"🚨 Sending {inc_id} to AI: P{incident['priority']} {incident['type']}")
+        self.log(f"INCIDENT {inc_id} — P{incident['priority']} {incident['type'].upper().replace('_', ' ')} — DISPATCHING")
 
         # Gather context: fleet state + active incidents
         fleet_state = await asyncio.get_event_loop().run_in_executor(None, self.get_fleet_state_sync)
@@ -299,7 +299,7 @@ else:
         active_ctx = "\n".join(incident_lines) if incident_lines else "  None"
 
         message = (
-            f"🚨 DISPATCH ALERT — NEW INCIDENT\n"
+            f"DISPATCH ALERT — NEW INCIDENT\n"
             f"  ID: {inc_id}\n"
             f"  Type: {incident['type']} (Priority {incident['priority']})\n"
             f"  Description: {incident['description']}\n"
@@ -323,7 +323,7 @@ else:
             f"  1. Pick the best available drone\n"
             f"  2. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-offboard\n"
             f"  3. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --arm\n"
-            f"  4. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position 0 0 -50 0  (climb at home)\n"
+            f"  4. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position CURRENT_X CURRENT_Y -50 0  (climb VERTICALLY — use drone's current X,Y from fleet status)\n"
             f"  5. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position TARGET_X TARGET_Y -50 0  (fly to target)\n"
             f"  6. Poll drone position every 5 seconds using exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX\n"
             f"     Check altitude > 40m AND position within ~30m of target (compare x,y)\n"
@@ -369,18 +369,18 @@ else:
             if dispatched_match and "dispatched" not in applied_statuses:
                 applied_statuses.add("dispatched")
                 await self.update_incident(inc_id, "dispatched", drone_name)
-                self.log(f"🛸 Updated {inc_id} → dispatched to {drone_name}")
+                self.log(f"STATUS {inc_id} → dispatched to {drone_name}")
 
             # Apply ON_SCENE when we first see it (after DISPATCHED)
             if onscene_match and "on_scene" not in applied_statuses:
                 applied_statuses.add("on_scene")
                 await self.update_incident(inc_id, "on_scene", drone_name)
-                self.log(f"📍 Updated {inc_id} → on_scene ({drone_name})")
+                self.log(f"STATUS {inc_id} → on_scene ({drone_name})")
 
         response = await self.send_to_ai(message, on_text=on_streaming_text)
 
         if response:
-            self.log(f"🧠 AI completed for {inc_id}: {response[:200]}")
+            self.log(f"AI COMPLETED for {inc_id}: {response[:200]}")
             # Final pass in case streaming missed anything
             import re
             text_lower = response.lower()
@@ -395,20 +395,20 @@ else:
             
             if drone_name and "dispatched" not in applied_statuses:
                 await self.update_incident(inc_id, "dispatched", drone_name)
-                self.log(f"🛸 Updated {inc_id} → dispatched to {drone_name}")
+                self.log(f"STATUS {inc_id} → dispatched to {drone_name}")
             if drone_name and onscene_match and "on_scene" not in applied_statuses:
                 await self.update_incident(inc_id, "on_scene", drone_name)
-                self.log(f"📍 Updated {inc_id} → on_scene ({drone_name})")
+                self.log(f"STATUS {inc_id} → on_scene ({drone_name})")
             if not drone_name:
-                self.log(f"⚠️ AI responded but couldn't extract drone name")
+                self.log(f"WARNING: AI responded but couldn't extract drone name")
         else:
-            self.log(f"❌ No AI response for {inc_id}")
+            self.log(f"ERROR: No AI response for {inc_id}")
 
     async def poll_loop(self):
         """Main loop: poll for new incidents and send to AI."""
         self.running = True
         self.active_tasks: set[asyncio.Task] = set()
-        self.log("Bridge started (PAUSED — toggle via /api/bridge/toggle)")
+        self.log("BRIDGE ONLINE — PAUSED")
 
         while self.running:
             if not self.paused:
@@ -419,18 +419,9 @@ else:
                 ]
 
                 for inc in new_incidents:
+                    # Only mark as seen AFTER processing, so dropped incidents get retried
+                    await self.process_incident(inc)
                     self.seen_incidents.add(inc["id"])
-                    if self.session_mode == "isolated":
-                        # Concurrent: each incident gets its own task/session
-                        task = asyncio.create_task(self.process_incident(inc))
-                        self.active_tasks.add(task)
-                        task.add_done_callback(self.active_tasks.discard)
-                    else:
-                        # Sequential: one at a time in main session
-                        await self.process_incident(inc)
-
-            # Clean up finished tasks
-            self.active_tasks = {t for t in self.active_tasks if not t.done()}
             await asyncio.sleep(POLL_INTERVAL)
 
     def stop(self):
@@ -458,18 +449,18 @@ def create_control_api(bridge: DispatchBridge) -> web.Application:
 
     async def post_pause(request):
         bridge.paused = True
-        bridge.log("⏸️ Bridge PAUSED")
+        bridge.log("BRIDGE PAUSED")
         return cors(web.json_response({"paused": True}))
 
     async def post_resume(request):
         bridge.paused = False
-        bridge.log("▶️ Bridge RESUMED")
+        bridge.log("BRIDGE RESUMED")
         return cors(web.json_response({"paused": False}))
 
     async def post_toggle(request):
         bridge.paused = not bridge.paused
         state = "PAUSED" if bridge.paused else "RESUMED"
-        bridge.log(f"{'⏸️' if bridge.paused else '▶️'} Bridge {state}")
+        bridge.log(f"BRIDGE {state}")
         # Also toggle dispatch service
         try:
             import aiohttp as _aiohttp
@@ -489,7 +480,7 @@ def create_control_api(bridge: DispatchBridge) -> web.Application:
         if mode not in ("main", "isolated"):
             return cors(web.json_response({"error": "mode must be 'main' or 'isolated'"}, status=400))
         bridge.session_mode = mode
-        bridge.log(f"🔀 Session mode → {mode}")
+        bridge.log(f"SESSION MODE → {mode}")
         return cors(web.json_response({"session_mode": bridge.session_mode}))
 
     async def get_model(request):
@@ -501,7 +492,7 @@ def create_control_api(bridge: DispatchBridge) -> web.Application:
         if not model:
             return cors(web.json_response({"error": "model is required"}, status=400))
         bridge.model = model
-        bridge.log(f"🧠 Model → {model}")
+        bridge.log(f"MODEL → {model}")
         return cors(web.json_response({"model": bridge.model}))
 
     async def handle_options(request):

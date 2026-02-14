@@ -12,11 +12,13 @@
   font: 600 10px/1 monospace;
   color: #8b949e;
   letter-spacing: 1px;
+  text-transform: uppercase;
 }
 .af-session-mode {
   font: 500 10px/1 monospace;
   color: #58a6ff;
   margin-left: auto;
+  text-transform: uppercase;
 }
 .af-feed {
   flex: 1; overflow-y: auto;

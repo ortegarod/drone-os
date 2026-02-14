@@ -153,7 +153,7 @@ class DispatchService:
                 if active_count < MAX_ACTIVE_INCIDENTS:
                     incident = self.generate_incident()
                     self.incidents[incident.id] = incident
-                    print(f"[dispatch] 🚨 NEW: {incident.id} — P{incident.priority} {incident.type}: {incident.description}")
+                    print(f"[dispatch] NEW INCIDENT: {incident.id} — P{incident.priority} {incident.type}: {incident.description}")
                     self._publish_state()
 
             delay = random.randint(INCIDENT_INTERVAL_MIN, INCIDENT_INTERVAL_MAX)
@@ -187,7 +187,7 @@ print(f'{{armed}} {{alt:.1f}}')
                         altitude = float(parts[1])
                         if armed_state == "DISARMED" and altitude < 2.0:
                             self.update_incident(inc.id, "resolved", drone_name)
-                            print(f"[dispatch] ✅ {inc.id} → resolved ({drone_name} landed)")
+                            print(f"[dispatch] RESOLVED: {inc.id} → resolved ({drone_name} landed)")
                 except Exception as e:
                     print(f"[dispatch] Monitor error for {inc.id}: {e}")
             await asyncio.sleep(5)
@@ -216,14 +216,14 @@ print(f'{{armed}} {{alt:.1f}}')
     def clear_incidents(self):
         """Clear all incidents and reset state."""
         self.incidents.clear()
-        print("[dispatch] 🗑️  CLEARED — all incidents removed")
+        print("[dispatch] CLEARED — all incidents removed")
         self._publish_state()
 
     def trigger_incident(self) -> dict:
         """Manually trigger a new incident (bypasses pause state and timer)."""
         incident = self.generate_incident()
         self.incidents[incident.id] = incident
-        print(f"[dispatch] 🚨 TRIGGERED: {incident.id} — P{incident.priority} {incident.type}: {incident.description}")
+        print(f"[dispatch] TRIGGERED: {incident.id} — P{incident.priority} {incident.type}: {incident.description}")
         self._publish_state()
         return incident.to_dict()
 
@@ -323,8 +323,8 @@ def create_api(dispatch: DispatchService) -> web.Application:
         
         incident = dispatch.incidents[incident_id]
         
-        if incident.status != "on_scene":
-            return cors_response({"ok": False, "error": "incident must be on_scene to resolve"}, status=400)
+        if incident.status not in ("dispatched", "on_scene"):
+            return cors_response({"ok": False, "error": "incident must be dispatched or on_scene to resolve"}, status=400)
         
         if not incident.assigned_to:
             return cors_response({"ok": False, "error": "no drone assigned"}, status=400)

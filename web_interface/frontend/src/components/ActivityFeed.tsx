@@ -16,12 +16,13 @@ const ActivityFeed: React.FC = () => {
   };
 
   const msgColor = (msg: string) => {
-    if (msg.includes('🚨')) return 'af-alert';
-    if (msg.includes('🧠')) return 'af-ai';
-    if (msg.includes('🛸')) return 'af-dispatch';
-    if (msg.includes('❌')) return 'af-error';
-    if (msg.includes('⚠️')) return 'af-warn';
-    if (msg.includes('▶️') || msg.includes('⏸️')) return 'af-control';
+    const m = msg.toUpperCase();
+    if (m.includes('INCIDENT') || m.includes('ALERT')) return 'af-alert';
+    if (m.includes('AI ') || m.includes('COMPLETED')) return 'af-ai';
+    if (m.includes('DISPATCHED') || m.includes('ON_SCENE') || m.includes('RETURNING')) return 'af-dispatch';
+    if (m.includes('ERROR') || m.includes('FAILED')) return 'af-error';
+    if (m.includes('WARNING')) return 'af-warn';
+    if (m.includes('RESUMED') || m.includes('PAUSED') || m.includes('RESOLVED')) return 'af-control';
     return '';
   };
 
@@ -31,7 +32,7 @@ const ActivityFeed: React.FC = () => {
         <span className="af-title">ACTIVITY LOG</span>
         {status?.session_mode && (
           <span className="af-session-mode">
-            {status.session_mode === 'isolated' ? '🔀 Isolated Sessions' : '💬 Main Session'}
+            {status.session_mode === 'isolated' ? 'ISOLATED' : 'MAIN'}
           </span>
         )}
       </div>

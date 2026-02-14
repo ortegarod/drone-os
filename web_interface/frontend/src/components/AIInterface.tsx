@@ -71,9 +71,8 @@ const AIInterface: React.FC<AIInterfaceProps> = ({ onCommandUpdate }) => {
   return (
     <div className="ai-chat">
       <div className="ai-chat-header">
-        <span>{agent || 'AI'}</span>
+        <span className="ai-chat-title">{agent || 'AI'}</span>
         {model && <span className="ai-chat-model">{model}</span>}
-        <span className="ai-chat-session">main session</span>
       </div>
       <div className="ai-chat-messages" ref={scrollRef}>
         {messages.map((m, i) => (

@@ -304,6 +304,29 @@ rm ~/PX4-Autopilot/build/px4_sitl_default/rootfs/1/parameters_backup.bson
 
 ---
 
+## 9) Drone Flipped / Upside Down or Drifting
+
+**Symptom:** Drone is upside down, drifting, or showing impossible altitude (e.g., 1000m+).
+
+**Fix:** Restart the PX4 service for that drone. This kills the PX4 process and respawns the model cleanly in Gazebo.
+
+```bash
+# On srv01
+systemctl --user restart px4-drone2   # drone2
+systemctl --user restart px4-drone3   # drone3
+systemctl --user restart px4-sitl     # drone1 (also restarts Gazebo — use as last resort)
+```
+
+Then restart the Docker SDK node so it reconnects:
+```bash
+docker restart drone_core_node2       # for drone2
+docker restart drone_core_node3       # for drone3
+```
+
+**Do NOT use `gz service set_pose`** — it resets the Gazebo model position but desyncs PX4's internal state, causing the drone to drift uncontrollably.
+
+---
+
 ## Lessons Learned
 
 ### Don't touch simulation to fix frontend bugs (2026-02-12)

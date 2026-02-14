@@ -32,10 +32,12 @@
   font: 600 10px/1 monospace;
   color: #8b949e;
   letter-spacing: 1px;
+  text-transform: uppercase;
   border-bottom: 1px solid #21262d;
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .fleet-list {

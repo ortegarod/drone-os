@@ -127,7 +127,7 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
     }
   }, []);
 
-  const systemStatus = paused ? '⏸ PAUSED' : '▶ ACTIVE';
+  const systemStatus = paused ? 'PAUSED' : 'ACTIVE';
   const systemColor = paused ? '#8b949e' : '#3fb950';
 
   return (
@@ -143,7 +143,7 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
           disabled={!connected}
           title={paused ? 'Resume incident generation & AI dispatch' : 'Pause incident generation & AI dispatch'}
         >
-          {paused ? '▶ RESUME' : '⏸ PAUSE'}
+          {paused ? 'RESUME' : 'PAUSE'}
         </button>
         <button
           className="iq-btn clear"
@@ -151,7 +151,7 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
           disabled={!connected || active === 0}
           title="Clear all incidents"
         >
-          🗑️ CLEAR
+          CLEAR
         </button>
         <span className="iq-system-status" style={{ color: systemColor }}>
           {systemStatus}
@@ -164,7 +164,7 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
           disabled={!connected}
           title={mode === 'auto' ? 'Switch to manual mode (trigger incidents manually)' : 'Switch to auto mode (incidents generated on timer)'}
         >
-          {mode === 'auto' ? '⚙ AUTO' : '🎯 MANUAL'}
+          {mode === 'auto' ? 'AUTO' : 'MANUAL'}
         </button>
         <button
           className="iq-btn trigger"
@@ -172,7 +172,7 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
           disabled={!connected || paused}
           title="Trigger a new random incident"
         >
-          🚨 NEW INCIDENT
+          NEW INCIDENT
         </button>
       </div>
       <div className="iq-stats">
@@ -214,7 +214,7 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
                     : inc.assigned_to && inc.assigned_to !== 'ai-pending' ? <span style={{ color: '#3fb950' }}>dispatched {inc.assigned_to}</span>
                     : <span style={{ color: '#484f58' }}>pending</span>}
                   </div>
-                  {inc.status === 'on_scene' && (
+                  {(inc.status === 'dispatched' || inc.status === 'on_scene') && (
                     <div className="iq-detail-row">
                       <button
                         className="iq-btn"
@@ -227,10 +227,12 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
                           border: 'none',
                           borderRadius: '4px',
                           cursor: 'pointer',
-                          marginTop: '8px'
+                          marginTop: '8px',
+                          width: '100%',
+                          letterSpacing: '1px',
                         }}
                       >
-                        🏁 RESOLVE
+                        RETURN TO BASE
                       </button>
                     </div>
                   )}
