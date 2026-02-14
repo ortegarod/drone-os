@@ -3,8 +3,10 @@
 A minimal 911 CAD (Computer-Aided Dispatch) system.
 
 Generates simulated emergency incidents and exposes them via:
-- **REST API** on `:8080` — for consumers (AI agent, other services)
+- **REST API** on `:8081` — for consumers (AI agent, other services)
 - **rosbridge** — publishes to `/dispatch/incidents` for the frontend
+
+**Service starts PAUSED by default.** Click RESUME in the frontend or call `/api/dispatch/resume` to begin incident generation.
 
 ## This service does NOT know about drones or AI.
 
@@ -17,6 +19,9 @@ It just manages incidents. Consumers decide what to do with them.
 | GET | `/api/incidents` | All incidents |
 | GET | `/api/incidents/active` | Non-resolved incidents |
 | PATCH | `/api/incidents/{id}` | Update status: `{"status": "dispatched", "assigned_to": "drone1"}` |
+| GET | `/api/dispatch/status` | Service status (paused, running, incident counts) |
+| POST | `/api/dispatch/pause` | Pause incident generation |
+| POST | `/api/dispatch/resume` | Resume incident generation |
 
 ## Incident Statuses
 
