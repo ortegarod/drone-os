@@ -1,0 +1,49 @@
+.cam-root {
+  height: 100%; display: flex; flex-direction: column;
+  position: relative; background: #1a1a1a;
+}
+.cam-hud {
+  position: absolute; top: 6px; left: 6px; right: 6px; z-index: 100;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: rgba(10,14,18,0.6); border: 1px solid rgba(85,95,110,0.5);
+  border-radius: 4px; padding: 4px 8px; backdrop-filter: blur(4px);
+  font: 11px/1 monospace; color: #c9d1d9; pointer-events: none;
+}
+.cam-hud button { pointer-events: auto; }
+.cam-quality-btn {
+  margin-left: auto; background: rgba(18,22,27,0.9); border: 1px solid #3f4652;
+  color: #c9d1d9; padding: 2px 6px; font: 10px monospace; cursor: pointer;
+  border-radius: 3px;
+}
+.cam-quality-menu {
+  position: absolute; top: 100%; right: 0; margin-top: 2px;
+  background: rgba(22,28,35,0.96); border: 1px solid #3f4652;
+  border-radius: 3px; padding: 4px; z-index: 1000; pointer-events: auto;
+}
+.cam-quality-menu button {
+  display: block; width: 100%; background: none; border: none;
+  color: #fff; padding: 4px 8px; font: 10px monospace; cursor: pointer;
+  text-align: left; border-radius: 2px;
+}
+.cam-quality-menu button.active { background: #2f3946; }
+.cam-quality-menu button:hover { background: #2f3946; }
+.cam-feed {
+  flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0;
+}
+.cam-feed img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.cam-pip-stack {
+  position: absolute; top: 40px; left: 6px; z-index: 200;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.cam-pip {
+  width: 180px; height: 135px; border-radius: 4px; overflow: hidden;
+  border: 1px solid rgba(85,95,110,0.5); background: #0a0e12;
+  cursor: pointer; position: relative;
+}
+.cam-pip:hover { border-color: #58a6ff; }
+.cam-pip-label {
+  position: absolute; top: 0; left: 0; right: 0;
+  padding: 2px 6px; background: rgba(10,14,18,0.75);
+  font: 10px monospace; color: #8b949e; z-index: 1;
+}
+.cam-pip img { width: 100%; height: 100%; object-fit: cover; }
