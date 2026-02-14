@@ -213,10 +213,13 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
               <div className="fleet-empty">No drones discovered</div>
             )}
           </div>
+          <div className="sidebar-activity">
+            <ActivityFeed />
+          </div>
           <IncidentQueue incidents={incidents} connected={dispatchConnected} />
         </aside>
 
-        {/* Center — Camera + AI Chat */}
+        {/* Center — Camera */}
         <main className="fleet-viewport">
           <div className="viewport-camera">
             <SimpleCameraFeed
@@ -228,12 +231,9 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
               setTargetDrone={setTargetDrone}
             />
           </div>
-          <div className="viewport-chat" style={{ position: 'relative' }}>
-            <ActivityFeed />
-          </div>
         </main>
 
-        {/* Right — Map + Controls */}
+        {/* Right — Map + Controls + AI */}
         <aside className="fleet-control">
           <div className="control-map">
             <MiniMap
@@ -243,7 +243,7 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
               targetAltitude={targetAltitude}
             />
           </div>
-          <div className="control-menu">
+          <div className="control-menu compact">
             <DroneMenu
               droneAPI={droneAPI}
               droneStatus={droneStatus}
@@ -253,6 +253,13 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
               setTargetAltitude={setTargetAltitude}
               maxAltitude={maxAltitude}
               setMaxAltitude={setMaxAltitude}
+            />
+          </div>
+          <div className="control-ai">
+            <AIInterface
+              droneAPI={droneAPI}
+              droneStatus={droneStatus}
+              onCommandUpdate={setCommandOverlay}
             />
           </div>
         </aside>
