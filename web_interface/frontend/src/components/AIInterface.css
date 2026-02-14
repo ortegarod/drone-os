@@ -9,10 +9,23 @@
   padding: 4px 8px;
   font: 600 10px/1 monospace;
   color: #8b949e;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   border-bottom: 1px solid #21262d;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ai-chat-model {
+  font: 10px monospace;
+  color: #484f58;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.ai-chat-session {
+  font: 10px monospace;
+  color: #484f58;
+  margin-left: auto;
 }
 .ai-chat-messages {
   flex: 1;

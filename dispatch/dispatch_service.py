@@ -32,9 +32,11 @@ MAX_ACTIVE_INCIDENTS = 4     # cap to keep things manageable
 
 class Incident:
     """A single 911 incident."""
+    _counter = 0  # Class variable for sequential IDs
 
     def __init__(self, incident_type: dict, location: dict, description: str):
-        self.id = f"INC-{uuid.uuid4().hex[:6].upper()}"
+        Incident._counter += 1
+        self.id = f"{Incident._counter:03d}"  # Simple: 001, 002, 003
         self.type = incident_type["type"]
         self.priority = incident_type["priority"]
         self.description = description
@@ -57,8 +59,14 @@ class Incident:
             "assigned_to": self.assigned_to,
         }
 
+    # Status progression order — can only move forward
+    STATUS_ORDER = {"new": 0, "dispatched": 1, "on_scene": 2, "resolved": 3}
+
     def update_status(self, status: str, assigned_to: str = None):
-        self.status = status
+        current_rank = self.STATUS_ORDER.get(self.status, -1)
+        new_rank = self.STATUS_ORDER.get(status, -1)
+        if new_rank > current_rank:
+            self.status = status
         self.updated_at = datetime.now(timezone.utc).isoformat()
         if assigned_to:
             self.assigned_to = assigned_to
@@ -73,6 +81,7 @@ class DispatchService:
         self.incident_topic = None
         self._running = False
         self._paused = True  # Start paused by default
+        self._mode = "manual"  # "auto" or "manual" — manual requires trigger button
 
     def generate_incident(self) -> Incident:
         """Generate a random 911 incident."""
@@ -136,9 +145,9 @@ class DispatchService:
             print("[dispatch] Running without rosbridge (API-only mode)")
 
     async def _incident_loop(self):
-        """Main loop: generate incidents on a timer."""
+        """Main loop: generate incidents on a timer (auto mode only)."""
         while self._running:
-            if not self._paused:
+            if not self._paused and self._mode == "auto":
                 active_count = len([i for i in self.incidents.values() if i.status != "resolved"])
 
                 if active_count < MAX_ACTIVE_INCIDENTS:
@@ -167,11 +176,34 @@ class DispatchService:
         self._paused = False
         print("[dispatch] RESUMED — generating incidents")
 
+    def clear_incidents(self):
+        """Clear all incidents and reset state."""
+        self.incidents.clear()
+        print("[dispatch] 🗑️  CLEARED — all incidents removed")
+        self._publish_state()
+
+    def trigger_incident(self) -> dict:
+        """Manually trigger a new incident (bypasses pause state and timer)."""
+        incident = self.generate_incident()
+        self.incidents[incident.id] = incident
+        print(f"[dispatch] 🚨 TRIGGERED: {incident.id} — P{incident.priority} {incident.type}: {incident.description}")
+        self._publish_state()
+        return incident.to_dict()
+
+    def set_mode(self, mode: str) -> bool:
+        """Set dispatch mode: 'auto' or 'manual'."""
+        if mode not in ("auto", "manual"):
+            return False
+        self._mode = mode
+        print(f"[dispatch] Mode → {mode}")
+        return True
+
     def get_status(self) -> dict:
         """Return current service status."""
         return {
             "paused": self._paused,
             "running": self._running,
+            "mode": self._mode,
             "total_incidents": len(self.incidents),
             "active_incidents": len([i for i in self.incidents.values() if i.status != "resolved"]),
         }
@@ -227,6 +259,24 @@ def create_api(dispatch: DispatchService) -> web.Application:
         dispatch.resume()
         return cors_response(dispatch.get_status())
 
+    async def clear_incidents(request):
+        dispatch.clear_incidents()
+        return cors_response(dispatch.get_status())
+
+    async def trigger_incident(request):
+        incident = dispatch.trigger_incident()
+        return cors_response(incident)
+
+    async def get_mode(request):
+        return cors_response({"mode": dispatch._mode})
+
+    async def set_mode(request):
+        data = await request.json()
+        mode = data.get("mode", "")
+        if dispatch.set_mode(mode):
+            return cors_response(dispatch.get_status())
+        return cors_response({"error": "mode must be 'auto' or 'manual'"}, status=400)
+
     async def handle_options(request):
         return cors_response({})
 
@@ -237,9 +287,16 @@ def create_api(dispatch: DispatchService) -> web.Application:
     app.router.add_get("/api/dispatch/status", get_status)
     app.router.add_post("/api/dispatch/pause", pause_dispatch)
     app.router.add_post("/api/dispatch/resume", resume_dispatch)
+    app.router.add_post("/api/dispatch/clear", clear_incidents)
+    app.router.add_post("/api/dispatch/trigger", trigger_incident)
+    app.router.add_get("/api/dispatch/mode", get_mode)
+    app.router.add_post("/api/dispatch/mode", set_mode)
     app.router.add_options("/api/incidents/{id}", handle_options)
     app.router.add_options("/api/dispatch/pause", handle_options)
     app.router.add_options("/api/dispatch/resume", handle_options)
+    app.router.add_options("/api/dispatch/clear", handle_options)
+    app.router.add_options("/api/dispatch/trigger", handle_options)
+    app.router.add_options("/api/dispatch/mode", handle_options)
     return app
 
 

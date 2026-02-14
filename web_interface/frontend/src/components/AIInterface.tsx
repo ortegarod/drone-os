@@ -19,11 +19,20 @@ const AIInterface: React.FC<AIInterfaceProps> = ({ onCommandUpdate }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [model, setModel] = useState('');
+  const [agent, setAgent] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
   }, [messages]);
+
+  useEffect(() => {
+    fetch('/api/openclaw/status').then(r => r.json()).then(d => {
+      if (d?.model) setModel(d.model);
+      if (d?.agent) setAgent(d.agent);
+    }).catch(() => {});
+  }, []);
 
   const send = async () => {
     const text = input.trim();
@@ -61,7 +70,11 @@ const AIInterface: React.FC<AIInterfaceProps> = ({ onCommandUpdate }) => {
 
   return (
     <div className="ai-chat">
-      <div className="ai-chat-header">AI</div>
+      <div className="ai-chat-header">
+        <span>{agent || 'AI'}</span>
+        {model && <span className="ai-chat-model">{model}</span>}
+        <span className="ai-chat-session">main session</span>
+      </div>
       <div className="ai-chat-messages" ref={scrollRef}>
         {messages.map((m, i) => (
           <div key={i} className={`ai-msg ai-msg-${m.role}`}>

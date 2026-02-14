@@ -1,5 +1,24 @@
 # Preflight Checklist
 
+## Frontend Development (VPS)
+
+The frontend runs as a **static production build** inside a Docker container (`frontend_node`) on port 3000.  
+**Source code edits are NOT automatically served.** After making frontend changes:
+
+```bash
+# 1. Build
+cd /root/ws_droneOS/web_interface/frontend
+NODE_OPTIONS="--max-old-space-size=512" npx react-scripts build
+
+# 2. Deploy to container
+docker cp /root/ws_droneOS/web_interface/frontend/build/. frontend_node:/app/dist/
+docker restart frontend_node
+
+# 3. Hard refresh browser (Ctrl+Shift+R)
+```
+
+---
+
 **Architecture:**
 - **VPS** (207.148.9.142) — Fleet Command Center (frontend, OpenClaw, relay/proxy)
 - **srv01** (<tailscale-ip>) — Simulation Server (PX4, Gazebo, drone_core)
@@ -63,8 +82,18 @@ docker restart rosbridge_relay_node camera_proxy_node
 
 ---
 
-## 0) Mission Scope
-- [ ] Confirm target drone (`drone1` / `drone2`)
+## 0) Discover Fleet & Mission Scope
+
+### Discover Available Drones
+Query ROS2 topics to find all active drones — don't hardcode which drones exist:
+```bash
+# List all active drones by checking drone_state topics
+ssh rodrigo@<tailscale-ip> "bash -lc 'source /opt/ros/humble/setup.bash && ros2 topic list'" 2>&1 | grep -oP 'drone\d+' | sort -u
+```
+This tells you exactly which drones are in the simulation. Check status and camera for **every** drone discovered.
+
+### Mission Scope
+- [ ] Discover all active drones (don't assume — check)
 - [ ] Confirm simulation (not real hardware)
 - [ ] Operator ready to abort if needed
 

@@ -24,25 +24,27 @@
 
 .button-grid {
   display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .button-row {
   display: flex;
-  gap: 3px;
+  gap: 6px;
 }
 .button-row button { flex: 1; }
 
 .drone-menu button {
-  padding: 3px 8px;
+  padding: 8px 10px;
   border: 1px solid #30363d;
-  border-radius: 3px;
+  border-radius: 2px;
   background: #161b22;
   color: #c9d1d9;
-  font: 10px/1.4 monospace;
+  font: 500 11px/1.4 monospace;
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background 0.1s, border-color 0.1s;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 .drone-menu button:hover:not(:disabled) {
   background: #21262d;
@@ -56,13 +58,25 @@
   border-color: #9e6a03;
   color: #f0883e;
 }
+.drone-menu button.btn-warning:hover:not(:disabled) {
+  border-color: #d29922;
+  background: #1c1917;
+}
 .drone-menu button.btn-success {
   border-color: #238636;
   color: #3fb950;
 }
+.drone-menu button.btn-success:hover:not(:disabled) {
+  border-color: #2ea043;
+  background: #0d1117;
+}
 .drone-menu button.btn-danger {
   border-color: #da3633;
   color: #f85149;
+}
+.drone-menu button.btn-danger:hover:not(:disabled) {
+  border-color: #f85149;
+  background: #1a1413;
 }
 
 .altitude-slider {

@@ -37,6 +37,8 @@ class DispatchBridge:
     def __init__(self):
         self.paused = True  # Start paused — no tokens wasted
         self.running = False
+        self.session_mode = "isolated"  # "main" or "isolated" — isolated enables concurrent dispatch
+        self.model = "anthropic/claude-sonnet-4-5"  # Model for dispatch sessions
         self.seen_incidents = set()
         self.activity_log = []
 
@@ -93,18 +95,24 @@ class DispatchBridge:
                             return None
                         break
 
-                # 2) Send agent request (uses main session)
+                # 2) Send agent request
                 run_id_str = f"agent-{int(time.time() * 1000)}"
+                params = {
+                    "message": message,
+                    "idempotencyKey": f"dispatch-{int(time.time() * 1000)}",
+                }
+                if self.session_mode == "isolated":
+                    params["sessionKey"] = f"dispatch-{int(time.time())}"
+                    params["deliver"] = False  # Don't announce isolated dispatch sessions
+                else:
+                    params["sessionKey"] = "main"
+                    params["deliver"] = False
+
                 await ws.send(json.dumps({
                     "type": "req",
                     "id": run_id_str,
                     "method": "agent",
-                    "params": {
-                        "message": message,
-                        "sessionKey": "main",
-                        "deliver": False,
-                        "idempotencyKey": f"dispatch-{int(time.time() * 1000)}",
-                    },
+                    "params": params,
                 }))
 
                 # Wait for accepted + get runId
@@ -124,10 +132,10 @@ class DispatchBridge:
                     self.log("No runId from gateway")
                     return None
 
-                # 3) Wait for lifecycle end
-                deadline = time.time() + 120
+                # 3) Wait for lifecycle end (increased timeout for flight operations)
+                deadline = time.time() + 300
                 while time.time() < deadline:
-                    raw = await asyncio.wait_for(ws.recv(), timeout=120)
+                    raw = await asyncio.wait_for(ws.recv(), timeout=300)
                     evt = json.loads(raw)
                     if evt.get("type") != "event" or evt.get("event") != "agent":
                         continue
@@ -147,7 +155,7 @@ class DispatchBridge:
                     "type": "req",
                     "id": hist_id,
                     "method": "chat.history",
-                    "params": {"sessionKey": "main", "limit": 5},
+                    "params": {"sessionKey": params["sessionKey"], "limit": 5},
                 }))
 
                 deadline = time.time() + 10
@@ -199,46 +207,180 @@ class DispatchBridge:
         except Exception:
             return []
 
+    def get_fleet_state_sync(self) -> str:
+        """Query all drones via drone_control.py and return a fleet status string."""
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["python3", "-u", "-c", """
+import sys
+sys.path.insert(0, '/root/ws_droneOS')
+import drone_control as dc
+import math
+
+drones = []
+# Discover drones by trying drone1-drone5
+for i in range(1, 6):
+    name = f'drone{i}'
+    try:
+        dc.set_drone_name(name)
+        s = dc.get_state()
+        if s.get('nav_state') and s['nav_state'] != 'UNKNOWN':
+            armed = s.get('arming_state', 'UNKNOWN')
+            nav = s.get('nav_state', 'UNKNOWN')
+            x = s.get('local_x', 0)
+            y = s.get('local_y', 0)
+            z = s.get('local_z', 0)
+            alt = -z
+            bat = s.get('battery_remaining', 0)
+            airborne = alt > 1.5
+            if armed == 'ARMED' and airborne:
+                status = 'AIRBORNE'
+            elif armed == 'ARMED':
+                status = 'ARMED'
+            else:
+                status = 'AVAILABLE'
+            drones.append(f'  {name}: {status} at ({x:.0f}, {y:.0f}) alt={alt:.0f}m bat={bat*100:.0f}%')
+    except:
+        pass
+
+if drones:
+    print('\\n'.join(drones))
+else:
+    print('  No drones responding')
+"""],
+                capture_output=True, text=True, timeout=15
+            )
+            return result.stdout.strip() if result.stdout.strip() else "  Fleet state unavailable"
+        except Exception as e:
+            return f"  Fleet state error: {e}"
+
     async def process_incident(self, incident: dict):
         """Send an incident to the AI for decision-making."""
         inc_id = incident["id"]
         self.log(f"🚨 Sending {inc_id} to AI: P{incident['priority']} {incident['type']}")
 
+        # Gather context: fleet state + active incidents
+        fleet_state = await asyncio.get_event_loop().run_in_executor(None, self.get_fleet_state_sync)
+        all_incidents = await self.get_active_incidents()
+        
+        incident_lines = []
+        for inc in all_incidents:
+            if inc["id"] == inc_id:
+                continue  # skip the new one, it's shown separately
+            status = inc.get("status", "unknown")
+            assigned = inc.get("assigned_to", "")
+            loc = inc.get("location", {})
+            assign_str = f" — {assigned}" if assigned else ""
+            incident_lines.append(
+                f"  {inc['id']}: {inc['type']} P{inc['priority']} at {loc.get('name', '?')} "
+                f"({loc.get('x', '?')}, {loc.get('y', '?')}) [{status}{assign_str}]"
+            )
+        
+        active_ctx = "\n".join(incident_lines) if incident_lines else "  None"
+
         message = (
-            f"DISPATCH ALERT — NEW INCIDENT:\n"
+            f"🚨 DISPATCH ALERT — NEW INCIDENT\n"
             f"  ID: {inc_id}\n"
             f"  Type: {incident['type']} (Priority {incident['priority']})\n"
             f"  Description: {incident['description']}\n"
             f"  Location: {incident['location']['name']} "
             f"(x={incident['location']['x']}, y={incident['location']['y']})\n"
             f"\n"
-            f"You are the AI dispatcher. Dispatch a drone to this incident:\n"
-            f"1. Pick an available drone (drone1 or drone2)\n"
-            f"2. Fly it to the location using drone_control.py: set_offboard, arm, set_position(x, y, -15, 0)\n"
-            f"3. After dispatching, include DISPATCHED:<drone_name> in your response\n"
-            f"4. Monitor the drone's arrival, then after ~30s on scene, land it and return\n"
+            f"FLEET STATUS:\n"
+            f"{fleet_state}\n"
+            f"\n"
+            f"OTHER ACTIVE INCIDENTS:\n"
+            f"{active_ctx}\n"
+            f"\n"
+            f"Assess and dispatch the best available drone. "
+            f"You MUST use the exec tool to run each command — do NOT just write commands as text.\n"
+            f"\n"
+            f"COMMAND REFERENCE (run each with exec tool):\n"
+            f"  cd /root/ws_droneOS && python3 drone_control.py --drone DRONENAME --COMMAND\n"
+            f"  Commands: --arm, --disarm, --land, --rtl, --set-offboard, --set-position X Y Z [YAW]\n"
+            f"\n"
+            f"FLIGHT PROCEDURE (call exec for EACH command, one after another):\n"
+            f"  1. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-offboard\n"
+            f"  2. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --arm\n"
+            f"  3. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position CURRENT_X CURRENT_Y -50 0\n"
+            f"  4. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position TARGET_X TARGET_Y -50 0\n"
+            f"  5. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --rtl\n"
+            f"\n"
+            f"CRITICAL INSTRUCTIONS:\n"
+            f"- You MUST call the exec tool for each command. Writing bash code blocks does NOTHING.\n"
+            f"- Use z=-50 (50 meters altitude) to clear all obstacles (trees, buildings)\n"
+            f"- Execute ALL 5 commands immediately in sequence\n"
+            f"- Do NOT use --land command (--rtl handles the return and landing)\n"
+            f"- After issuing all commands, FINISH YOUR RESPONSE immediately with status tags\n"
+            f"\n"
+            f"Maintain 5m minimum separation from other airborne drones.\n"
+            f"\n"
+            f"STATUS TAGS (include in your response):\n"
+            f"  DISPATCHED:droneX — when you issue the arm command\n"
+            f"  ON_SCENE:droneX — when you issue the fly-to-target command\n"
+            f"  RESOLVED:{inc_id} — when you issue the RTL (return to launch) command\n"
+            f"\n"
+            f"After issuing all 5 flight commands, finish your response immediately with status tags. "
+            f"The drone will execute the mission autonomously: fly to scene → investigate → return home → land.\n"
         )
 
         response = await self.send_to_ai(message)
 
         if response:
             self.log(f"🧠 AI responded for {inc_id}: {response[:300]}")
-            # Check if AI dispatched a drone
-            resp_upper = response.upper()
-            if "DISPATCHED:" in resp_upper:
-                drone = resp_upper.split("DISPATCHED:")[1].strip().split()[0].strip(".,!;")
-                await self.update_incident(inc_id, "dispatched", drone.lower())
-                self.log(f"🛸 Updated {inc_id} → dispatched to {drone.lower()}")
+            import re
+            resp_lower = response.lower()
+
+            # Parse all status tags
+            dispatched_match = re.search(r'dispatched\s*:\s*(drone\d+)', resp_lower)
+            onscene_match = re.search(r'on_scene\s*:\s*(drone\d+)', resp_lower)
+            resolved_match = re.search(r'resolved\s*:\s*(\d+|inc-[a-z0-9]+)', resp_lower)
+
+            # Determine drone name from tags or freeform text
+            drone_name = None
+            if dispatched_match:
+                drone_name = dispatched_match.group(1)
+            elif onscene_match:
+                drone_name = onscene_match.group(1)
             else:
-                # AI responded but didn't include the dispatch tag — still mark it
+                action_match = re.search(r'(?:dispatch|send|assign|deploy|launch|scrambl)\w*\s+(drone\d+)', resp_lower)
+                if action_match:
+                    drone_name = action_match.group(1)
+                else:
+                    drone_match = re.search(r'(drone\d+)', resp_lower)
+                    if drone_match:
+                        drone_name = drone_match.group(1)
+
+            # Apply status updates in progression order (never go backwards)
+            # new → dispatched → on_scene → resolved
+            if drone_name and dispatched_match:
+                await self.update_incident(inc_id, "dispatched", drone_name)
+                self.log(f"🛸 Updated {inc_id} → dispatched to {drone_name}")
+
+            if onscene_match:
+                await self.update_incident(inc_id, "on_scene", drone_name)
+                self.log(f"📍 Updated {inc_id} → on_scene ({drone_name})")
+
+            if resolved_match:
+                resolved_id = resolved_match.group(1).upper()
+                await self.update_incident(resolved_id, "resolved", drone_name)
+                self.log(f"✅ Updated {resolved_id} → resolved")
+
+            # If we got a drone name but no explicit tags, mark as dispatched
+            if drone_name and not dispatched_match and not onscene_match and not resolved_match:
+                await self.update_incident(inc_id, "dispatched", drone_name)
+                self.log(f"🛸 Updated {inc_id} → dispatched to {drone_name}")
+            elif not drone_name and not onscene_match and not resolved_match:
                 await self.update_incident(inc_id, "dispatched", "ai-pending")
-                self.log(f"⚠️ AI responded but no DISPATCHED tag — marked as ai-pending")
+                self.log(f"⚠️ AI responded but couldn't extract drone name — marked as ai-pending")
         else:
             self.log(f"❌ No AI response for {inc_id}")
 
     async def poll_loop(self):
         """Main loop: poll for new incidents and send to AI."""
         self.running = True
+        self.active_tasks: set[asyncio.Task] = set()
         self.log("Bridge started (PAUSED — toggle via /api/bridge/toggle)")
 
         while self.running:
@@ -251,9 +393,17 @@ class DispatchBridge:
 
                 for inc in new_incidents:
                     self.seen_incidents.add(inc["id"])
-                    # Process one at a time to avoid flooding
-                    await self.process_incident(inc)
+                    if self.session_mode == "isolated":
+                        # Concurrent: each incident gets its own task/session
+                        task = asyncio.create_task(self.process_incident(inc))
+                        self.active_tasks.add(task)
+                        task.add_done_callback(self.active_tasks.discard)
+                    else:
+                        # Sequential: one at a time in main session
+                        await self.process_incident(inc)
 
+            # Clean up finished tasks
+            self.active_tasks = {t for t in self.active_tasks if not t.done()}
             await asyncio.sleep(POLL_INTERVAL)
 
     def stop(self):
@@ -273,6 +423,8 @@ def create_control_api(bridge: DispatchBridge) -> web.Application:
         return cors(web.json_response({
             "paused": bridge.paused,
             "running": bridge.running,
+            "session_mode": bridge.session_mode,
+            "model": bridge.model,
             "seen_count": len(bridge.seen_incidents),
             "activity_log": bridge.activity_log[-20:],
         }))
@@ -291,7 +443,39 @@ def create_control_api(bridge: DispatchBridge) -> web.Application:
         bridge.paused = not bridge.paused
         state = "PAUSED" if bridge.paused else "RESUMED"
         bridge.log(f"{'⏸️' if bridge.paused else '▶️'} Bridge {state}")
+        # Also toggle dispatch service
+        try:
+            import aiohttp as _aiohttp
+            async with _aiohttp.ClientSession() as s:
+                endpoint = "pause" if bridge.paused else "resume"
+                await s.post(f"http://127.0.0.1:8081/api/dispatch/{endpoint}")
+        except Exception:
+            pass
         return cors(web.json_response({"paused": bridge.paused}))
+
+    async def get_session_mode(request):
+        return cors(web.json_response({"session_mode": bridge.session_mode}))
+
+    async def post_session_mode(request):
+        data = await request.json()
+        mode = data.get("mode", "main")
+        if mode not in ("main", "isolated"):
+            return cors(web.json_response({"error": "mode must be 'main' or 'isolated'"}, status=400))
+        bridge.session_mode = mode
+        bridge.log(f"🔀 Session mode → {mode}")
+        return cors(web.json_response({"session_mode": bridge.session_mode}))
+
+    async def get_model(request):
+        return cors(web.json_response({"model": bridge.model}))
+
+    async def post_model(request):
+        data = await request.json()
+        model = data.get("model", "")
+        if not model:
+            return cors(web.json_response({"error": "model is required"}, status=400))
+        bridge.model = model
+        bridge.log(f"🧠 Model → {model}")
+        return cors(web.json_response({"model": bridge.model}))
 
     async def handle_options(request):
         return cors(web.json_response({}))
@@ -301,6 +485,10 @@ def create_control_api(bridge: DispatchBridge) -> web.Application:
     app.router.add_post("/api/bridge/pause", post_pause)
     app.router.add_post("/api/bridge/resume", post_resume)
     app.router.add_post("/api/bridge/toggle", post_toggle)
+    app.router.add_get("/api/bridge/session-mode", get_session_mode)
+    app.router.add_post("/api/bridge/session-mode", post_session_mode)
+    app.router.add_get("/api/bridge/model", get_model)
+    app.router.add_post("/api/bridge/model", post_model)
     app.router.add_options("/api/bridge/{path:.*}", handle_options)
     return app
 

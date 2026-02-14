@@ -7,6 +7,7 @@ export interface BridgeStatus {
   paused: boolean;
   running: boolean;
   session_mode: string;
+  model: string;
   seen_count: number;
   activity_log: Array<{ time: number; message: string }>;
 }
@@ -44,13 +45,23 @@ export function useBridgeState() {
         const bridgeData = await bridgeRes.json();
         const newPaused = bridgeData.paused;
         setStatus(prev => prev ? { ...prev, paused: newPaused } : null);
-
-        // Also toggle the dispatch service (incident generation)
-        const dispatchEndpoint = newPaused ? '/api/dispatch/pause' : '/api/dispatch/resume';
-        await fetch(`http://localhost:8081${dispatchEndpoint}`, { method: 'POST' });
       }
     } catch { /* ignore */ }
   }, []);
 
-  return { status, connected, toggle };
+  const setModel = useCallback(async (model: string) => {
+    try {
+      const res = await fetch(`${BRIDGE_API}/api/bridge/model`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(prev => prev ? { ...prev, model: data.model } : null);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  return { status, connected, toggle, setModel };
 }

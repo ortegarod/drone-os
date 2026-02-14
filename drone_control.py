@@ -254,21 +254,87 @@ def build_local_waypoints(points: list[dict]) -> list[dict]:
 
 if __name__ == "__main__":
     import argparse
+    import sys
 
-    parser = argparse.ArgumentParser(description="DroneOS Control - Quick Status")
+    parser = argparse.ArgumentParser(description="DroneOS Control - CLI")
     parser.add_argument("--drone", default=None, help="Drone name (e.g. drone1, drone2)")
+    
+    # Flight commands
+    parser.add_argument("--arm", action="store_true", help="Arm the drone")
+    parser.add_argument("--disarm", action="store_true", help="Disarm the drone")
+    parser.add_argument("--takeoff", action="store_true", help="Take off")
+    parser.add_argument("--land", action="store_true", help="Land at current position")
+    parser.add_argument("--rtl", action="store_true", help="Return to launch")
+    parser.add_argument("--set-offboard", action="store_true", help="Enter offboard mode")
+    parser.add_argument("--set-position", nargs='+', metavar='N',
+                        help="Set position: X Y Z [YAW] - z is NEGATIVE for up (e.g. -15 = 15m altitude)")
+    parser.add_argument("--get-state", action="store_true", help="Get full state (JSON)")
+    
     args = parser.parse_args()
 
     if args.drone:
         set_drone_name(args.drone)
 
-    print("DroneOS Control Library - Quick Test")
-    print("=" * 40)
+    # Execute command if provided
+    executed = False
     
-    state = get_state()
-    print(f"Drone: {get_drone_name()}")
-    print(f"Armed: {state.get('arming_state')}")
-    print(f"Mode: {state.get('nav_state')}")
-    print(f"Altitude: {-state.get('local_z', 0):.1f}m")
-    print(f"Battery: {state.get('battery_remaining', 0) * 100:.0f}%")
-    print(f"Position valid: {state.get('position_valid')}")
+    if args.arm:
+        result = arm()
+        print(f"ARM: {result.get('message', result)}")
+        executed = True
+        
+    if args.disarm:
+        result = disarm()
+        print(f"DISARM: {result.get('message', result)}")
+        executed = True
+        
+    if args.takeoff:
+        result = takeoff()
+        print(f"TAKEOFF: {result.get('message', result)}")
+        executed = True
+        
+    if args.land:
+        result = land()
+        print(f"LAND: {result.get('message', result)}")
+        executed = True
+        
+    if args.rtl:
+        result = return_to_launch()
+        print(f"RTL: {result.get('message', result)}")
+        executed = True
+        
+    if args.set_offboard:
+        result = set_offboard()
+        print(f"SET_OFFBOARD: {result.get('message', result)}")
+        executed = True
+        
+    if args.set_position:
+        if len(args.set_position) < 3:
+            print("ERROR: --set-position requires at least 3 arguments (x y z)", file=sys.stderr)
+            sys.exit(1)
+        x = float(args.set_position[0])
+        y = float(args.set_position[1])
+        z = float(args.set_position[2])
+        yaw = float(args.set_position[3]) if len(args.set_position) > 3 else 0.0
+        result = set_position(x, y, z, yaw)
+        print(f"SET_POSITION({x}, {y}, {z}, {yaw}): {result.get('message', result)}")
+        executed = True
+        
+    if args.get_state:
+        import json
+        state = get_state()
+        print(json.dumps(state, indent=2))
+        executed = True
+
+    # If no command given, show status (legacy behavior)
+    if not executed:
+        print("DroneOS Control Library - Quick Status")
+        print("=" * 40)
+        
+        state = get_state()
+        print(f"Drone: {get_drone_name()}")
+        print(f"Armed: {state.get('arming_state')}")
+        print(f"Mode: {state.get('nav_state')}")
+        print(f"Altitude: {-state.get('local_z', 0):.1f}m")
+        print(f"Battery: {state.get('battery_remaining', 0) * 100:.0f}%")
+        print(f"Position valid: {state.get('position_valid')}")

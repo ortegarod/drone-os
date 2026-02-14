@@ -19,6 +19,7 @@ interface MiniMapProps {
   droneStatus: DroneStatus;
   availableDrones: string[];
   targetAltitude: number;
+  onExpand?: () => void;
 }
 
 interface DronePosition {
@@ -30,7 +31,7 @@ interface DronePosition {
   droneName: string;
 }
 
-const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrones, targetAltitude }) => {
+const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrones, targetAltitude, onExpand }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const droneMarkersRef = useRef<Map<string, L.Marker>>(new Map());
@@ -506,141 +507,88 @@ const MiniMap: React.FC<MiniMapProps> = ({ droneAPI, droneStatus, availableDrone
   }, [handleMapClick]);
 
 
-  const miniMapStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
-    overflow: 'hidden',
-    border: '2px solid #2c3e50',
-    borderRadius: '4px',
-    backgroundColor: '#1a1a1a',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.1)',
-    cursor: 'default'
-  };
-
   return (
-    <div style={miniMapStyle}>
-        {/* Professional tactical frame */}
-      <div style={{
-        position: 'absolute',
-        top: '-3px',
-        left: '-3px',
-        right: '-3px',
-        bottom: '-3px',
-        border: '1px solid #34495e',
-        borderRadius: '2px',
-        pointerEvents: 'none',
-        background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%)',
-        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)'
-      }} />
-
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: '#0d1117' }}>
+      <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
       
-      <div 
-        ref={mapRef} 
-        style={{ 
-          height: '100%', 
-          width: '100%',
-          borderRadius: '5px'
-        }} 
-      />
-      
-      {/* Professional status display */}
+      {/* Status bar */}
       <div style={{
-        position: 'absolute',
-        bottom: '4px',
-        left: '4px',
-        right: '4px',
-        textAlign: 'center',
-        color: '#e1e8ed',
-        fontSize: '10px',
-        fontWeight: '600',
-        fontFamily: 'Segoe UI, system-ui, sans-serif',
-        textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        padding: '2px 8px',
+        background: 'rgba(13,17,23,0.85)',
+        borderTop: '1px solid #21262d',
+        font: '10px/1.4 monospace',
+        color: '#8b949e',
+        display: 'flex', justifyContent: 'space-between',
         pointerEvents: 'none',
-        background: 'linear-gradient(135deg, rgba(0,0,0,0.8), rgba(20,20,20,0.9))',
-        padding: '2px 4px',
-        borderRadius: '2px',
-        border: '1px solid rgba(0,255,65,0.3)'
       }}>
-        {dronePositions.size} ASSET{dronePositions.size !== 1 ? 'S' : ''} • LIVE
+        <span>{dronePositions.size} asset{dronePositions.size !== 1 ? 's' : ''}</span>
+        <span style={{ color: '#3fb950' }}>● live</span>
       </div>
-      
-      {/* Simple compass overlay */}
+
+      {/* Compass */}
       <div style={{
-        position: 'absolute',
-        top: '6px',
-        right: '6px',
-        width: '40px',
-        height: '40px',
-        backgroundColor: 'rgba(15, 25, 35, 0.9)',
-        borderRadius: '50%',
-        border: '1px solid #4a90a4',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        position: 'absolute', top: 4, right: 4,
+        padding: '2px 6px',
+        background: 'rgba(13,17,23,0.85)',
+        border: '1px solid #30363d',
+        borderRadius: 3,
+        font: '10px/1.4 monospace',
+        color: '#c9d1d9',
         pointerEvents: 'none',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-        zIndex: 1000
+        zIndex: 1000,
       }}>
-        {/* North indicator */}
-        <div style={{
-          position: 'absolute',
-          top: '2px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          fontSize: '8px',
-          fontWeight: 'bold',
-          color: '#4a90a4',
-          fontFamily: 'monospace'
-        }}>N</div>
-        
-        {/* Drone heading display */}
         {(() => {
-          const currentDronePos = dronePositions.get(droneStatus.drone_name);
-          if (currentDronePos && currentDronePos.valid) {
-            return (
-              <div style={{
-                fontSize: '10px',
-                fontWeight: 'bold',
-                color: '#e1e8ed',
-                fontFamily: 'monospace',
-                textAlign: 'center'
-              }}>
-                {Math.round(currentDronePos.yaw)}°
-              </div>
-            );
-          }
-          return (
-            <div style={{
-              fontSize: '8px',
-              color: '#6c7a89',
-              fontFamily: 'monospace'
-            }}>
-              ---
-            </div>
-          );
+          const p = dronePositions.get(droneStatus.drone_name);
+          return p?.valid ? `${Math.round(p.yaw)}° N` : '---';
         })()}
       </div>
 
-      {/* Command status indicator */}
+      {/* Expand button */}
+      {onExpand && (
+        <button
+          onClick={onExpand}
+          style={{
+            position: 'absolute',
+            top: 4,
+            left: 4,
+            padding: '4px 8px',
+            background: 'rgba(13,17,23,0.85)',
+            border: '1px solid #30363d',
+            borderRadius: 3,
+            font: '10px/1.4 monospace',
+            color: '#58a6ff',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            zIndex: 1000,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(21,27,33,0.95)';
+            e.currentTarget.style.borderColor = '#58a6ff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(13,17,23,0.85)';
+            e.currentTarget.style.borderColor = '#30363d';
+          }}
+        >
+          ⛶ EXPAND
+        </button>
+      )}
+
+      {/* Command feedback */}
       {message && (
         <div style={{
-          position: 'absolute',
-          bottom: '24px',
-          left: '6px',
-          right: '6px',
-          background: message.includes('Failed') ? 'linear-gradient(135deg, #e74c3c, #c0392b)' : 'linear-gradient(135deg, #27ae60, #229954)',
-          color: '#ffffff',
-          padding: '3px 6px',
-          borderRadius: '2px',
-          fontSize: '9px',
-          fontWeight: '500',
+          position: 'absolute', bottom: 20, left: 4, right: 4,
+          padding: '2px 6px',
+          background: 'rgba(13,17,23,0.9)',
+          border: `1px solid ${message.includes('Failed') ? '#f85149' : '#238636'}`,
+          borderRadius: 3,
+          font: '9px/1.4 monospace',
+          color: message.includes('Failed') ? '#f85149' : '#3fb950',
           textAlign: 'center',
           pointerEvents: 'none',
-          border: '1px solid rgba(255,255,255,0.2)',
-          textShadow: '0 1px 1px rgba(0,0,0,0.5)'
         }}>
-          {message.length > 35 ? message.substring(0, 35) + '...' : message}
+          {message.length > 40 ? message.substring(0, 40) + '…' : message}
         </div>
       )}
     </div>

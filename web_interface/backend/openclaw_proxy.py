@@ -219,8 +219,28 @@ app.add_middleware(
 @app.get("/api/openclaw/status")
 async def status():
     try:
-        r = await openclaw_chat("ping", session_key="main")
-        return {"ok": True, "note": "reachable", "sample": r.get("text", "")}
+        model = None
+        agent_name = None
+        session_key = "main"
+        try:
+            cfg_path = os.path.expanduser("~/.openclaw/openclaw.json")
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            model = ((cfg.get("agents") or {}).get("defaults") or {}).get("model", {}).get("primary")
+        except Exception:
+            pass
+        # Read agent name from workspace identity
+        try:
+            ws = ((cfg.get("agents") or {}).get("defaults") or {}).get("workspace", os.path.expanduser("~/.openclaw/workspace"))
+            id_path = os.path.join(ws, "IDENTITY.md")
+            with open(id_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("- **Name:**"):
+                        agent_name = line.split("**Name:**")[1].strip().split("\n")[0].strip()
+                        break
+        except Exception:
+            pass
+        return {"ok": True, "model": model, "agent": agent_name, "session": session_key}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 

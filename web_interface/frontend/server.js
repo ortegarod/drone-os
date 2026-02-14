@@ -18,7 +18,10 @@ app.use('/api/incidents', createProxyMiddleware({
   target: 'http://127.0.0.1:8081',
   changeOrigin: true,
 }));
-
+app.use('/api/dispatch', createProxyMiddleware({
+  target: 'http://127.0.0.1:8081',
+  changeOrigin: true,
+}));
 // Proxy bridge control API
 app.use('/api/bridge', createProxyMiddleware({
   target: 'http://127.0.0.1:8082',
@@ -29,7 +32,7 @@ app.use('/api/bridge', createProxyMiddleware({
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // SPA fallback - MUST be last
-app.get('*', (req, res) => {
+app.get('/{*path}', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

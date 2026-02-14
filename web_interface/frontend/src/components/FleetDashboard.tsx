@@ -1,13 +1,13 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import AIInterface from './AIInterface';
 import ActivityFeed from './ActivityFeed';
 import MiniMap from './MiniMap';
+import MapModal from './MapModal';
 import DroneMenu from './DroneMenu';
 import SimpleCameraFeed from './SimpleCameraFeed';
 import IncidentQueue from './IncidentQueue';
-import DispatchControls from './DispatchControls';
+import { Badge } from './ui/badge';
 import { useDispatchState } from '../hooks/useDispatchState';
-import { useBridgeState } from '../hooks/useBridgeState';
 import { DroneStatus } from '../types/drone';
 import './FleetDashboard.css';
 
@@ -21,6 +21,7 @@ interface FleetDashboardProps {
   setTargetAltitude: (alt: number) => void;
   maxAltitude: number;
   setMaxAltitude: (alt: number) => void;
+  opsState: string;
 }
 
 const FleetDashboard: React.FC<FleetDashboardProps> = ({
@@ -33,20 +34,11 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
   setTargetAltitude,
   maxAltitude,
   setMaxAltitude,
+  opsState,
 }) => {
   const { incidents, connected: dispatchConnected } = useDispatchState();
-  const { status: bridgeStatus, connected: bridgeConnected, toggle: toggleBridge } = useBridgeState();
-  const [isAuthed, setIsAuthed] = useState(false);
   const [consoleInput, setConsoleInput] = useState('');
-
-  const handleAuth = useCallback(() => {
-    const pass = window.prompt('Enter operator passkey:');
-    if (pass === 'dragonfly') {
-      setIsAuthed(true);
-    } else if (pass !== null) {
-      window.alert('Invalid passkey');
-    }
-  }, []);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [consoleHistory, setConsoleHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [consoleOutput, setConsoleOutput] = useState<Array<{ text: string; type: 'cmd' | 'ok' | 'err' | 'info' }>>([
@@ -61,6 +53,28 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
     armed?: boolean;
   }>({});
   const consoleOutputRef = useRef<HTMLDivElement>(null);
+  const [allDroneStates, setAllDroneStates] = useState<Record<string, any>>({});
+
+  // Poll all drone states
+  useEffect(() => {
+    if (!droneAPI?.ros || availableDrones.length === 0) return;
+    const ROSLIB = require('roslib');
+    const subs: any[] = [];
+    availableDrones.forEach(name => {
+      const topic = new ROSLIB.Topic({
+        ros: droneAPI.ros,
+        name: `/${name}/drone_state`,
+        messageType: 'drone_interfaces/DroneState',
+        throttle_rate: 500,
+        queue_length: 1,
+      });
+      topic.subscribe((msg: any) => {
+        setAllDroneStates(prev => ({ ...prev, [name]: msg }));
+      });
+      subs.push(topic);
+    });
+    return () => subs.forEach(t => t.unsubscribe());
+  }, [droneAPI?.ros, availableDrones]);
 
   const executeCommand = useCallback(async (cmd: string) => {
     const trimmed = cmd.trim();
@@ -174,6 +188,22 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
     }
   };
 
+  // Translate raw PX4 state into a human-readable status
+  const getDroneDisplayStatus = (st: any): { label: string; className: string } => {
+    if (!st) return { label: 'Offline', className: 'status-offline' };
+    const mode = (st.nav_state || st.flight_mode || '').toUpperCase();
+    const armed = st.arming_state === 'ARMED';
+    const alt = -(st.local_z || 0);
+    const airborne = alt > 1.0;
+
+    if (mode.includes('LAND')) return { label: 'Landing', className: 'status-landing' };
+    if (mode.includes('RTL') || mode.includes('RETURN')) return { label: 'Returning', className: 'status-returning' };
+    if (mode.includes('TAKEOFF')) return { label: 'Takeoff', className: 'status-takeoff' };
+    if (armed && airborne) return { label: 'In Flight', className: 'status-mission' };
+    if (armed) return { label: 'Armed', className: 'status-armed' };
+    return { label: 'Ready', className: 'status-ready' };
+  };
+
   return (
     <div className="fleet-wrapper">
       <div className="fleet-layout">
@@ -183,6 +213,10 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
           <div className="fleet-list">
             {availableDrones.map((drone) => {
               const isActive = drone === droneStatus.drone_name;
+              const st = allDroneStates[drone];
+              const alt = st ? (-st.local_z || 0).toFixed(0) : '—';
+              const bat = st?.battery_remaining != null ? (st.battery_remaining * 100).toFixed(0) : '—';
+              const displayStatus = getDroneDisplayStatus(st);
               return (
                 <div
                   key={drone}
@@ -190,21 +224,12 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
                   onClick={() => setTargetDrone(drone)}
                 >
                   <div className="drone-card-indicator" />
-                  <div className="drone-card-body">
-                    <div className="drone-card-name">{drone}</div>
-                    {isActive && (
-                      <div className="drone-card-stats">
-                        <span className={`drone-card-armed ${droneStatus.armed ? 'yes' : ''}`}>
-                          {droneStatus.armed ? 'ARMED' : 'DISARMED'}
-                        </span>
-                        <span className="drone-card-alt">
-                          ALT {(-droneStatus.position.z || 0).toFixed(0)}m
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className={`drone-card-status ${isActive ? 'online' : 'idle'}`}>
-                    {isActive ? '●' : '○'}
+                  <span className="drone-card-name">{drone}</span>
+                  <span className={`drone-card-state ${displayStatus.className}`}>{displayStatus.label}</span>
+                  <span className="drone-card-telem">{alt}m</span>
+                  <span className="drone-card-telem">{bat}%</span>
+                  <div className={`drone-card-status ${st ? 'online' : 'idle'}`}>
+                    {st ? '●' : '○'}
                   </div>
                 </div>
               );
@@ -229,21 +254,33 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
             />
           </div>
           <div className="viewport-chat" style={{ position: 'relative' }}>
-            <ActivityFeed />
+            <AIInterface
+              droneAPI={droneAPI}
+              droneStatus={droneStatus}
+              onCommandUpdate={setCommandOverlay}
+            />
           </div>
         </main>
 
         {/* Right — Map + Controls */}
         <aside className="fleet-control">
           <div className="control-map">
+            <div className="section-header">MAP</div>
             <MiniMap
               droneAPI={droneAPI}
               droneStatus={droneStatus}
               availableDrones={availableDrones}
               targetAltitude={targetAltitude}
+              onExpand={() => setIsMapModalOpen(true)}
             />
           </div>
           <div className="control-menu">
+            <div className="section-header">
+              CONTROLS
+              <Badge className={`ops-badge ops-${opsState.toLowerCase()}`} style={{ marginLeft: '8px', fontSize: '9px' }}>
+                {opsState}
+              </Badge>
+            </div>
             <DroneMenu
               droneAPI={droneAPI}
               droneStatus={droneStatus}
@@ -256,11 +293,7 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
             />
           </div>
           <div className="control-ai">
-            <AIInterface
-              droneAPI={droneAPI}
-              droneStatus={droneStatus}
-              onCommandUpdate={setCommandOverlay}
-            />
+            <ActivityFeed />
           </div>
         </aside>
       </div>
@@ -287,6 +320,16 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
           />
         </div>
       </footer>
+
+      {/* Map Modal */}
+      <MapModal
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        droneAPI={droneAPI}
+        droneStatus={droneStatus}
+        availableDrones={availableDrones}
+        targetAltitude={targetAltitude}
+      />
     </div>
   );
 };

@@ -19,107 +19,103 @@
 
 /* Left: fleet list */
 .fleet-sidebar {
-  background-color: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 6px;
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 4px;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
-.fleet-list-header {
-  padding: 10px 14px;
+.fleet-list-header, .section-header {
+  padding: 4px 8px;
+  font: 600 10px/1 monospace;
   color: #8b949e;
-  font-size: 11px;
-  font-family: monospace;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   border-bottom: 1px solid #21262d;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 .fleet-list {
-  flex: 1;
+  flex-shrink: 0;
   overflow-y: auto;
-  padding: 8px;
+  padding: 4px;
   min-height: 0;
 }
 
 .fleet-drone-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  margin-bottom: 4px;
-  border-radius: 6px;
+  gap: 6px;
+  padding: 4px 6px;
+  margin-bottom: 2px;
+  border-radius: 3px;
   cursor: pointer;
-  transition: background-color 0.15s;
   border: 1px solid transparent;
+  font: 11px/1.4 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 .fleet-drone-card:hover {
-  background-color: #21262d;
+  background: #161b22;
 }
 
 .fleet-drone-card.active {
-  background-color: #1c2633;
+  background: #161b22;
   border-color: #1f6feb;
 }
 
 .drone-card-indicator {
-  width: 4px;
-  height: 32px;
-  border-radius: 2px;
-  background-color: #30363d;
+  width: 3px;
+  height: 24px;
+  border-radius: 1px;
+  background: #21262d;
   flex-shrink: 0;
 }
 
 .fleet-drone-card.active .drone-card-indicator {
-  background-color: #1f6feb;
-}
-
-.drone-card-body {
-  flex: 1;
-  min-width: 0;
+  background: #1f6feb;
 }
 
 .drone-card-name {
   color: #c9d1d9;
-  font-family: monospace;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
+  width: 52px;
+  flex-shrink: 0;
 }
 
 .fleet-drone-card.active .drone-card-name {
   color: #fff;
 }
 
-.drone-card-stats {
-  display: flex;
-  gap: 8px;
-  margin-top: 3px;
+.drone-card-state {
+  font: 600 9px monospace;
+  width: 62px;
+  flex-shrink: 0;
+  text-align: center;
 }
 
-.drone-card-armed,
-.drone-card-alt {
-  font-size: 10px;
-  font-family: monospace;
+.drone-card-telem {
+  font: 9px monospace;
   color: #8b949e;
-  letter-spacing: 0.5px;
+  width: 32px;
+  flex-shrink: 0;
+  text-align: right;
+  white-space: nowrap;
 }
-
-.drone-card-armed {
-  text-transform: uppercase;
-}
-
-.drone-card-armed.yes {
-  color: #f85149;
-}
+.status-ready { color: #3fb950; }
+.status-mission { color: #1f6feb; }
+.status-armed { color: #f0883e; }
+.status-takeoff { color: #f0883e; }
+.status-landing { color: #d2a8ff; }
+.status-returning { color: #d2a8ff; }
+.status-offline { color: #484f58; }
 
 .drone-card-status {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .drone-card-status.online {
@@ -132,10 +128,9 @@
 
 .fleet-empty {
   color: #484f58;
-  font-size: 12px;
-  font-family: monospace;
+  font: 11px monospace;
   text-align: center;
-  padding: 20px 10px;
+  padding: 12px 8px;
 }
 
 /* Center: camera + chat */
@@ -170,22 +165,24 @@
 .fleet-control {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
 
 .control-map,
-.control-menu {
-  border-radius: 6px;
-  border: 1px solid #30363d;
+.control-menu,
+.control-ai {
+  border-radius: 4px;
+  border: 1px solid #21262d;
+  background: #0d1117;
+  overflow: hidden;
 }
 
 .control-map {
   height: 280px;
   flex-shrink: 0;
-  overflow: hidden;
 }
 
 .control-menu {
@@ -196,9 +193,6 @@
 .control-ai {
   flex: 1;
   min-height: 0;
-  border-radius: 6px;
-  border: 1px solid #30363d;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
 }

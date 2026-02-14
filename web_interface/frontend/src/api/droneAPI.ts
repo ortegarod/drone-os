@@ -39,7 +39,7 @@ export const createDroneAPI = (config: DroneAPIConfig) => ({
   takeoff: () => callTriggerService(config.droneName, 'takeoff').then(r => { setTimeout(config.onRefreshState, 1000); return r; }),
   land: () => callTriggerService(config.droneName, 'land').then(r => { setTimeout(config.onRefreshState, 1000); return r; }),
   setOffboard: () => callTriggerService(config.droneName, 'set_offboard').then(r => { setTimeout(config.onRefreshState, 1000); return r; }),
-  returnToLaunch: () => Promise.resolve({ success: false, message: 'RTL not implemented' }),
+  returnToLaunch: () => callTriggerService(config.droneName, 'return_to_launch').then(r => { setTimeout(config.onRefreshState, 1000); return r; }),
   flightTermination: () => Promise.resolve({ success: false, message: 'Termination not implemented' }),
 
   // Position control - the working implementation from commit 988e74f
