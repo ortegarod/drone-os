@@ -159,12 +159,49 @@ class DispatchService:
             delay = random.randint(INCIDENT_INTERVAL_MIN, INCIDENT_INTERVAL_MAX)
             await asyncio.sleep(delay)
 
+    async def _monitor_returning_drones(self):
+        """Poll drones assigned to 'returning' incidents. Mark resolved when landed."""
+        import subprocess
+        while self._running:
+            for inc in list(self.incidents.values()):
+                if inc.status != "returning" or not inc.assigned_to:
+                    continue
+                drone_name = inc.assigned_to
+                try:
+                    result = subprocess.run(
+                        ["python3", "-u", "-c", f"""
+import sys
+sys.path.insert(0, '/root/ws_droneOS')
+import drone_control as dc
+dc.set_drone_name('{drone_name}')
+s = dc.get_state()
+armed = s.get('arming_state', 'UNKNOWN')
+alt = -(s.get('local_z', 0))
+print(f'{{armed}} {{alt:.1f}}')
+"""],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if result.returncode == 0 and result.stdout.strip():
+                        parts = result.stdout.strip().split()
+                        armed_state = parts[0]
+                        altitude = float(parts[1])
+                        if armed_state == "DISARMED" and altitude < 2.0:
+                            self.update_incident(inc.id, "resolved", drone_name)
+                            print(f"[dispatch] ✅ {inc.id} → resolved ({drone_name} landed)")
+                except Exception as e:
+                    print(f"[dispatch] Monitor error for {inc.id}: {e}")
+            await asyncio.sleep(5)
+
     async def run(self):
         """Start the dispatch service."""
         print("[dispatch] Starting dispatch service (PAUSED by default)...")
         await self._connect_rosbridge()
         self._running = True
-        await self._incident_loop()
+        # Run both loops concurrently
+        await asyncio.gather(
+            self._incident_loop(),
+            self._monitor_returning_drones()
+        )
 
     def pause(self):
         """Pause incident generation."""

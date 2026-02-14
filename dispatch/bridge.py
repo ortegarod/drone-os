@@ -49,8 +49,11 @@ class DispatchBridge:
             self.activity_log = self.activity_log[-50:]
         print(f"[bridge] {msg}")
 
-    async def send_to_ai(self, message: str) -> str | None:
-        """Send a message to AI via OpenClaw gateway WebSocket (full protocol)."""
+    async def send_to_ai(self, message: str, on_text=None) -> str | None:
+        """Send a message to AI via OpenClaw gateway WebSocket (full protocol).
+        
+        on_text: optional async callback(text_chunk) called when assistant text streams in.
+        """
         import websockets
 
         token = _load_gateway_token()
@@ -132,7 +135,8 @@ class DispatchBridge:
                     self.log("No runId from gateway")
                     return None
 
-                # 3) Wait for lifecycle end (increased timeout for flight operations)
+                # 3) Wait for lifecycle end, process streamed text in real-time
+                accumulated_text = []
                 deadline = time.time() + 300
                 while time.time() < deadline:
                     raw = await asyncio.wait_for(ws.recv(), timeout=300)
@@ -140,16 +144,31 @@ class DispatchBridge:
                     if evt.get("type") != "event" or evt.get("event") != "agent":
                         continue
                     p = evt.get("payload") or {}
-                    if p.get("runId") != run_id or p.get("stream") != "lifecycle":
+                    if p.get("runId") != run_id:
                         continue
+                    
+                    stream = p.get("stream")
                     data = p.get("data") or {}
-                    if isinstance(data, dict) and data.get("phase") == "error":
-                        self.log(f"AI run error: {data}")
-                        return None
-                    if isinstance(data, dict) and data.get("phase") == "end":
-                        break
+                    
+                    # Process assistant text stream in real-time
+                    if stream == "assistant" and isinstance(data, dict):
+                        text = data.get("text", "")
+                        if text and on_text:
+                            accumulated_text.append(text)
+                            try:
+                                await on_text("".join(accumulated_text))
+                            except Exception as e:
+                                self.log(f"on_text callback error: {e}")
+                    
+                    # Check for lifecycle end
+                    if stream == "lifecycle" and isinstance(data, dict):
+                        if data.get("phase") == "error":
+                            self.log(f"AI run error: {data}")
+                            return None
+                        if data.get("phase") == "end":
+                            break
 
-                # 4) Fetch last assistant reply
+                # 4) Fetch last assistant reply (full text)
                 hist_id = f"hist-{int(time.time() * 1000)}"
                 await ws.send(json.dumps({
                     "type": "req",
@@ -324,42 +343,63 @@ else:
             f"Do NOT report RESOLVED — the operator will handle that when they click the Resolve button.\n"
         )
 
-        # Mark as dispatched immediately — AI is handling it
-        # We don't know the drone yet, but the incident is being processed
-        await self.update_incident(inc_id, "dispatched", "ai-pending")
-        self.log(f"🛸 Updated {inc_id} → dispatched (AI processing)")
+        # Track which statuses we've already applied for this incident
+        applied_statuses = set()
+        current_drone = [None]  # mutable container for closure
 
-        response = await self.send_to_ai(message)
-
-        if response:
-            self.log(f"🧠 AI responded for {inc_id}: {response[:300]}")
+        async def on_streaming_text(accumulated_text: str):
+            """Called as AI text streams in — parse status tags in real-time."""
             import re
-            resp_lower = response.lower()
+            text_lower = accumulated_text.lower()
 
-            # Extract drone name from response
-            onscene_match = re.search(r'on_scene\s*:\s*(drone\d+)', resp_lower)
-            dispatched_match = re.search(r'dispatched\s*:\s*(drone\d+)', resp_lower)
+            # Extract drone name
+            dispatched_match = re.search(r'dispatched\s*:\s*(drone\d+)', text_lower)
+            onscene_match = re.search(r'on_scene\s*:\s*(drone\d+)', text_lower)
 
-            drone_name = None
-            if onscene_match:
-                drone_name = onscene_match.group(1)
-            elif dispatched_match:
-                drone_name = dispatched_match.group(1)
-            else:
-                drone_match = re.search(r'(drone\d+)', resp_lower)
-                if drone_match:
-                    drone_name = drone_match.group(1)
+            if dispatched_match:
+                current_drone[0] = dispatched_match.group(1)
+            elif onscene_match:
+                current_drone[0] = onscene_match.group(1)
 
-            if drone_name:
-                # Update dispatched with actual drone name (if still dispatched)
+            drone_name = current_drone[0]
+            if not drone_name:
+                return
+
+            # Apply DISPATCHED when we first see it
+            if dispatched_match and "dispatched" not in applied_statuses:
+                applied_statuses.add("dispatched")
                 await self.update_incident(inc_id, "dispatched", drone_name)
+                self.log(f"🛸 Updated {inc_id} → dispatched to {drone_name}")
 
-            if onscene_match and drone_name:
+            # Apply ON_SCENE when we first see it (after DISPATCHED)
+            if onscene_match and "on_scene" not in applied_statuses:
+                applied_statuses.add("on_scene")
                 await self.update_incident(inc_id, "on_scene", drone_name)
                 self.log(f"📍 Updated {inc_id} → on_scene ({drone_name})")
-            elif drone_name:
-                self.log(f"🛸 Updated {inc_id} → dispatched to {drone_name} (awaiting on_scene)")
-            else:
+
+        response = await self.send_to_ai(message, on_text=on_streaming_text)
+
+        if response:
+            self.log(f"🧠 AI completed for {inc_id}: {response[:200]}")
+            # Final pass in case streaming missed anything
+            import re
+            text_lower = response.lower()
+            dispatched_match = re.search(r'dispatched\s*:\s*(drone\d+)', text_lower)
+            onscene_match = re.search(r'on_scene\s*:\s*(drone\d+)', text_lower)
+            
+            drone_name = current_drone[0]
+            if not drone_name and dispatched_match:
+                drone_name = dispatched_match.group(1)
+            if not drone_name and onscene_match:
+                drone_name = onscene_match.group(1)
+            
+            if drone_name and "dispatched" not in applied_statuses:
+                await self.update_incident(inc_id, "dispatched", drone_name)
+                self.log(f"🛸 Updated {inc_id} → dispatched to {drone_name}")
+            if drone_name and onscene_match and "on_scene" not in applied_statuses:
+                await self.update_incident(inc_id, "on_scene", drone_name)
+                self.log(f"📍 Updated {inc_id} → on_scene ({drone_name})")
+            if not drone_name:
                 self.log(f"⚠️ AI responded but couldn't extract drone name")
         else:
             self.log(f"❌ No AI response for {inc_id}")
