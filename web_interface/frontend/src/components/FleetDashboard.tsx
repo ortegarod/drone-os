@@ -255,6 +255,13 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
               setMaxAltitude={setMaxAltitude}
             />
           </div>
+          <div className="control-ai">
+            <AIInterface
+              droneAPI={droneAPI}
+              droneStatus={droneStatus}
+              onCommandUpdate={setCommandOverlay}
+            />
+          </div>
         </aside>
       </div>
 

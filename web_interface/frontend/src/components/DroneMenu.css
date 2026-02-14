@@ -1,158 +1,99 @@
 .drone-menu {
-  background: #2d2d2d;
-  border-radius: 8px;
-  padding: 12px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 11px;
 }
 
 .menu-section {
-  background: #1a1a1a;
-  border-radius: 6px;
-  padding: 10px;
+  border-bottom: 1px solid #21262d;
+  padding-bottom: 6px;
 }
+.menu-section:last-of-type { border-bottom: none; }
 
 .menu-section h3 {
-  margin: 0 0 8px 0;
-  font-size: 12px;
-  color: #888;
+  margin: 0 0 4px 0;
+  font-size: 10px;
+  color: #8b949e;
   text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
 }
 
 .button-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
 }
 
 .button-row {
   display: flex;
-  gap: 6px;
+  gap: 3px;
 }
-
-.button-row button {
-  flex: 1;
-}
+.button-row button { flex: 1; }
 
 .drone-menu button {
-  padding: 8px 12px;
-  border: 1px solid #444;
-  border-radius: 4px;
-  background: #333;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 3px 8px;
+  border: 1px solid #30363d;
+  border-radius: 3px;
+  background: #161b22;
+  color: #c9d1d9;
+  font: 10px/1.4 monospace;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.1s;
 }
-
 .drone-menu button:hover:not(:disabled) {
-  background: #444;
-  border-color: #666;
+  background: #21262d;
+  border-color: #484f58;
 }
-
 .drone-menu button:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
-
 .drone-menu button.btn-warning {
-  background: #664400;
-  border-color: #ff8800;
-  color: #ff8800;
+  border-color: #9e6a03;
+  color: #f0883e;
 }
-
-.drone-menu button.btn-warning:hover:not(:disabled) {
-  background: #885500;
-}
-
 .drone-menu button.btn-success {
-  background: #004422;
-  border-color: #00ff88;
-  color: #00ff88;
+  border-color: #238636;
+  color: #3fb950;
 }
-
-.drone-menu button.btn-success:hover:not(:disabled) {
-  background: #006633;
-}
-
 .drone-menu button.btn-danger {
-  background: #440000;
-  border-color: #ff4444;
-  color: #ff4444;
-}
-
-.drone-menu button.btn-danger:hover:not(:disabled) {
-  background: #660000;
-}
-
-.drone-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.drone-name {
-  font-weight: 600;
-  color: #fff;
-}
-
-.status-badge {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 3px;
-}
-
-.status-badge.online {
-  background: rgba(0, 255, 136, 0.2);
-  color: #00ff88;
-}
-
-.status-badge.offline {
-  background: rgba(255, 68, 68, 0.2);
-  color: #ff4444;
-}
-
-.drone-stats {
-  display: flex;
-  gap: 12px;
-  font-size: 11px;
-  color: #888;
+  border-color: #da3633;
+  color: #f85149;
 }
 
 .altitude-slider {
   width: 100%;
   appearance: none;
-  height: 4px;
-  border-radius: 2px;
-  background: #444;
+  height: 2px;
+  border-radius: 1px;
+  background: #30363d;
   outline: none;
   cursor: pointer;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
-
 .altitude-slider::-webkit-slider-thumb {
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #4a90a4;
+  background: #58a6ff;
   cursor: pointer;
 }
 
 .drone-select-btn {
   width: 100%;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .status-message {
-  font-size: 11px;
-  padding: 6px;
-  background: rgba(0, 255, 136, 0.1);
-  border: 1px solid #00ff88;
-  border-radius: 4px;
-  color: #00ff88;
-  font-family: monospace;
+  font-size: 10px;
+  padding: 3px 6px;
+  background: rgba(63,185,80,0.1);
+  border: 1px solid #238636;
+  border-radius: 3px;
+  color: #3fb950;
 }

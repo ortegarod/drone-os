@@ -14,17 +14,17 @@ interface DroneMenuProps {
 }
 
 const DroneMenu: React.FC<DroneMenuProps> = ({
-  droneAPI, droneStatus, availableDrones, isConnected,
-  targetAltitude, setTargetAltitude, maxAltitude, setMaxAltitude
+  droneAPI, droneStatus,
+  targetAltitude, setTargetAltitude, maxAltitude
 }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  const runCommand = async (cmd: () => Promise<any>, name: string) => {
+  const run = async (cmd: () => Promise<any>, name: string) => {
     setLoading(true);
     try {
-      const result = await cmd();
-      setMessage(`${name}: ${result.success ? 'OK' : 'Failed'}`);
+      const r = await cmd();
+      setMessage(`${name}: ${r.success ? 'OK' : 'Failed'}`);
     } catch (e: any) {
       setMessage(`${name}: ${e.message}`);
     }
@@ -34,61 +34,22 @@ const DroneMenu: React.FC<DroneMenuProps> = ({
 
   return (
     <div className="drone-menu">
-      {/* Flight Commands */}
       <div className="menu-section">
-        <h3>Flight</h3>
+        <h3>ALT {targetAltitude}m</h3>
+        <input type="range" className="altitude-slider" min="1" max={maxAltitude} value={targetAltitude}
+          onChange={(e) => setTargetAltitude(parseInt(e.target.value))} />
+      </div>
+      <div className="menu-section">
+        <h3>FLIGHT</h3>
         <div className="button-grid">
-          <button onClick={() => runCommand(() => droneAPI.setOffboard(), 'Offboard')} disabled={loading}>
-            OFFBOARD
-          </button>
-          <button className="btn-warning" onClick={() => runCommand(() => droneAPI.arm(), 'Arm')} disabled={droneStatus.armed || loading}>
-            ARM
-          </button>
-          <button className="btn-success" onClick={() => runCommand(() => droneAPI.takeoff(), 'Takeoff')} disabled={!droneStatus.armed || loading}>
-            TAKEOFF
-          </button>
-          <button onClick={() => runCommand(() => droneAPI.land(), 'Land')} disabled={!droneStatus.armed || loading}>
-            LAND
-          </button>
-          <button onClick={() => runCommand(() => droneAPI.disarm(), 'Disarm')} disabled={!droneStatus.armed || loading}>
-            DISARM
-          </button>
-          <button className="btn-danger" onClick={() => runCommand(() => droneAPI.flightTermination(), 'E-Stop')} disabled={loading}>
-            E-STOP
-          </button>
+          <button onClick={() => run(() => droneAPI.setOffboard(), 'Offboard')} disabled={loading}>OFFBOARD</button>
+          <button className="btn-warning" onClick={() => run(() => droneAPI.arm(), 'Arm')} disabled={droneStatus.armed || loading}>ARM</button>
+          <button className="btn-success" onClick={() => run(() => droneAPI.takeoff(), 'Takeoff')} disabled={!droneStatus.armed || loading}>TAKEOFF</button>
+          <button onClick={() => run(() => droneAPI.land(), 'Land')} disabled={!droneStatus.armed || loading}>LAND</button>
+          <button onClick={() => run(() => droneAPI.disarm(), 'Disarm')} disabled={!droneStatus.armed || loading}>DISARM</button>
+          <button className="btn-danger" onClick={() => run(() => droneAPI.flightTermination(), 'E-Stop')} disabled={loading}>E-STOP</button>
         </div>
       </div>
-
-      {/* Altitude */}
-      <div className="menu-section">
-        <h3>Click Altitude: {targetAltitude}m</h3>
-        <input
-          type="range"
-          className="altitude-slider"
-          min="1"
-          max={maxAltitude}
-          value={targetAltitude}
-          onChange={(e) => setTargetAltitude(parseInt(e.target.value))}
-        />
-        <div className="button-row">
-          <button onClick={() => runCommand(() => droneAPI.setPosition(0, 0, -5, 0), 'Alt')} disabled={loading}>5m</button>
-          <button onClick={() => runCommand(() => droneAPI.setPosition(0, 0, -10, 0), 'Alt')} disabled={loading}>10m</button>
-          <button onClick={() => runCommand(() => droneAPI.setPosition(0, 0, -15, 0), 'Alt')} disabled={loading}>15m</button>
-        </div>
-      </div>
-
-      {/* Drone switch (only if multiple) */}
-      {availableDrones.length > 1 && (
-        <div className="menu-section">
-          <h3>Switch Drone</h3>
-          {availableDrones.filter(d => d !== droneStatus.drone_name).map(drone => (
-            <button key={drone} className="drone-select-btn" onClick={() => droneAPI.setTargetDrone(drone)}>
-              {drone}
-            </button>
-          ))}
-        </div>
-      )}
-
       {message && <div className="status-message">{message}</div>}
     </div>
   );
