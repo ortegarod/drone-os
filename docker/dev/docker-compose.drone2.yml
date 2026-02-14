@@ -1,0 +1,34 @@
+services:
+  drone_core2:
+    build:
+      context: .
+      dockerfile: drone_core.dev.Dockerfile
+    container_name: drone_core_node2
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../../src:/root/ws_droneOS/src
+      - ../../build:/root/ws_droneOS/build
+      - ../../install:/root/ws_droneOS/install
+      - ../../logs:/root/ws_droneOS/logs
+      - ../../fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_LOG_SEVERITY_THRESHOLD=debug
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+    depends_on:
+      - micro_agent
+    command:
+      - bash
+      - -c
+      - |
+        . /opt/ros/humble/setup.bash
+        cd /root/ws_droneOS
+        colcon build --packages-select drone_interfaces px4_msgs drone_core
+        . install/setup.bash
+        ros2 run drone_core drone_core --ros-args \
+          -r __node:=drone2 \
+          -p drone_name:=drone2 \
+          -p px4_namespace:=/px4_1/fmu/ \
+          -p mav_sys_id:=2
