@@ -29,7 +29,7 @@ const ActivityFeed: React.FC = () => {
   return (
     <div className="af-root">
       <div className="af-header">
-        <span className="af-title">ACTIVITY LOG</span>
+        <span className="af-title">AI LOG</span>
         {status?.session_mode && (
           <span className="af-session-mode">
             {status.session_mode === 'isolated' ? 'ISOLATED' : 'MAIN'}

@@ -209,7 +209,7 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
       <div className="fleet-layout">
         {/* Left — Fleet + Incidents */}
         <aside className="fleet-sidebar">
-          <div className="fleet-list-header">FLEET</div>
+          <div className="fleet-list-header">DRONE FLEET</div>
           <div className="fleet-list">
             {availableDrones.map((drone) => {
               const isActive = drone === droneStatus.drone_name;
@@ -300,7 +300,6 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
 
       {/* Console Footer */}
       <footer className="fleet-console">
-        <div className="console-target">TARGET: {droneStatus.drone_name || 'none'}</div>
         <div className="console-output" ref={consoleOutputRef}>
           {consoleOutput.map((line, i) => (
             <div key={i} className={`console-line console-${line.type}`}>{line.text}</div>

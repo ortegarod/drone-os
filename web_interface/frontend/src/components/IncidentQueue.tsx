@@ -133,47 +133,8 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
   return (
     <div className="iq-root">
       <div className="iq-header">
-        <span>DISPATCH</span>
+        <span>DISPATCH FEED</span>
         <span className={`iq-status ${connected ? 'on' : 'off'}`}>{connected ? '●' : '○'}</span>
-      </div>
-      <div className="iq-controls">
-        <button
-          className={`iq-btn ${paused ? 'paused' : 'active'}`}
-          onClick={toggleSystem}
-          disabled={!connected}
-          title={paused ? 'Resume incident generation & AI dispatch' : 'Pause incident generation & AI dispatch'}
-        >
-          {paused ? 'RESUME' : 'PAUSE'}
-        </button>
-        <button
-          className="iq-btn clear"
-          onClick={clearAll}
-          disabled={!connected || active === 0}
-          title="Clear all incidents"
-        >
-          CLEAR
-        </button>
-        <span className="iq-system-status" style={{ color: systemColor }}>
-          {systemStatus}
-        </span>
-      </div>
-      <div className="iq-controls iq-controls-secondary">
-        <button
-          className={`iq-btn mode ${mode === 'auto' ? 'auto' : 'manual'}`}
-          onClick={toggleMode}
-          disabled={!connected}
-          title={mode === 'auto' ? 'Switch to manual mode (trigger incidents manually)' : 'Switch to auto mode (incidents generated on timer)'}
-        >
-          {mode === 'auto' ? 'AUTO' : 'MANUAL'}
-        </button>
-        <button
-          className="iq-btn trigger"
-          onClick={triggerIncident}
-          disabled={!connected || paused}
-          title="Trigger a new random incident"
-        >
-          NEW INCIDENT
-        </button>
       </div>
       <div className="iq-stats">
         <span>{active} active</span>
@@ -232,7 +193,7 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
                           letterSpacing: '1px',
                         }}
                       >
-                        RETURN TO BASE
+                        RESOLVE
                       </button>
                     </div>
                   )}
@@ -241,6 +202,45 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
             </div>
           );
         })}
+      </div>
+      <div className="iq-controls">
+        <button
+          className={`iq-btn ${paused ? 'paused' : 'active'}`}
+          onClick={toggleSystem}
+          disabled={!connected}
+          title={paused ? 'Resume incident generation & AI dispatch' : 'Pause incident generation & AI dispatch'}
+        >
+          {paused ? 'RESUME' : 'PAUSE'}
+        </button>
+        <button
+          className="iq-btn clear"
+          onClick={clearAll}
+          disabled={!connected || active === 0}
+          title="Clear all incidents"
+        >
+          CLEAR
+        </button>
+        <span className="iq-system-status" style={{ color: systemColor }}>
+          {systemStatus}
+        </span>
+      </div>
+      <div className="iq-controls iq-controls-secondary">
+        <button
+          className={`iq-btn mode ${mode === 'auto' ? 'auto' : 'manual'}`}
+          onClick={toggleMode}
+          disabled={!connected}
+          title={mode === 'auto' ? 'Switch to manual mode (trigger incidents manually)' : 'Switch to auto mode (incidents generated on timer)'}
+        >
+          {mode === 'auto' ? 'AUTO' : 'MANUAL'}
+        </button>
+        <button
+          className="iq-btn trigger"
+          onClick={triggerIncident}
+          disabled={!connected || paused}
+          title="Trigger a new random incident"
+        >
+          NEW INCIDENT
+        </button>
       </div>
     </div>
   );

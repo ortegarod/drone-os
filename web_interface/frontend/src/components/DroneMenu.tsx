@@ -51,9 +51,6 @@ const DroneMenu: React.FC<DroneMenuProps> = ({
             <button onClick={() => run(() => droneAPI.returnToLaunch(), 'RTL')} disabled={!droneStatus.armed || loading}>RTL</button>
             <button onClick={() => run(() => droneAPI.disarm(), 'Disarm')} disabled={!droneStatus.armed || loading}>DISARM</button>
           </div>
-          <div className="button-row">
-            <button className="btn-danger" onClick={() => run(() => droneAPI.flightTermination(), 'E-Stop')} disabled={loading}>E-STOP</button>
-          </div>
         </div>
       </div>
       {message && <div className="status-message">{message}</div>}

@@ -15,7 +15,7 @@ from aiohttp import web
 
 # --- Config ---
 DISPATCH_API = "http://localhost:8081"
-POLL_INTERVAL = 5  # seconds between polls
+POLL_INTERVAL = 2  # seconds between polls
 
 # --- Gateway config ---
 GATEWAY_WS = os.environ.get("OPENCLAW_GATEWAY_WS_URL", "ws://127.0.0.1:18789")
@@ -227,57 +227,109 @@ class DispatchBridge:
             return []
 
     def get_fleet_state_sync(self) -> str:
-        """Query all drones via drone_control.py and return a fleet status string."""
+        """Query all drones via drone_control.py and return a rich fleet status string.
+        
+        Derives status using the same logic as the frontend FleetDashboard:
+        Ready / Armed / Takeoff / In Flight / Landing / Returning / Offline
+        
+        Cross-references with active incidents to show mission context.
+        """
         import subprocess
+        
+        # First get active incidents for cross-referencing
+        incident_by_drone = {}
+        try:
+            import urllib.request
+            with urllib.request.urlopen("http://localhost:8081/api/incidents/active", timeout=3) as resp:
+                incidents = json.loads(resp.read())
+                for inc in incidents:
+                    if inc.get("assigned_to") and inc["status"] in ("dispatched", "on_scene", "returning"):
+                        incident_by_drone[inc["assigned_to"]] = inc
+        except Exception:
+            pass
+        
         try:
             result = subprocess.run(
                 ["python3", "-u", "-c", """
-import sys
+import sys, json, math
 sys.path.insert(0, '/root/ws_droneOS')
 import drone_control as dc
-import math
 
 drones = []
-# Discover drones by trying drone1-drone5
 for i in range(1, 6):
     name = f'drone{i}'
     try:
         dc.set_drone_name(name)
         s = dc.get_state()
         if s.get('nav_state') and s['nav_state'] != 'UNKNOWN':
-            armed = s.get('arming_state', 'UNKNOWN')
-            nav = s.get('nav_state', 'UNKNOWN')
-            x = s.get('local_x', 0)
-            y = s.get('local_y', 0)
-            z = s.get('local_z', 0)
-            alt = -z
-            bat = s.get('battery_remaining', 0)
-            airborne = alt > 1.5
-            if armed == 'ARMED' and airborne:
-                status = 'AIRBORNE'
-            elif armed == 'ARMED':
-                status = 'ARMED'
-            else:
-                status = 'AVAILABLE'
-            drones.append(f'  {name}: {status} at ({x:.0f}, {y:.0f}) alt={alt:.0f}m bat={bat*100:.0f}%')
+            drones.append({
+                'name': name,
+                'arming_state': s.get('arming_state', 'UNKNOWN'),
+                'nav_state': s.get('nav_state', 'UNKNOWN'),
+                'x': s.get('local_x', 0),
+                'y': s.get('local_y', 0),
+                'z': s.get('local_z', 0),
+                'battery': s.get('battery_remaining', 0),
+            })
     except:
         pass
 
-if drones:
-    print('\\n'.join(drones))
-else:
-    print('  No drones responding')
+print(json.dumps(drones))
 """],
                 capture_output=True, text=True, timeout=15
             )
-            return result.stdout.strip() if result.stdout.strip() else "  Fleet state unavailable"
+            if result.returncode != 0 or not result.stdout.strip():
+                return "  Fleet state unavailable"
+            
+            drones = json.loads(result.stdout.strip())
+            if not drones:
+                return "  No drones responding"
+            
+            lines = []
+            for d in drones:
+                name = d['name']
+                armed = d['arming_state'] == 'ARMED'
+                nav = (d.get('nav_state') or '').upper()
+                alt = -d['z']
+                airborne = alt > 1.0
+                bat_pct = d['battery'] * 100
+                
+                # Derive status — same logic as frontend FleetDashboard
+                if 'LAND' in nav:
+                    status = 'LANDING'
+                elif 'RTL' in nav or 'RETURN' in nav:
+                    status = 'RETURNING'
+                elif 'TAKEOFF' in nav:
+                    status = 'TAKEOFF'
+                elif armed and airborne:
+                    status = 'IN FLIGHT'
+                elif armed:
+                    status = 'ARMED'
+                else:
+                    status = 'READY'
+                
+                # Cross-reference with incident assignment
+                mission_ctx = ""
+                inc = incident_by_drone.get(name)
+                if inc:
+                    loc = inc.get('location', {})
+                    mission_ctx = f" | mission: INC-{inc['id']} ({inc['status']}) at {loc.get('name', '?')} ({loc.get('x', '?')},{loc.get('y', '?')})"
+                
+                # Distance from home (0,0)
+                dist_home = (d['x']**2 + d['y']**2) ** 0.5
+                
+                lines.append(
+                    f"  {name}: {status} at ({d['x']:.0f}, {d['y']:.0f}) alt={alt:.0f}m "
+                    f"bat={bat_pct:.0f}% dist_home={dist_home:.0f}m{mission_ctx}"
+                )
+            
+            return "\n".join(lines)
         except Exception as e:
             return f"  Fleet state error: {e}"
 
     async def process_incident(self, incident: dict):
         """Send an incident to the AI for decision-making."""
         inc_id = incident["id"]
-        self.log(f"INCIDENT {inc_id} — P{incident['priority']} {incident['type'].upper().replace('_', ' ')} — DISPATCHING")
 
         # Gather context: fleet state + active incidents
         fleet_state = await asyncio.get_event_loop().run_in_executor(None, self.get_fleet_state_sync)
@@ -298,13 +350,15 @@ else:
         
         active_ctx = "\n".join(incident_lines) if incident_lines else "  None"
 
+        target_x = incident['location']['x']
+        target_y = incident['location']['y']
+        
         message = (
             f"DISPATCH ALERT — NEW INCIDENT\n"
             f"  ID: {inc_id}\n"
             f"  Type: {incident['type']} (Priority {incident['priority']})\n"
             f"  Description: {incident['description']}\n"
-            f"  Location: {incident['location']['name']} "
-            f"(x={incident['location']['x']}, y={incident['location']['y']})\n"
+            f"  Location: {incident['location']['name']} (x={target_x}, y={target_y})\n"
             f"\n"
             f"FLEET STATUS:\n"
             f"{fleet_state}\n"
@@ -312,35 +366,25 @@ else:
             f"OTHER ACTIVE INCIDENTS:\n"
             f"{active_ctx}\n"
             f"\n"
-            f"Assess and dispatch the best available drone. "
-            f"You MUST use the exec tool to run each command — do NOT just write commands as text.\n"
-            f"\n"
-            f"COMMAND REFERENCE (run each with exec tool):\n"
+            f"You are an autonomous drone dispatcher. Use the DroneOS CLI to fly drones:\n"
             f"  cd /root/ws_droneOS && python3 drone_control.py --drone DRONENAME --COMMAND\n"
-            f"  Commands: --arm, --set-offboard, --set-position X Y Z [YAW]\n"
+            f"  Commands: --set-offboard, --arm, --set-position X Y Z YAW, --rtl\n"
+            f"  Query state: python3 drone_control.py --drone DRONENAME (no command = print state)\n"
             f"\n"
-            f"FLIGHT PROCEDURE:\n"
-            f"  1. Pick the best available drone\n"
-            f"  2. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-offboard\n"
-            f"  3. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --arm\n"
-            f"  4. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position CURRENT_X CURRENT_Y -50 0  (climb VERTICALLY — use drone's current X,Y from fleet status)\n"
-            f"  5. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position TARGET_X TARGET_Y -50 0  (fly to target)\n"
-            f"  6. Poll drone position every 5 seconds using exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX\n"
-            f"     Check altitude > 40m AND position within ~30m of target (compare x,y)\n"
-            f"  7. When near target, report ON_SCENE\n"
+            f"RULES:\n"
+            f"- Pick the CLOSEST available drone. READY and RETURNING drones are available.\n"
+            f"- RETURNING drones can be rerouted: --set-offboard cancels RTL, then --set-position to new target.\n"
+            f"- IN FLIGHT drones on active missions are busy — do NOT reassign.\n"
+            f"- Skip drones with battery < 30%.\n"
+            f"- Fly at z=-50 (50m altitude). Climb vertically first, then lateral.\n"
+            f"- Do NOT land or RTL — drone hovers on scene. Auto-RTL triggers after 30s.\n"
+            f"- Poll drone position every 5s until within ~30m of target.\n"
+            f"- You MUST use the exec tool for every command.\n"
             f"\n"
-            f"CRITICAL INSTRUCTIONS:\n"
-            f"- You MUST call the exec tool for each command. Writing bash code blocks does NOTHING.\n"
-            f"- Use z=-50 (50 meters altitude) to clear all obstacles (trees, buildings)\n"
-            f"- Do NOT issue RTL — the operator will resolve the incident manually\n"
-            f"- Do NOT land the drone — it should hover on scene until operator resolves\n"
-            f"- Maintain 5m minimum separation from other airborne drones.\n"
-            f"\n"
-            f"STATUS TAGS (include in your response):\n"
-            f"  DISPATCHED:droneX — report this after arming the drone\n"
-            f"  ON_SCENE:droneX — report this when drone altitude > 40m and within 30m of target\n"
-            f"\n"
-            f"Do NOT report RESOLVED — the operator will handle that when they click the Resolve button.\n"
+            f"STATUS TAGS (include these exact tags in your response text):\n"
+            f"  DISPATCHED:droneX — after the drone is armed and heading to target\n"
+            f"  ON_SCENE:droneX — when the drone arrives near the target\n"
+            f"  NO_AVAILABLE_DRONES — if nothing can be dispatched\n"
         )
 
         # Track which statuses we've already applied for this incident
@@ -369,20 +413,23 @@ else:
             if dispatched_match and "dispatched" not in applied_statuses:
                 applied_statuses.add("dispatched")
                 await self.update_incident(inc_id, "dispatched", drone_name)
-                self.log(f"STATUS {inc_id} → dispatched to {drone_name}")
 
             # Apply ON_SCENE when we first see it (after DISPATCHED)
             if onscene_match and "on_scene" not in applied_statuses:
                 applied_statuses.add("on_scene")
                 await self.update_incident(inc_id, "on_scene", drone_name)
-                self.log(f"STATUS {inc_id} → on_scene ({drone_name})")
 
         response = await self.send_to_ai(message, on_text=on_streaming_text)
 
         if response:
-            self.log(f"AI COMPLETED for {inc_id}: {response[:200]}")
-            # Final pass in case streaming missed anything
+            # Log the AI's actual response to the activity feed
+            # Strip status tags for cleaner display
             import re
+            clean_response = re.sub(r'(?i)(DISPATCHED|ON_SCENE|NO_AVAILABLE_DRONES)\s*:\s*\w*', '', response).strip()
+            if clean_response:
+                self.log(clean_response)
+            
+            # Final pass in case streaming missed status tags
             text_lower = response.lower()
             dispatched_match = re.search(r'dispatched\s*:\s*(drone\d+)', text_lower)
             onscene_match = re.search(r'on_scene\s*:\s*(drone\d+)', text_lower)
@@ -395,20 +442,18 @@ else:
             
             if drone_name and "dispatched" not in applied_statuses:
                 await self.update_incident(inc_id, "dispatched", drone_name)
-                self.log(f"STATUS {inc_id} → dispatched to {drone_name}")
             if drone_name and onscene_match and "on_scene" not in applied_statuses:
                 await self.update_incident(inc_id, "on_scene", drone_name)
-                self.log(f"STATUS {inc_id} → on_scene ({drone_name})")
             if not drone_name:
-                self.log(f"WARNING: AI responded but couldn't extract drone name")
+                self.log(f"No drone assigned for {inc_id}")
         else:
-            self.log(f"ERROR: No AI response for {inc_id}")
+            self.log(f"No AI response for {inc_id}")
 
     async def poll_loop(self):
         """Main loop: poll for new incidents and send to AI."""
         self.running = True
         self.active_tasks: set[asyncio.Task] = set()
-        self.log("BRIDGE ONLINE — PAUSED")
+        self.log("AI DISPATCH ONLINE — PAUSED")
 
         while self.running:
             if not self.paused:
@@ -449,18 +494,18 @@ def create_control_api(bridge: DispatchBridge) -> web.Application:
 
     async def post_pause(request):
         bridge.paused = True
-        bridge.log("BRIDGE PAUSED")
+        bridge.log("AI DISPATCH PAUSED")
         return cors(web.json_response({"paused": True}))
 
     async def post_resume(request):
         bridge.paused = False
-        bridge.log("BRIDGE RESUMED")
+        bridge.log("AI DISPATCH RESUMED")
         return cors(web.json_response({"paused": False}))
 
     async def post_toggle(request):
         bridge.paused = not bridge.paused
         state = "PAUSED" if bridge.paused else "RESUMED"
-        bridge.log(f"BRIDGE {state}")
+        bridge.log(f"AI DISPATCH {state}")
         # Also toggle dispatch service
         try:
             import aiohttp as _aiohttp

@@ -159,37 +159,41 @@ class DispatchService:
             delay = random.randint(INCIDENT_INTERVAL_MIN, INCIDENT_INTERVAL_MAX)
             await asyncio.sleep(delay)
 
-    async def _monitor_returning_drones(self):
-        """Poll drones assigned to 'returning' incidents. Mark resolved when landed."""
+    async def _monitor_on_scene(self):
+        """Auto-RTL drones 30s after reaching on_scene (for demo flow)."""
         import subprocess
+        # Track when each incident entered on_scene
+        on_scene_times: dict[str, float] = {}
+        
         while self._running:
             for inc in list(self.incidents.values()):
-                if inc.status != "returning" or not inc.assigned_to:
-                    continue
-                drone_name = inc.assigned_to
-                try:
-                    result = subprocess.run(
-                        ["python3", "-u", "-c", f"""
-import sys
-sys.path.insert(0, '/root/ws_droneOS')
-import drone_control as dc
-dc.set_drone_name('{drone_name}')
-s = dc.get_state()
-armed = s.get('arming_state', 'UNKNOWN')
-alt = -(s.get('local_z', 0))
-print(f'{{armed}} {{alt:.1f}}')
-"""],
-                        capture_output=True, text=True, timeout=10
-                    )
-                    if result.returncode == 0 and result.stdout.strip():
-                        parts = result.stdout.strip().split()
-                        armed_state = parts[0]
-                        altitude = float(parts[1])
-                        if armed_state == "DISARMED" and altitude < 2.0:
-                            self.update_incident(inc.id, "resolved", drone_name)
-                            print(f"[dispatch] RESOLVED: {inc.id} → resolved ({drone_name} landed)")
-                except Exception as e:
-                    print(f"[dispatch] Monitor error for {inc.id}: {e}")
+                if inc.status == "on_scene" and inc.assigned_to:
+                    # Record first time we see it on_scene
+                    if inc.id not in on_scene_times:
+                        on_scene_times[inc.id] = time.time()
+                        print(f"[dispatch] ON_SCENE timer started for {inc.id} ({inc.assigned_to}) — auto-RTL in 30s")
+                    
+                    # Check if 30s elapsed
+                    elapsed = time.time() - on_scene_times[inc.id]
+                    if elapsed >= 30:
+                        drone_name = inc.assigned_to
+                        print(f"[dispatch] AUTO-RESOLVE: {inc.id} ({drone_name}, {elapsed:.0f}s on scene) — sending RTL")
+                        self.update_incident(inc.id, "resolved", drone_name)
+                        on_scene_times.pop(inc.id, None)
+                        
+                        # Issue RTL command (drone can still be rerouted by AI)
+                        try:
+                            subprocess.run(
+                                ["python3", "/root/ws_droneOS/drone_control.py", "--drone", drone_name, "--rtl"],
+                                capture_output=True, text=True, timeout=10
+                            )
+                        except Exception as e:
+                            print(f"[dispatch] Auto-RTL command error for {inc.id}: {e}")
+                
+                # Clean up timers for incidents that moved past on_scene
+                elif inc.id in on_scene_times and inc.status != "on_scene":
+                    on_scene_times.pop(inc.id, None)
+            
             await asyncio.sleep(5)
 
     async def run(self):
@@ -197,10 +201,9 @@ print(f'{{armed}} {{alt:.1f}}')
         print("[dispatch] Starting dispatch service (PAUSED by default)...")
         await self._connect_rosbridge()
         self._running = True
-        # Run both loops concurrently
         await asyncio.gather(
             self._incident_loop(),
-            self._monitor_returning_drones()
+            self._monitor_on_scene(),
         )
 
     def pause(self):
@@ -315,7 +318,12 @@ def create_api(dispatch: DispatchService) -> web.Application:
         return cors_response({"error": "mode must be 'auto' or 'manual'"}, status=400)
 
     async def resolve_incident(request):
-        """Resolve an incident by issuing RTL to the assigned drone."""
+        """Resolve an incident immediately and send the drone home (RTL).
+        
+        The incident is marked resolved right away — it's done.
+        The drone gets RTL'd, but can still be rerouted by the AI
+        if a new incident comes in while it's returning.
+        """
         incident_id = request.match_info["incident_id"]
         
         if incident_id not in dispatch.incidents:
@@ -323,37 +331,28 @@ def create_api(dispatch: DispatchService) -> web.Application:
         
         incident = dispatch.incidents[incident_id]
         
-        if incident.status not in ("dispatched", "on_scene"):
-            return cors_response({"ok": False, "error": "incident must be dispatched or on_scene to resolve"}, status=400)
-        
-        if not incident.assigned_to:
-            return cors_response({"ok": False, "error": "no drone assigned"}, status=400)
+        if incident.status in ("resolved",):
+            return cors_response({"ok": False, "error": "incident already resolved"}, status=400)
         
         drone_name = incident.assigned_to
         
-        # Update status to returning
-        dispatch.update_incident(incident_id, "returning", drone_name)
+        # Incident is resolved immediately
+        dispatch.update_incident(incident_id, "resolved", drone_name)
+        print(f"[dispatch] RESOLVED: {incident_id} (operator)")
         
-        # Issue RTL command
-        import subprocess
-        try:
-            result = subprocess.run(
-                ["python3", "/root/ws_droneOS/drone_control.py", "--drone", drone_name, "--rtl"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if result.returncode == 0:
-                return cors_response({"ok": True, "drone": drone_name, "status": "returning"})
-            else:
-                return cors_response({
-                    "ok": False,
-                    "error": f"RTL command failed: {result.stderr}"
-                }, status=500)
-        except subprocess.TimeoutExpired:
-            return cors_response({"ok": False, "error": "RTL command timeout"}, status=500)
-        except Exception as e:
-            return cors_response({"ok": False, "error": str(e)}, status=500)
+        # Send drone home (best effort — it can be rerouted by AI later)
+        if drone_name:
+            import subprocess
+            try:
+                subprocess.run(
+                    ["python3", "/root/ws_droneOS/drone_control.py", "--drone", drone_name, "--rtl"],
+                    capture_output=True, text=True, timeout=10
+                )
+                print(f"[dispatch] RTL sent to {drone_name} (post-resolve)")
+            except Exception as e:
+                print(f"[dispatch] RTL failed for {drone_name}: {e}")
+        
+        return cors_response({"ok": True, "drone": drone_name, "status": "resolved"})
 
     async def handle_options(request):
         return cors_response({})
