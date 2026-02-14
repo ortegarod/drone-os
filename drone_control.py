@@ -72,7 +72,13 @@ def disarm() -> dict:
 
 
 def takeoff() -> dict:
-    """Take off. Requires offboard mode + armed state."""
+    """Take off. Requires offboard mode + armed state.
+    
+    CRITICAL: After takeoff, you MUST command the drone to clear at least
+    50 meters altitude FIRST before any lateral movement.
+    Use set_position(0, 0, -50, 0) or lower (more negative = higher).
+    Flying laterally at low altitude risks tree/obstacle collisions.
+    """
     return _call_trigger("takeoff")
 
 
