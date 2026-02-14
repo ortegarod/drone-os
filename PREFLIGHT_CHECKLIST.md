@@ -87,18 +87,18 @@ docker restart rosbridge_relay_node camera_proxy_node
 
 ### Adding a New Drone
 
-**See `docs/MULTI_DRONE_SETUP.md` for complete step-by-step instructions.**
+> 📖 **Complete guide:** [`docs/MULTI_DRONE_SETUP.md`](docs/MULTI_DRONE_SETUP.md) — Step-by-step instructions for adding drone4, drone5, etc.
 
-Quick summary:
+**Quick summary:**
 1. Create PX4 systemd service (`px4-droneN.service`)
 2. Create drone_core Docker compose file
 3. Update ros-gz-bridge service for camera
 4. Restart web_video_server
 5. Verify all services and topics
 
-The consolidated guide includes:
+**The consolidated guide includes:**
 - Service configuration templates
-- Camera setup details
+- Camera setup deep dive
 - Troubleshooting steps
 - Verification commands
 

@@ -33,7 +33,7 @@ When a 911 call comes in:
 
 **Architecture:**
 - `docs/DISPATCH_ARCHITECTURE.md` — How the dispatch system works
-- `docs/MULTI_DRONE_SETUP.md` — Multi-drone setup, configuration, and cameras
+- **`docs/MULTI_DRONE_SETUP.md`** — **Multi-drone setup, adding drones, cameras** ⭐
 - `docs/COORDINATE_FRAMES.md` — Local vs global coordinates
 
 **Troubleshooting:**
@@ -517,7 +517,8 @@ ssh rodrigo@<tailscale-ip> 'pkill -f ros_gz_bridge'
 
 ## srv01 Service Architecture
 
-For full details, see `docs/MULTI_DRONE_SETUP.md`.
+> 📖 **Complete documentation:** [`docs/MULTI_DRONE_SETUP.md`](docs/MULTI_DRONE_SETUP.md)  
+> Includes service architecture, adding drones, camera setup, restart procedures, and troubleshooting.
 
 ### AI Agent Integration
 

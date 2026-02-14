@@ -1,5 +1,7 @@
 # Troubleshooting Guide
 
+> 📖 **Setting up multi-drone?** See [`docs/MULTI_DRONE_SETUP.md`](docs/MULTI_DRONE_SETUP.md) for complete setup instructions and troubleshooting.
+
 ## Table of Contents
 1. [Offboard Won't Engage](#1-offboard-wont-engage)
 2. [Arm Fails After Offboard](#2-arm-fails-after-offboard)
@@ -67,25 +69,27 @@ timeout 8s ros2 topic echo --once /fmu/out/failsafe_flags
 
 ## 3) Multi-Drone Spawning
 
+> 📖 **For complete multi-drone setup instructions, see [`docs/MULTI_DRONE_SETUP.md`](docs/MULTI_DRONE_SETUP.md)**  
+> This includes step-by-step drone addition, camera setup, and troubleshooting.
+
 ### Current setup (as of 2026-02-14)
-- **drone1:** Managed by `px4-sitl.service` (systemd user) — auto-starts with Gazebo
-- **drone2:** Manual launch after Gazebo is up (not systemd-managed)
-- **Docker:** `drone_core_node`, `drone_core_node2`, `rosbridge_server`, `sim_camera_node`, `micro_agent_service`
-- **See:** `docs/MULTI_DRONE_SETUP.md` for full service architecture
+- **drone1:** Managed by `px4-sitl.service` (systemd user) — runs `./bin/px4` directly, starts Gazebo
+- **drone2:** Managed by `px4-drone2.service` (systemd user) — starts 20s after px4-sitl
+- **drone3:** Managed by `px4-drone3.service` (systemd user) — starts 25s after px4-sitl
+- **Docker:** `drone_core_node`, `drone_core_node2`, `drone_core_node3`, `rosbridge_server`, `sim_camera_node`, `micro_agent_service`
 
 ### Launch order
-1. **Drone1** (auto via systemd): starts Gazebo + PX4 instance 0
-2. **Drone2** (manual, after Gazebo is up):
+1. **Drone1** (auto via systemd `px4-sitl`): starts Gazebo + PX4 instance 0
+2. **Drone2** (auto via systemd `px4-drone2`): starts 20s after drone1, attaches to existing Gazebo
+
 ```bash
-cd ~/PX4-Autopilot
-PX4_GZ_STANDALONE=1 PX4_GZ_WORLD=baylands PX4_GZ_MODEL_POSE="0,2,0,0,0,0" \
-  PX4_SIM_MODEL=gz_x500_mono_cam HEADLESS=1 \
-  ./build/px4_sitl_default/bin/px4 -i 1
+# Restart both
+systemctl --user restart px4-sitl px4-drone2
 ```
 
 ### Critical notes
 - **All instances MUST set `PX4_GZ_WORLD=baylands`** — without it, standalone instances fail silently
-- Drone2 is NOT managed by systemd — must be launched manually after each reboot
+- Both drones are systemd-managed and auto-start on boot
 - Verify namespace routing: drone1 = `/fmu/`, drone2 = `/px4_1/fmu/`
 - **Don't mix Docker and systemd/nohup for the same service** — causes duplicates
 
@@ -118,6 +122,8 @@ pgrep -af "drone_core|web_video|rosbridge"         # Should only show Docker/sys
 ---
 
 ## 5) Drone2 Camera Not Publishing
+
+> 📖 **For camera setup details, see [`docs/MULTI_DRONE_SETUP.md`](docs/MULTI_DRONE_SETUP.md) § Camera Setup Deep Dive**
 
 **Symptom:** `/drone2/camera` topic exists but `ros2 topic hz` shows zero messages.
 
@@ -159,25 +165,61 @@ systemctl --user restart ros-gz-bridge
 
 ## 7) PX4 Startup Failures
 
-### `gz_bridge Service call timed out` / return code 256
-**Cause:** `GZ_SIM_RESOURCE_PATH` set in `~/.config/systemd/user/px4-sitl.service`
+### `gz_bridge timed out waiting for clock message` / return code 256
 
-**Fix:** Remove it, then:
+This is the most common PX4 startup failure. Multiple possible causes:
+
+**Cause 1: Stale PX4/Gazebo processes or lock files**
+
+PX4 uses lock files to prevent duplicate instances. If a previous PX4 crashed, stale locks prevent restart.
+
+**Fix:**
 ```bash
-systemctl --user daemon-reload
-systemctl --user restart px4-sitl
+# Stop services, kill stale processes, clean locks
+systemctl --user stop px4-drone2 px4-sitl
+killall -9 px4 2>/dev/null
+pkill -9 -f 'gz sim' 2>/dev/null
+rm -f /tmp/px4-daemon-app-*.lock
+rm -f ~/PX4-Autopilot/build/px4_sitl_default/rootfs/*.lock
+rm -f ~/PX4-Autopilot/build/px4_sitl_default/rootfs/1/*.lock
+
+# Restart services
+systemctl --user start px4-sitl   # drone1 + Gazebo
+# px4-drone2 auto-starts 20s after px4-sitl
+sleep 40
+systemctl --user is-active px4-sitl px4-drone2  # Both should say "active"
 ```
 
-### `gz_bridge timed out waiting for clock message`
-**Cause:** Missing `HEADLESS=1` in service file for headless servers.
+**Cause 2: Missing `HEADLESS=1`** on headless servers (no GPU/display). Already set in systemd service.
 
-**Fix:** Add `HEADLESS=1` to service Environment, then:
+**Cause 3: Stale Gazebo process** from a previous run holding resources. Kill it first.
+
+**Note on history:** The original `px4-sitl.service` used `make px4_sitl gz_x500_mono_cam` which called `cmake → ninja` to run PX4. Ninja would sometimes hang (zombie child shell), preventing PX4 from starting. The service was updated (2026-02-14) to run `./bin/px4` directly, bypassing make/ninja entirely. A separate `px4-drone2.service` was also created so drone2 is no longer a manual nohup step.
+
+### Restart order after PX4 relaunch
+
+After relaunching PX4 instances, services must be restarted in this order:
+
 ```bash
-systemctl --user daemon-reload
-systemctl --user restart px4-sitl
+# On srv01
+docker restart micro_agent_service    # Must reconnect to new PX4 instances
+sleep 5
+docker restart drone_core_node        # Reconnects to drone1 PX4
+docker restart drone_core_node2       # Reconnects to drone2 PX4
+docker restart rosbridge_server       # Picks up new ROS2 topics
+systemctl --user restart ros-gz-bridge  # Camera bridge
+docker restart sim_camera_node        # Must restart AFTER cameras are publishing
+
+# On VPS
+docker restart rosbridge_relay_node camera_proxy_node
 ```
 
-### Known failure signature
+**Critical:** `micro_agent_service` must be restarted BEFORE `drone_core_node*`. If drone_core starts before micro_agent sees PX4, it won't receive telemetry data (all UNKNOWN states, position 0,0,0).
+
+**Critical:** `sim_camera_node` must restart LAST — it doesn't auto-detect new camera topics.
+
+### `can_arm: false` with "Manual control signal lost" / "GCS connection lost"
+
 ```
 nav_state: AUTO_LOITER
 arming_state: DISARMED
@@ -185,7 +227,47 @@ can_arm: false
 "Manual control signal lost"
 "GCS connection lost"
 ```
-These flags are **expected** in remote-offboard sim with no RC/GCS. They don't block flight if PX4 params are set correctly (see Section 1).
+
+These flags are **expected** in remote-offboard sim with no RC/GCS. They **don't block flight** if PX4 params are set correctly:
+
+```
+COM_RC_IN_MODE = 4    # No RC input required
+COM_RCL_EXCEPT = 4    # Allow offboard without RC
+NAV_DLL_ACT = 0       # No action on datalink loss
+```
+
+These params are persisted in `px4-rc.params` (see below). Even with `can_arm: false` reported, the drone WILL arm and fly in offboard mode.
+
+### PX4 parameter persistence
+
+Params are set via `~/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/px4-rc.params`:
+```bash
+param set COM_RC_IN_MODE 4
+param set COM_RCL_EXCEPT 4
+param set NAV_DLL_ACT 0
+```
+
+**Note:** Use `param set` (not `param set-default`). `set-default` only applies when `parameters.bson` doesn't exist. `param set` always applies, overriding saved values.
+
+If params seem to not take effect, delete the saved param files and restart PX4:
+```bash
+rm ~/PX4-Autopilot/build/px4_sitl_default/rootfs/parameters.bson
+rm ~/PX4-Autopilot/build/px4_sitl_default/rootfs/parameters_backup.bson
+rm ~/PX4-Autopilot/build/px4_sitl_default/rootfs/1/parameters.bson
+rm ~/PX4-Autopilot/build/px4_sitl_default/rootfs/1/parameters_backup.bson
+# Then restart PX4
+```
+
+### drone_core_node shows UNKNOWN state / position (0,0,0)
+
+**Symptom:** `get_state()` returns `arming_state: UNKNOWN`, `nav_state: UNKNOWN`, `local_x/y/z: 0.0`.
+
+**Cause:** drone_core_node can't receive PX4 DDS topics. Usually means:
+1. PX4 isn't running (check with `pgrep -la px4`)
+2. `micro_agent_service` was restarted after PX4 started — PX4's XRCE-DDS client lost connection and hasn't reconnected
+3. DDS discovery mismatch between Docker container and PX4 process
+
+**Fix:** Restart PX4 instance, then micro_agent, then drone_core_node (in that order). Check `docker logs micro_agent_service` for `client_key: 0x00000001` (drone1) and `client_key: 0x00000002` (drone2) — both must appear.
 
 ---
 
