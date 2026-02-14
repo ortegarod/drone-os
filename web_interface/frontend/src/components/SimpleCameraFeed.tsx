@@ -16,10 +16,10 @@ interface Props {
 interface Preset { width: number; height: number; quality: number; label: string }
 
 const presets: Preset[] = [
+  { width: 160, height: 120, quality: 20, label: '120p' },
   { width: 320, height: 240, quality: 30, label: '240p' },
   { width: 640, height: 480, quality: 50, label: '480p' },
   { width: 800, height: 600, quality: 60, label: '600p' },
-  { width: 1280, height: 720, quality: 70, label: '720p' },
 ];
 
 const HOST = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
@@ -30,7 +30,7 @@ const streamUrl = (preset: Preset, drone: string) =>
 const SimpleCameraFeed: React.FC<Props> = ({ isConnected, droneStatus, commandOverlay, availableDrones, setTargetDrone }) => {
   const imgRef = useRef<HTMLImageElement>(null);
   const [status, setStatus] = useState('connecting');
-  const [preset, setPreset] = useState(presets[1]);
+  const [preset, setPreset] = useState(presets[1]); // default 240p
   const [url, setUrl] = useState('');
   const [showQuality, setShowQuality] = useState(false);
 
@@ -70,6 +70,7 @@ const SimpleCameraFeed: React.FC<Props> = ({ isConnected, droneStatus, commandOv
         <span>{state}</span>
         <span style={{ color: statusColor }}>● {status}</span>
         {!isConnected && <span style={{ color: '#f39c12' }}>ROS ✕</span>}
+        <span style={{ opacity: 0.6 }}>| SIM: Gazebo Baylands</span>
         {commandOverlay?.message && <span>| {commandOverlay.message}</span>}
         <button className="cam-quality-btn" onClick={() => setShowQuality(!showQuality)}>{preset.label}</button>
         {showQuality && (
@@ -92,7 +93,7 @@ const SimpleCameraFeed: React.FC<Props> = ({ isConnected, droneStatus, commandOv
           {otherDrones.map(d => (
             <div key={d} className="cam-pip" onClick={() => setTargetDrone?.(d)}>
               <span className="cam-pip-label">{d}</span>
-              <img key={d} src={streamUrl({ width: 320, height: 240, quality: 30, label: 'pip' }, d)} alt={d} />
+              <img key={d} src={streamUrl({ width: 160, height: 120, quality: 20, label: 'pip' }, d)} alt={d} />
             </div>
           ))}
         </div>
