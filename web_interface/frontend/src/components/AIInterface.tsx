@@ -36,7 +36,7 @@ const AIInterface: React.FC<AIInterfaceProps> = ({ onCommandUpdate }) => {
       const res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, session_key: 'main' }),
       });
       const data = await res.json();
       const reply = data?.text || data?.error || 'No response';
