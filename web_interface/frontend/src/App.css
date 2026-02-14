@@ -12,10 +12,31 @@
   padding: 0 1rem;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid #30363d;
   height: 36px;
-  gap: 1rem;
   flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 0 0 auto;
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  justify-content: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
 }
 
 .header-brand {
@@ -26,36 +47,39 @@
   letter-spacing: 2px;
 }
 
-.header-status {
+.header-tagline {
+  font-family: monospace;
+  font-size: 12px;
+  color: #58a6ff;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.header-subtitle {
+  font-family: monospace;
+  font-size: 10px;
+  color: #8b949e;
+  letter-spacing: 0.5px;
+}
+
+.header-openclaw {
+  font-family: monospace;
+  font-size: 10px;
+  color: #484f58;
+  letter-spacing: 0.5px;
+}
+
+.header-github {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 11px;
-  font-family: monospace;
-  color: #888;
-  margin-left: auto;
+  color: #8b949e;
+  text-decoration: none;
+  transition: color 0.2s;
+  padding: 4px;
 }
 
-.header-stat {
-  color: #aab6c1;
-}
-
-.header-stat.bat-good,
-.header-stat.conn-on {
-  color: #3fb950;
-}
-
-.header-stat.bat-warn {
-  color: #ffb347;
-}
-
-.header-stat.bat-crit,
-.header-stat.conn-off {
-  color: #f85149;
-}
-
-.header-stat-divider {
-  color: #444;
+.header-github:hover {
+  color: #c9d1d9;
 }
 
 .ops-state-meta {
@@ -72,11 +96,10 @@
 }
 
 .ops-badge.ops-offline { background: #ff6363; color: #220b0b; }
+.ops-badge.ops-online { background: #3fb950; color: #0f1f13; }
 .ops-badge.ops-standby { background: #9fb3c8; color: #10141b; }
-.ops-badge.ops-ready { background: #8bf0a4; color: #0f1f13; }
 .ops-badge.ops-executing { background: #6cc8ff; color: #081625; }
 .ops-badge.ops-airborne { background: #ffcf70; color: #221604; }
-.ops-badge.ops-unknown { background: #d0d0d0; color: #1a1a1a; }
 
 /* Route container */
 .page-main {
