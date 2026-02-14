@@ -148,25 +148,25 @@
   overflow: hidden;
 }
 
-.viewport-camera {
+.viewport-camera,
+.viewport-chat {
   border-radius: 6px;
   border: 1px solid #30363d;
   overflow: hidden;
+}
+
+.viewport-camera {
   flex: 1;
   min-height: 0;
   background-color: #0d1117;
 }
 
-/* Sidebar activity feed */
-.sidebar-activity {
-  border-top: 1px solid #21262d;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  font-size: 11px;
+.viewport-chat {
+  height: 300px;
+  flex-shrink: 0;
 }
 
-/* Right: map + controls + AI */
+/* Right: map + controls */
 .fleet-control {
   display: flex;
   flex-direction: column;
@@ -189,20 +189,9 @@
 }
 
 .control-menu {
-  flex-shrink: 0;
-  max-height: 200px;
-  overflow-y: auto;
-}
-.control-menu.compact { max-height: 160px; }
-
-.control-ai {
   flex: 1;
   min-height: 0;
-  border-radius: 6px;
-  border: 1px solid #30363d;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  overflow-y: auto;
 }
 
 /* Shared controls */
