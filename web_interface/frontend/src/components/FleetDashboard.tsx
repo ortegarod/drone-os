@@ -224,6 +224,8 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
               isConnected={isConnected}
               droneStatus={droneStatus}
               commandOverlay={commandOverlay}
+              availableDrones={availableDrones}
+              setTargetDrone={setTargetDrone}
             />
           </div>
           <div className="viewport-chat" style={{ position: 'relative' }}>

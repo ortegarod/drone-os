@@ -4,6 +4,8 @@ interface SimpleCameraFeedProps {
   droneAPI: any;
   isConnected: boolean;
   droneStatus: any;
+  availableDrones?: string[];
+  setTargetDrone?: (name: string) => void;
   commandOverlay?: {
     state?: string;
     message?: string;
@@ -31,7 +33,7 @@ const videoPresets: VideoSettings[] = [
 const SERVER_HOST = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const CAMERA_PORT = '8080';
 
-const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ isConnected, droneStatus, commandOverlay }) => {
+const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ isConnected, droneStatus, commandOverlay, availableDrones, setTargetDrone }) => {
   const imgRef = useRef<HTMLImageElement>(null);
   const [streamStatus, setStreamStatus] = useState<string>('connecting');
   const [currentPreset, setCurrentPreset] = useState<VideoSettings>(videoPresets[1]);
@@ -204,6 +206,56 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ isConnected, droneS
           />
         )}
       </div>
+
+      {/* PiP overlay for other drones */}
+      {availableDrones && availableDrones.length > 1 && (
+        <div style={{ position: 'absolute', top: 44, left: 8, display: 'flex', flexDirection: 'column', gap: 6, zIndex: 200 }}>
+          {availableDrones
+            .filter((d) => d !== selectedDrone)
+            .map((drone) => {
+              const pipUrl = buildStreamUrl({ width: 320, height: 240, quality: 30, label: 'pip' }, drone);
+              return (
+                <div
+                  key={drone}
+                  onClick={() => setTargetDrone?.(drone)}
+                  style={{
+                    width: 200,
+                    height: 150,
+                    borderRadius: 6,
+                    overflow: 'hidden',
+                    border: '1px solid rgba(85, 95, 110, 0.65)',
+                    background: '#0a0e12',
+                    cursor: 'pointer',
+                    position: 'relative',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      padding: '3px 6px',
+                      background: 'rgba(10, 14, 18, 0.75)',
+                      zIndex: 1,
+                      fontSize: 10,
+                      fontFamily: 'monospace',
+                      color: '#8b949e',
+                    }}
+                  >
+                    {drone}
+                  </div>
+                  <img
+                    key={pipUrl}
+                    src={pipUrl}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    alt={`${drone} pip`}
+                  />
+                </div>
+              );
+            })}
+        </div>
+      )}
     </div>
   );
 };
