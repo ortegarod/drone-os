@@ -47,7 +47,9 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ isConnected, droneS
 
   // Update stream URL when drone or preset changes
   useEffect(() => {
-    setStreamUrl(buildStreamUrl(currentPreset, selectedDrone));
+    const newUrl = buildStreamUrl(currentPreset, selectedDrone);
+    console.log(`[SimpleCameraFeed] Drone changed: ${selectedDrone}, URL: ${newUrl}`);
+    setStreamUrl(newUrl);
     setStreamStatus('loading');
   }, [selectedDrone, currentPreset]);
 
@@ -77,6 +79,8 @@ const SimpleCameraFeed: React.FC<SimpleCameraFeedProps> = ({ isConnected, droneS
     return () => {
       img.removeEventListener('load', handleLoad);
       img.removeEventListener('error', handleError);
+      // Abort the HTTP stream by clearing src
+      img.src = '';
     };
   }, [streamUrl]);
 

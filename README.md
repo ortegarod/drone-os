@@ -516,59 +516,35 @@ ssh rodrigo@<tailscale-ip> 'pkill -f ros_gz_bridge'
 
 ---
 
-## srv01 Multi-Drone Ops Notes (drone2)
+## srv01 Service Architecture
 
-### Canonical manual launch (drone2)
+For full details, see `docs/MULTI_DRONE_SETUP.md`.
 
+### Quick Reference
+
+**Systemd user services** (auto-start on boot):
+- `px4-sitl` — PX4 drone1 + Gazebo (baylands world)
+- `ros-gz-bridge` — Camera bridge (Gazebo → `/droneX/camera` ROS topics)
+
+**Docker containers** (auto-restart):
+- `micro_agent_service` — XRCE-DDS Agent (UDP:8888)
+- `drone_core_node` — drone1 SDK
+- `drone_core_node2` — drone2 SDK
+- `rosbridge_server` — WebSocket bridge (:9090)
+- `sim_camera_node` — web_video_server (:8080)
+
+**Manual** (required after reboot):
 ```bash
 cd ~/PX4-Autopilot
-HEADLESS=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" PX4_SIM_MODEL=gz_x500_mono_cam MAV_SYS_ID=2 ./build/px4_sitl_default/bin/px4 -i 1
+PX4_GZ_STANDALONE=1 PX4_GZ_WORLD=baylands \
+  PX4_GZ_MODEL_POSE="0,2,0,0,0,0" \
+  PX4_SIM_MODEL=gz_x500_mono_cam HEADLESS=1 \
+  ./build/px4_sitl_default/bin/px4 -i 1
 ```
 
-If drone2 fails to spawn in an already-running Gazebo session, retry with standalone mode:
+### Key Notes
 
-```bash
-cd ~/PX4-Autopilot
-PX4_GZ_STANDALONE=1 HEADLESS=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" PX4_SIM_MODEL=gz_x500_mono_cam MAV_SYS_ID=2 ./build/px4_sitl_default/bin/px4 -i 1
-```
-
-### Important: topic existence vs active publishing
-
-A topic showing in `ros2 topic list` does **not** guarantee data is flowing.
-Always verify both layers:
-
-1. **Gazebo model exists** (publisher can exist only if model exists)
-   ```bash
-   gz model --list
-   ```
-   Must include `x500_mono_cam_1` for drone2 camera.
-
-2. **ROS topic publishing**
-   ```bash
-   ros2 topic hz /drone2/camera
-   ros2 topic echo /drone2/camera --once
-   ```
-
-### ros-gz-bridge camera mapping dependency
-
-For dual-camera operation, `ros-gz-bridge` must remap both camera sensors:
-- `x500_mono_cam_0/.../image` -> `/drone1/camera`
-- `x500_mono_cam_1/.../image` -> `/drone2/camera`
-
-Even with correct bridge config, `/drone2/camera` will not publish if `x500_mono_cam_1` is not present in Gazebo.
-
-### Drone state tooling requires workspace setup
-
-To inspect `/drone2/drone_state` with `ros2 topic echo`, source both ROS and workspace env:
-
-```bash
-source /opt/ros/humble/setup.bash
-source ~/ws_droneOS/install/setup.bash
-ros2 topic echo /drone2/drone_state --once
-```
-
-Without the workspace setup, you may see message-type errors for `drone_interfaces/msg/DroneState`.
-
-### PX4 log note
-
-`pxh>` spam in logs/TTY is normal PX4 shell output and can hide useful lines. It is noisy, not necessarily a fault by itself.
+- **World name matters:** ros-gz-bridge topic paths include the world name. If you change `PX4_GZ_WORLD`, update the bridge service to match. See TROUBLESHOOTING.md §8.
+- **Topic existence ≠ data flowing:** Always verify with `ros2 topic hz`, not just `ros2 topic list`.
+- **Drone state inspection** requires sourcing the workspace: `source ~/ws_droneOS/install/setup.bash`
+- **`pxh>` log spam** is normal PX4 shell output, not an error.

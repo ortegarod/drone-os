@@ -27,8 +27,5 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Internal planning docs
+# Internal planning docs (no longer excluded - cleaned for public)
 CLAUDE.md
-ROADMAP.md
-MIGRATION_PLAN.md
-PROGRESS.md

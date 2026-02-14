@@ -67,9 +67,15 @@ timeout 8s ros2 topic echo --once /fmu/out/failsafe_flags
 
 ## 3) Multi-Drone Spawning
 
+### Current setup (as of 2026-02-14)
+- **drone1:** Managed by `px4-sitl.service` (systemd user) — auto-starts with Gazebo
+- **drone2:** Manual launch after Gazebo is up (not systemd-managed)
+- **Docker:** `drone_core_node`, `drone_core_node2`, `rosbridge_server`, `sim_camera_node`, `micro_agent_service`
+- **See:** `docs/MULTI_DRONE_SETUP.md` for full service architecture
+
 ### Launch order
-1. **Drone1** (starts gz-server): `HEADLESS=1 PX4_GZ_WORLD=baylands make px4_sitl gz_x500_mono_cam`
-2. **Drone2** (joins existing server):
+1. **Drone1** (auto via systemd): starts Gazebo + PX4 instance 0
+2. **Drone2** (manual, after Gazebo is up):
 ```bash
 cd ~/PX4-Autopilot
 PX4_GZ_STANDALONE=1 PX4_GZ_WORLD=baylands PX4_GZ_MODEL_POSE="0,2,0,0,0,0" \
@@ -79,8 +85,9 @@ PX4_GZ_STANDALONE=1 PX4_GZ_WORLD=baylands PX4_GZ_MODEL_POSE="0,2,0,0,0,0" \
 
 ### Critical notes
 - **All instances MUST set `PX4_GZ_WORLD=baylands`** — without it, standalone instances fail silently
-- Drone2 is NOT managed by systemd — must be launched manually
+- Drone2 is NOT managed by systemd — must be launched manually after each reboot
 - Verify namespace routing: drone1 = `/fmu/`, drone2 = `/px4_1/fmu/`
+- **Don't mix Docker and systemd/nohup for the same service** — causes duplicates
 
 ### Camera namespace fix
 - Cherry-picked from PX4-gazebo-models PR #76 (commit `183cbee`)
@@ -88,6 +95,13 @@ PX4_GZ_STANDALONE=1 PX4_GZ_WORLD=baylands PX4_GZ_MODEL_POSE="0,2,0,0,0,0" \
 - Fix removes hardcoded `<topic>camera</topic>` from `mono_cam/model.sdf`
 - Result: separate Gazebo topics per model instance
 - ros-gz-bridge remaps to `/drone1/camera` and `/drone2/camera`
+
+### Checking for duplicate processes
+```bash
+docker ps                                          # Docker containers
+systemctl --user list-units --state=running        # Systemd services
+pgrep -af "drone_core|web_video|rosbridge"         # Should only show Docker/systemd PIDs
+```
 
 ---
 
@@ -122,7 +136,9 @@ gz topic -l | grep camera
 systemctl --user restart ros-gz-bridge
 ```
 
-**Status:** Fixed (2026-02-12). ros-gz-bridge service already configured for both drones. PR #76 model.sdf fix enables proper per-instance Gazebo topics. Both `/drone1/camera` and `/drone2/camera` confirmed publishing at ~10-18 Hz.
+**Status:** Fixed (2026-02-14). ros-gz-bridge systemd service configured for baylands world with both drones. PR #76 model.sdf fix enables proper per-instance Gazebo topics. Both `/drone1/camera` and `/drone2/camera` confirmed publishing (~28Hz and ~12Hz respectively).
+
+**Previous bug (2026-02-14):** ros-gz-bridge service had `/world/default/` in topic paths while PX4 used `PX4_GZ_WORLD=baylands`. Bridge subscribed to nonexistent topics → no camera data. Fix: update bridge service to use `/world/baylands/`.
 
 ---
 

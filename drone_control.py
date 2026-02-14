@@ -247,6 +247,15 @@ def build_local_waypoints(points: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="DroneOS Control - Quick Status")
+    parser.add_argument("--drone", default=None, help="Drone name (e.g. drone1, drone2)")
+    args = parser.parse_args()
+
+    if args.drone:
+        set_drone_name(args.drone)
+
     print("DroneOS Control Library - Quick Test")
     print("=" * 40)
     
