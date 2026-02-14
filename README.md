@@ -33,8 +33,7 @@ When a 911 call comes in:
 
 **Architecture:**
 - `docs/DISPATCH_ARCHITECTURE.md` — How the dispatch system works
-- `docs/MULTI_DRONE_SETUP.md` — Multi-drone spawn and control
-- `docs/MULTI_DRONE_CAMERAS.md` — Camera setup for dual drones
+- `docs/MULTI_DRONE_SETUP.md` — Multi-drone setup, configuration, and cameras
 - `docs/COORDINATE_FRAMES.md` — Local vs global coordinates
 
 **Troubleshooting:**
@@ -148,7 +147,7 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
 
 1. **Clone DroneOS Repository**:
    ```bash
-   git clone https://github.com/ortegarod/ws_droneOS.git ws_droneOS
+   git clone https://github.com/ortegarod/drone-os.git ws_droneOS
    cd ws_droneOS
    ```
 
@@ -520,10 +519,21 @@ ssh rodrigo@<tailscale-ip> 'pkill -f ros_gz_bridge'
 
 For full details, see `docs/MULTI_DRONE_SETUP.md`.
 
+### AI Agent Integration
+
+The frontend includes a built-in AI chat interface (right panel) connected to the OpenClaw agent (Ada). Same session as Telegram — messages from either surface reach the same agent.
+
+**Pipeline:** Frontend `:3000` → `server.js` proxy → `openclaw_proxy :3031` → Gateway WS `:18789`
+
+- `openclaw_proxy.py` — Backend proxy that hides the gateway token from the browser
+- Session: `main` (shared with Telegram)
+- Camera feeds: PiP overlay shows non-selected drone, click to switch
+
 ### Quick Reference
 
 **Systemd user services** (auto-start on boot):
-- `px4-sitl` — PX4 drone1 + Gazebo (baylands world)
+- `px4-sitl` — PX4 drone1 + Gazebo (baylands world). Runs `./bin/px4` directly.
+- `px4-drone2` — PX4 drone2 (instance 1). Starts 20s after px4-sitl.
 - `ros-gz-bridge` — Camera bridge (Gazebo → `/droneX/camera` ROS topics)
 
 **Docker containers** (auto-restart):
@@ -533,18 +543,37 @@ For full details, see `docs/MULTI_DRONE_SETUP.md`.
 - `rosbridge_server` — WebSocket bridge (:9090)
 - `sim_camera_node` — web_video_server (:8080)
 
-**Manual** (required after reboot):
+**Nothing manual required after reboot.** All services are persistent.
+
+**PX4 parameters** (persisted in `etc/init.d-posix/px4-rc.params`):
+- `COM_RC_IN_MODE = 4` — No RC required
+- `COM_RCL_EXCEPT = 4` — Allow offboard without RC
+- `NAV_DLL_ACT = 0` — No action on datalink loss
+
+### Restarting PX4
+
+Both drones run as systemd user services. To restart:
+
 ```bash
-cd ~/PX4-Autopilot
-PX4_GZ_STANDALONE=1 PX4_GZ_WORLD=baylands \
-  PX4_GZ_MODEL_POSE="0,2,0,0,0,0" \
-  PX4_SIM_MODEL=gz_x500_mono_cam HEADLESS=1 \
-  ./build/px4_sitl_default/bin/px4 -i 1
+# Restart both PX4 instances (drone2 auto-waits for drone1)
+systemctl --user restart px4-sitl px4-drone2
+
+# Then restart dependent services in order
+docker restart micro_agent_service
+sleep 5
+docker restart drone_core_node drone_core_node2
+docker restart rosbridge_server
+systemctl --user restart ros-gz-bridge
+docker restart sim_camera_node  # LAST
 ```
+
+See `PREFLIGHT_CHECKLIST.md` for the full restart procedure and `TROUBLESHOOTING.md` §7 for diagnosis.
 
 ### Key Notes
 
 - **World name matters:** ros-gz-bridge topic paths include the world name. If you change `PX4_GZ_WORLD`, update the bridge service to match. See TROUBLESHOOTING.md §8.
 - **Topic existence ≠ data flowing:** Always verify with `ros2 topic hz`, not just `ros2 topic list`.
+- **Restart order matters:** PX4 → micro_agent → drone_core nodes → rosbridge → sim_camera_node (last).
+- **`can_arm: false` with "GCS connection lost"** is normal in offboard sim — drones still arm and fly.
 - **Drone state inspection** requires sourcing the workspace: `source ~/ws_droneOS/install/setup.bash`
 - **`pxh>` log spam** is normal PX4 shell output, not an error.

@@ -1,5 +1,9 @@
 # Multi-Drone Camera Setup
 
+> ⚠️ **DEPRECATED:** This document has been consolidated into `MULTI_DRONE_SETUP.md`.  
+> Please refer to that document for current multi-drone setup instructions.  
+> This file is kept for historical reference only.
+
 ## Problem Statement
 
 When spawning multiple drones with camera models (e.g., `x500_mono_cam`), PX4's instance spawning with `-i 1`, `-i 2`, etc. does **not** respect `PX4_GZ_MODEL=x500_mono_cam`.

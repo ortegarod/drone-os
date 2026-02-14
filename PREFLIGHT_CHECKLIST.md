@@ -7,12 +7,10 @@
 **Quick Service Commands:**
 ```bash
 # srv01 - Check all services
-ssh rodrigo@<tailscale-ip> "systemctl --user status px4-sitl ros-gz-bridge"
-ssh rodrigo@<tailscale-ip> "docker ps"
+ssh rodrigo@<tailscale-ip> "pgrep -la px4; systemctl --user status px4-sitl ros-gz-bridge; docker ps"
 
-# srv01 - Restart specific service
-ssh rodrigo@<tailscale-ip> "systemctl --user restart px4-sitl"
-ssh rodrigo@<tailscale-ip> "docker restart sim_camera_node"
+# srv01 - Full restart (nuclear option — use when things are broken)
+# See "Full Restart Procedure" section below
 
 # VPS - Check all services
 docker ps
@@ -22,6 +20,46 @@ systemctl status openclaw
 docker restart camera_proxy_node
 systemctl restart openclaw
 ```
+
+### ⚠️ Full Restart Procedure (srv01 + VPS)
+
+Use this when PX4/Gazebo are broken or after a reboot. **Follow this exact order:**
+
+```bash
+# === STEP 1: Stop and clean PX4 on srv01 ===
+ssh rodrigo@<tailscale-ip> "systemctl --user stop px4-drone3 px4-drone2 px4-sitl"
+ssh rodrigo@<tailscale-ip> "killall -9 px4 2>/dev/null; pkill -9 -f 'gz sim' 2>/dev/null"
+ssh rodrigo@<tailscale-ip> "rm -f /tmp/px4-daemon-app-*.lock ~/PX4-Autopilot/build/px4_sitl_default/rootfs/*.lock ~/PX4-Autopilot/build/px4_sitl_default/rootfs/[0-9]/*.lock"
+
+# === STEP 2: Start PX4 services (all drones) ===
+ssh rodrigo@<tailscale-ip> "systemctl --user start px4-sitl"
+# px4-drone2 and px4-drone3 auto-start after px4-sitl (After= dependency)
+# Wait ~45s total for all to initialize
+sleep 45
+ssh rodrigo@<tailscale-ip> "systemctl --user is-active px4-sitl px4-drone2 px4-drone3"
+# All should say "active"
+
+# === STEP 3: Restart srv01 services (ORDER MATTERS) ===
+ssh rodrigo@<tailscale-ip> "docker restart micro_agent_service"
+sleep 5
+ssh rodrigo@<tailscale-ip> "docker restart drone_core_node"
+ssh rodrigo@<tailscale-ip> "docker restart drone_core_node2"
+ssh rodrigo@<tailscale-ip> "docker restart drone_core_node3"
+sleep 3
+ssh rodrigo@<tailscale-ip> "docker restart rosbridge_server"
+ssh rodrigo@<tailscale-ip> "systemctl --user restart ros-gz-bridge"
+sleep 3
+ssh rodrigo@<tailscale-ip> "docker restart sim_camera_node"  # LAST — needs camera topics
+
+# === STEP 4: Restart VPS relays ===
+docker restart rosbridge_relay_node camera_proxy_node
+
+# === STEP 5: Verify ===
+# Both should show arming=DISARMED, nav state, real position data
+# can_arm=False with "GCS connection lost" is NORMAL — drones still arm in offboard
+```
+
+**On reboot:** All PX4 services (`px4-sitl`, `px4-drone2`, `px4-drone3`) are enabled systemd services — they auto-start. Docker containers also auto-restart. You may still need to restart `micro_agent_service` and `drone_core_node*` in the correct order if they started before PX4 was ready.
 
 ---
 
@@ -36,21 +74,33 @@ systemctl restart openclaw
 
 | Service | Type | User | Port | Purpose | Restart Command |
 |---------|------|------|------|---------|-----------------|
-| `px4-sitl` | systemd | rodrigo | — | PX4 drone1 + Gazebo (baylands) | `ssh rodrigo@<tailscale-ip> "systemctl --user restart px4-sitl"` |
+| `px4-sitl` | systemd | rodrigo | — | PX4 drone1 + Gazebo (baylands). Runs binary directly. | `ssh rodrigo@<tailscale-ip> "systemctl --user restart px4-sitl"` |
 | `ros-gz-bridge` | systemd | rodrigo | — | Camera bridge: Gazebo → `/droneX/camera` | `ssh rodrigo@<tailscale-ip> "systemctl --user restart ros-gz-bridge"` |
 | `micro_agent_service` | Docker | root (in container) | UDP 8888 | XRCE-DDS bridge (PX4↔ROS2) | `ssh rodrigo@<tailscale-ip> "docker restart micro_agent_service"` |
 | `drone_core_node` | Docker | root (in container) | — | drone1 SDK (ns: `/fmu/`, MAV_SYS_ID=1) | `ssh rodrigo@<tailscale-ip> "docker restart drone_core_node"` |
 | `drone_core_node2` | Docker | root (in container) | — | drone2 SDK (ns: `/px4_1/fmu/`, MAV_SYS_ID=2) | `ssh rodrigo@<tailscale-ip> "docker restart drone_core_node2"` |
 | `rosbridge_server` | Docker | root (in container) | TCP 9090 | WebSocket JSON→ROS2 bridge | `ssh rodrigo@<tailscale-ip> "docker restart rosbridge_server"` |
 | `sim_camera_node` (web_video_server) | Docker | root (in container) | TCP 8080 | MJPEG camera streams | `ssh rodrigo@<tailscale-ip> "docker restart sim_camera_node"` |
-| drone2 PX4 | manual (nohup) | rodrigo | — | PX4 instance 1 for drone2 | Kill & relaunch (see MULTI_DRONE_SETUP.md) |
+| `px4-drone2` | systemd | rodrigo | — | PX4 instance 1 for drone2. Auto-starts after px4-sitl (20s delay). | `ssh rodrigo@<tailscale-ip> "systemctl --user restart px4-drone2"` |
+| `px4-drone3` | systemd | rodrigo | — | PX4 instance 2 for drone3. Auto-starts after px4-sitl (25s delay). | `ssh rodrigo@<tailscale-ip> "systemctl --user restart px4-drone3"` |
+| `drone_core_node3` | Docker | root (in container) | — | drone3 SDK (ns: `/px4_2/fmu/`, MAV_SYS_ID=3) | `ssh rodrigo@<tailscale-ip> "docker restart drone_core_node3"` |
 
-**Notes:**
-- All Docker containers use `network_mode: host` and `restart: unless-stopped`
-- `px4-sitl` auto-starts on boot
-- `ros-gz-bridge` auto-starts 15s after `px4-sitl`
-- Docker containers auto-restart with Docker daemon
-- drone2 PX4 is **not persistent** — must be manually launched after reboot
+### Adding a New Drone
+
+**See `docs/MULTI_DRONE_SETUP.md` for complete step-by-step instructions.**
+
+Quick summary:
+1. Create PX4 systemd service (`px4-droneN.service`)
+2. Create drone_core Docker compose file
+3. Update ros-gz-bridge service for camera
+4. Restart web_video_server
+5. Verify all services and topics
+
+The consolidated guide includes:
+- Service configuration templates
+- Camera setup details
+- Troubleshooting steps
+- Verification commands
 
 ### Verification Checklist
 
@@ -97,7 +147,7 @@ timeout 3 curl -s "http://localhost:8080/stream?topic=/drone2/camera&type=mjpeg&
 **Common Issues:**
 
 1. **drone2 spawned as `x500_1` (no camera) instead of `x500_mono_cam_1`**
-   - **Solution:** See `docs/MULTI_DRONE_CAMERAS.md` for manual spawn procedure
+   - **Solution:** See `docs/MULTI_DRONE_SETUP.md` § Camera Setup Deep Dive
 
 2. **drone2 camera topic exists but web_video_server won't stream it**
    - **Symptom:** `/drone2/camera` publishes data, but `curl http://<tailscale-ip>:8080/stream?topic=/drone2/camera` hangs or times out
@@ -152,9 +202,13 @@ systemctl status openclaw
 ```
 
 ## 3) PX4 Parameters
-- [ ] `COM_RC_IN_MODE = 4`
-- [ ] `COM_RCL_EXCEPT = 4`
-- [ ] `NAV_DLL_ACT = 0`
+- [ ] `COM_RC_IN_MODE = 4` — No RC input required
+- [ ] `COM_RCL_EXCEPT = 4` — Allow offboard without RC
+- [ ] `NAV_DLL_ACT = 0` — No action on datalink loss
+
+**These are persisted** in `~/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/px4-rc.params` and apply on every PX4 startup. No manual setting needed unless the file is lost.
+
+**Note:** Even with these params, `get_state()` will still report `can_arm: False` and `"GCS connection lost"` — this is cosmetic. The drone WILL arm and fly in offboard mode. See TROUBLESHOOTING.md §7.
 
 ## 4) Flight Gates (in order)
 1. [ ] `set_offboard()` → confirm `nav_state == OFFBOARD`
