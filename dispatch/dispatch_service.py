@@ -60,7 +60,7 @@ class Incident:
         }
 
     # Status progression order — can only move forward
-    STATUS_ORDER = {"new": 0, "dispatched": 1, "on_scene": 2, "resolved": 3}
+    STATUS_ORDER = {"new": 0, "dispatched": 1, "on_scene": 2, "returning": 3, "resolved": 4}
 
     def update_status(self, status: str, assigned_to: str = None):
         current_rank = self.STATUS_ORDER.get(self.status, -1)
@@ -277,6 +277,47 @@ def create_api(dispatch: DispatchService) -> web.Application:
             return cors_response(dispatch.get_status())
         return cors_response({"error": "mode must be 'auto' or 'manual'"}, status=400)
 
+    async def resolve_incident(request):
+        """Resolve an incident by issuing RTL to the assigned drone."""
+        incident_id = request.match_info["incident_id"]
+        
+        if incident_id not in dispatch.incidents:
+            return cors_response({"ok": False, "error": "incident not found"}, status=404)
+        
+        incident = dispatch.incidents[incident_id]
+        
+        if incident.status != "on_scene":
+            return cors_response({"ok": False, "error": "incident must be on_scene to resolve"}, status=400)
+        
+        if not incident.assigned_to:
+            return cors_response({"ok": False, "error": "no drone assigned"}, status=400)
+        
+        drone_name = incident.assigned_to
+        
+        # Update status to returning
+        dispatch.update_incident(incident_id, "returning", drone_name)
+        
+        # Issue RTL command
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["python3", "/root/ws_droneOS/drone_control.py", "--drone", drone_name, "--rtl"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                return cors_response({"ok": True, "drone": drone_name, "status": "returning"})
+            else:
+                return cors_response({
+                    "ok": False,
+                    "error": f"RTL command failed: {result.stderr}"
+                }, status=500)
+        except subprocess.TimeoutExpired:
+            return cors_response({"ok": False, "error": "RTL command timeout"}, status=500)
+        except Exception as e:
+            return cors_response({"ok": False, "error": str(e)}, status=500)
+
     async def handle_options(request):
         return cors_response({})
 
@@ -289,6 +330,7 @@ def create_api(dispatch: DispatchService) -> web.Application:
     app.router.add_post("/api/dispatch/resume", resume_dispatch)
     app.router.add_post("/api/dispatch/clear", clear_incidents)
     app.router.add_post("/api/dispatch/trigger", trigger_incident)
+    app.router.add_post("/api/dispatch/resolve/{incident_id}", resolve_incident)
     app.router.add_get("/api/dispatch/mode", get_mode)
     app.router.add_post("/api/dispatch/mode", set_mode)
     app.router.add_options("/api/incidents/{id}", handle_options)
@@ -296,6 +338,7 @@ def create_api(dispatch: DispatchService) -> web.Application:
     app.router.add_options("/api/dispatch/resume", handle_options)
     app.router.add_options("/api/dispatch/clear", handle_options)
     app.router.add_options("/api/dispatch/trigger", handle_options)
+    app.router.add_options("/api/dispatch/resolve/{incident_id}", handle_options)
     app.router.add_options("/api/dispatch/mode", handle_options)
     return app
 

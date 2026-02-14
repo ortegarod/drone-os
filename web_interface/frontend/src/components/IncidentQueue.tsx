@@ -18,7 +18,8 @@ const STATUS: Record<string, { label: string; color: string }> = {
   'ai-pending': { label: 'PENDING', color: '#bc8cff' },
   dispatched:   { label: 'EN ROUTE', color: '#d29922' },
   on_scene:     { label: 'ON SITE', color: '#3fb950' },
-  resolved:     { label: 'DONE', color: '#484f58' },
+  returning:    { label: 'RETURNING', color: '#d29922' },
+  resolved:     { label: 'RESOLVED', color: '#484f58' },
 };
 
 function fmt(iso: string): string {
@@ -114,6 +115,18 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
     } catch { /* ignore */ }
   }, []);
 
+  const resolveIncident = useCallback(async (incidentId: string) => {
+    try {
+      const res = await fetch(`/api/dispatch/resolve/${incidentId}`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(`Failed to resolve: ${data.error || 'unknown error'}`);
+      }
+    } catch (err) {
+      alert(`Failed to resolve incident: ${err}`);
+    }
+  }, []);
+
   const systemStatus = paused ? '⏸ PAUSED' : '▶ ACTIVE';
   const systemColor = paused ? '#8b949e' : '#3fb950';
 
@@ -171,13 +184,14 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
         {incidents.length === 0 && (
           <div className="iq-empty">{connected ? 'no incidents' : 'dispatch offline'}</div>
         )}
-        {incidents.filter(i => i.status !== 'resolved').map((inc) => {
+        {incidents.map((inc) => {
           const expanded = selected === inc.id;
           const pri = PRI[inc.priority] || { label: '?', color: '#8b949e' };
           const realStatus = inc.assigned_to === 'ai-pending' ? 'ai-pending' : inc.status;
           const st = STATUS[realStatus] || { label: realStatus, color: '#8b949e' };
+          const isResolved = inc.status === 'resolved';
           return (
-            <div key={inc.id} className="iq-entry">
+            <div key={inc.id} className="iq-entry" style={isResolved ? { opacity: 0.5 } : {}}>
               <div className="iq-row" onClick={() => setSelected(expanded ? null : inc.id)}>
                 <span className="iq-pri" style={{ color: pri.color }}>{pri.label}</span>
                 <span className="iq-desc">{inc.type.replace(/_/g, ' ')}</span>
@@ -200,6 +214,26 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
                     : inc.assigned_to && inc.assigned_to !== 'ai-pending' ? <span style={{ color: '#3fb950' }}>dispatched {inc.assigned_to}</span>
                     : <span style={{ color: '#484f58' }}>pending</span>}
                   </div>
+                  {inc.status === 'on_scene' && (
+                    <div className="iq-detail-row">
+                      <button
+                        className="iq-btn"
+                        onClick={() => resolveIncident(inc.id)}
+                        style={{
+                          background: '#3fb950',
+                          color: '#0d1117',
+                          fontWeight: 'bold',
+                          padding: '8px 16px',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          marginTop: '8px'
+                        }}
+                      >
+                        🏁 RESOLVE
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

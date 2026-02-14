@@ -298,32 +298,36 @@ else:
             f"\n"
             f"COMMAND REFERENCE (run each with exec tool):\n"
             f"  cd /root/ws_droneOS && python3 drone_control.py --drone DRONENAME --COMMAND\n"
-            f"  Commands: --arm, --disarm, --land, --rtl, --set-offboard, --set-position X Y Z [YAW]\n"
+            f"  Commands: --arm, --set-offboard, --set-position X Y Z [YAW]\n"
             f"\n"
-            f"FLIGHT PROCEDURE (call exec for EACH command, one after another):\n"
-            f"  1. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-offboard\n"
-            f"  2. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --arm\n"
-            f"  3. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position CURRENT_X CURRENT_Y -50 0\n"
-            f"  4. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position TARGET_X TARGET_Y -50 0\n"
-            f"  5. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --rtl\n"
+            f"FLIGHT PROCEDURE:\n"
+            f"  1. Pick the best available drone\n"
+            f"  2. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-offboard\n"
+            f"  3. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --arm\n"
+            f"  4. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position 0 0 -50 0  (climb at home)\n"
+            f"  5. exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX --set-position TARGET_X TARGET_Y -50 0  (fly to target)\n"
+            f"  6. Poll drone position every 5 seconds using exec: cd /root/ws_droneOS && python3 drone_control.py --drone droneX\n"
+            f"     Check altitude > 40m AND position within ~30m of target (compare x,y)\n"
+            f"  7. When near target, report ON_SCENE\n"
             f"\n"
             f"CRITICAL INSTRUCTIONS:\n"
             f"- You MUST call the exec tool for each command. Writing bash code blocks does NOTHING.\n"
             f"- Use z=-50 (50 meters altitude) to clear all obstacles (trees, buildings)\n"
-            f"- Execute ALL 5 commands immediately in sequence\n"
-            f"- Do NOT use --land command (--rtl handles the return and landing)\n"
-            f"- After issuing all commands, FINISH YOUR RESPONSE immediately with status tags\n"
-            f"\n"
-            f"Maintain 5m minimum separation from other airborne drones.\n"
+            f"- Do NOT issue RTL — the operator will resolve the incident manually\n"
+            f"- Do NOT land the drone — it should hover on scene until operator resolves\n"
+            f"- Maintain 5m minimum separation from other airborne drones.\n"
             f"\n"
             f"STATUS TAGS (include in your response):\n"
-            f"  DISPATCHED:droneX — when you issue the arm command\n"
-            f"  ON_SCENE:droneX — when you issue the fly-to-target command\n"
-            f"  RESOLVED:{inc_id} — when you issue the RTL (return to launch) command\n"
+            f"  DISPATCHED:droneX — report this after arming the drone\n"
+            f"  ON_SCENE:droneX — report this when drone altitude > 40m and within 30m of target\n"
             f"\n"
-            f"After issuing all 5 flight commands, finish your response immediately with status tags. "
-            f"The drone will execute the mission autonomously: fly to scene → investigate → return home → land.\n"
+            f"Do NOT report RESOLVED — the operator will handle that when they click the Resolve button.\n"
         )
+
+        # Mark as dispatched immediately — AI is handling it
+        # We don't know the drone yet, but the incident is being processed
+        await self.update_incident(inc_id, "dispatched", "ai-pending")
+        self.log(f"🛸 Updated {inc_id} → dispatched (AI processing)")
 
         response = await self.send_to_ai(message)
 
@@ -332,48 +336,31 @@ else:
             import re
             resp_lower = response.lower()
 
-            # Parse all status tags
-            dispatched_match = re.search(r'dispatched\s*:\s*(drone\d+)', resp_lower)
+            # Extract drone name from response
             onscene_match = re.search(r'on_scene\s*:\s*(drone\d+)', resp_lower)
-            resolved_match = re.search(r'resolved\s*:\s*(\d+|inc-[a-z0-9]+)', resp_lower)
+            dispatched_match = re.search(r'dispatched\s*:\s*(drone\d+)', resp_lower)
 
-            # Determine drone name from tags or freeform text
             drone_name = None
-            if dispatched_match:
-                drone_name = dispatched_match.group(1)
-            elif onscene_match:
-                drone_name = onscene_match.group(1)
-            else:
-                action_match = re.search(r'(?:dispatch|send|assign|deploy|launch|scrambl)\w*\s+(drone\d+)', resp_lower)
-                if action_match:
-                    drone_name = action_match.group(1)
-                else:
-                    drone_match = re.search(r'(drone\d+)', resp_lower)
-                    if drone_match:
-                        drone_name = drone_match.group(1)
-
-            # Apply status updates in progression order (never go backwards)
-            # new → dispatched → on_scene → resolved
-            if drone_name and dispatched_match:
-                await self.update_incident(inc_id, "dispatched", drone_name)
-                self.log(f"🛸 Updated {inc_id} → dispatched to {drone_name}")
-
             if onscene_match:
+                drone_name = onscene_match.group(1)
+            elif dispatched_match:
+                drone_name = dispatched_match.group(1)
+            else:
+                drone_match = re.search(r'(drone\d+)', resp_lower)
+                if drone_match:
+                    drone_name = drone_match.group(1)
+
+            if drone_name:
+                # Update dispatched with actual drone name (if still dispatched)
+                await self.update_incident(inc_id, "dispatched", drone_name)
+
+            if onscene_match and drone_name:
                 await self.update_incident(inc_id, "on_scene", drone_name)
                 self.log(f"📍 Updated {inc_id} → on_scene ({drone_name})")
-
-            if resolved_match:
-                resolved_id = resolved_match.group(1).upper()
-                await self.update_incident(resolved_id, "resolved", drone_name)
-                self.log(f"✅ Updated {resolved_id} → resolved")
-
-            # If we got a drone name but no explicit tags, mark as dispatched
-            if drone_name and not dispatched_match and not onscene_match and not resolved_match:
-                await self.update_incident(inc_id, "dispatched", drone_name)
-                self.log(f"🛸 Updated {inc_id} → dispatched to {drone_name}")
-            elif not drone_name and not onscene_match and not resolved_match:
-                await self.update_incident(inc_id, "dispatched", "ai-pending")
-                self.log(f"⚠️ AI responded but couldn't extract drone name — marked as ai-pending")
+            elif drone_name:
+                self.log(f"🛸 Updated {inc_id} → dispatched to {drone_name} (awaiting on_scene)")
+            else:
+                self.log(f"⚠️ AI responded but couldn't extract drone name")
         else:
             self.log(f"❌ No AI response for {inc_id}")
 

@@ -36,6 +36,8 @@ const SimpleCameraFeed: React.FC<Props> = ({ isConnected, droneStatus, commandOv
 
   const drone = droneStatus?.drone_name || 'drone1';
   const alt = (-droneStatus?.position?.z || 0).toFixed(1);
+  const posX = (droneStatus?.position?.x || 0).toFixed(0);
+  const posY = (droneStatus?.position?.y || 0).toFixed(0);
   const mode = commandOverlay?.mode || droneStatus?.flight_mode || '—';
   const armed = typeof commandOverlay?.armed === 'boolean' ? commandOverlay.armed : Boolean(droneStatus?.armed);
   const state = commandOverlay?.state || 'idle';
@@ -67,6 +69,7 @@ const SimpleCameraFeed: React.FC<Props> = ({ isConnected, droneStatus, commandOv
         <span>{mode}</span>
         <span style={{ color: armed ? '#f85149' : undefined }}>{armed ? 'ARMED' : 'SAFE'}</span>
         <span>ALT {alt}m</span>
+        <span>XY ({posX}, {posY})</span>
         <span>{state}</span>
         <span style={{ color: statusColor }}>● {status}</span>
         {!isConnected && <span style={{ color: '#f39c12' }}>ROS ✕</span>}
