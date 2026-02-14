@@ -72,6 +72,7 @@ class DispatchService:
         self.ros_client = None
         self.incident_topic = None
         self._running = False
+        self._paused = True  # Start paused by default
 
     def generate_incident(self) -> Incident:
         """Generate a random 911 incident."""
@@ -137,30 +138,43 @@ class DispatchService:
     async def _incident_loop(self):
         """Main loop: generate incidents on a timer."""
         while self._running:
-            active_count = len([i for i in self.incidents.values() if i.status != "resolved"])
+            if not self._paused:
+                active_count = len([i for i in self.incidents.values() if i.status != "resolved"])
 
-            if active_count < MAX_ACTIVE_INCIDENTS:
-                incident = self.generate_incident()
-                self.incidents[incident.id] = incident
-                print(f"[dispatch] 🚨 NEW: {incident.id} — P{incident.priority} {incident.type}: {incident.description}")
-                self._publish_state()
+                if active_count < MAX_ACTIVE_INCIDENTS:
+                    incident = self.generate_incident()
+                    self.incidents[incident.id] = incident
+                    print(f"[dispatch] 🚨 NEW: {incident.id} — P{incident.priority} {incident.type}: {incident.description}")
+                    self._publish_state()
 
             delay = random.randint(INCIDENT_INTERVAL_MIN, INCIDENT_INTERVAL_MAX)
             await asyncio.sleep(delay)
 
     async def run(self):
         """Start the dispatch service."""
-        print("[dispatch] Starting dispatch service...")
+        print("[dispatch] Starting dispatch service (PAUSED by default)...")
         await self._connect_rosbridge()
         self._running = True
-
-        # Generate first incident immediately
-        incident = self.generate_incident()
-        self.incidents[incident.id] = incident
-        print(f"[dispatch] 🚨 NEW: {incident.id} — P{incident.priority} {incident.type}: {incident.description}")
-        self._publish_state()
-
         await self._incident_loop()
+
+    def pause(self):
+        """Pause incident generation."""
+        self._paused = True
+        print("[dispatch] PAUSED — no new incidents will be generated")
+
+    def resume(self):
+        """Resume incident generation."""
+        self._paused = False
+        print("[dispatch] RESUMED — generating incidents")
+
+    def get_status(self) -> dict:
+        """Return current service status."""
+        return {
+            "paused": self._paused,
+            "running": self._running,
+            "total_incidents": len(self.incidents),
+            "active_incidents": len([i for i in self.incidents.values() if i.status != "resolved"]),
+        }
 
     def stop(self):
         """Stop the dispatch service."""
@@ -202,6 +216,17 @@ def create_api(dispatch: DispatchService) -> web.Application:
             return cors_response({"ok": True})
         return cors_response({"ok": False, "error": "not found"}, status=404)
 
+    async def get_status(request):
+        return cors_response(dispatch.get_status())
+
+    async def pause_dispatch(request):
+        dispatch.pause()
+        return cors_response(dispatch.get_status())
+
+    async def resume_dispatch(request):
+        dispatch.resume()
+        return cors_response(dispatch.get_status())
+
     async def handle_options(request):
         return cors_response({})
 
@@ -209,7 +234,12 @@ def create_api(dispatch: DispatchService) -> web.Application:
     app.router.add_get("/api/incidents", get_incidents)
     app.router.add_get("/api/incidents/active", get_active_incidents)
     app.router.add_patch("/api/incidents/{id}", update_incident)
+    app.router.add_get("/api/dispatch/status", get_status)
+    app.router.add_post("/api/dispatch/pause", pause_dispatch)
+    app.router.add_post("/api/dispatch/resume", resume_dispatch)
     app.router.add_options("/api/incidents/{id}", handle_options)
+    app.router.add_options("/api/dispatch/pause", handle_options)
+    app.router.add_options("/api/dispatch/resume", handle_options)
     return app
 
 

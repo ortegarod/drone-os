@@ -6,6 +6,7 @@ const POLL_INTERVAL = 3000;
 export interface BridgeStatus {
   paused: boolean;
   running: boolean;
+  session_mode: string;
   seen_count: number;
   activity_log: Array<{ time: number; message: string }>;
 }
@@ -37,10 +38,16 @@ export function useBridgeState() {
 
   const toggle = useCallback(async () => {
     try {
-      const res = await fetch(`${BRIDGE_API}/api/bridge/toggle`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        setStatus(prev => prev ? { ...prev, paused: data.paused } : null);
+      // Toggle the bridge (AI response)
+      const bridgeRes = await fetch(`${BRIDGE_API}/api/bridge/toggle`, { method: 'POST' });
+      if (bridgeRes.ok) {
+        const bridgeData = await bridgeRes.json();
+        const newPaused = bridgeData.paused;
+        setStatus(prev => prev ? { ...prev, paused: newPaused } : null);
+
+        // Also toggle the dispatch service (incident generation)
+        const dispatchEndpoint = newPaused ? '/api/dispatch/pause' : '/api/dispatch/resume';
+        await fetch(`http://localhost:8081${dispatchEndpoint}`, { method: 'POST' });
       }
     } catch { /* ignore */ }
   }, []);
