@@ -1,6 +1,6 @@
 # DroneOS - Autonomous Drone Control Framework
 
-> **🏆 Hackathon Submission:** [LaunchFund AI Meets Robotics](https://lablab.ai/ai-hackathons/launch-fund-ai-meets-robotics)
+> **🏆 Hackathon Submission:** [LaunchFund AI Meets Robotics](https://lablab.ai/ai-hackathons/launch-fund-ai-meets-robotics/aeris-robotics/droneos-ai-powered-autonomous-fleet-dispatch)
 
 
 ## 🎯 AI Emergency Drone Dispatch Demo
