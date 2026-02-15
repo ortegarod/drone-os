@@ -11,7 +11,7 @@ services:
       - ../../build:/root/ws_droneOS/build
       - ../../install:/root/ws_droneOS/install
       - ../../logs:/root/ws_droneOS/logs
-      - ../../fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
     environment:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - ROS_LOG_SEVERITY_THRESHOLD=debug

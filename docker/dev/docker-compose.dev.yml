@@ -39,7 +39,7 @@ services:
       - ../../install:/root/ws_droneOS/install
       - ../../logs:/root/ws_droneOS/logs
       # Mount the FastDDS config file
-      - ../../fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
     environment:
       # Set the ROS 2 DDS implementation (ensure it matches your setup)
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
@@ -110,7 +110,7 @@ services:
     volumes:
       - ../../Micro-XRCE-DDS-Agent:/root/ws_droneOS/Micro-XRCE-DDS-Agent
       # Mount the FastDDS config file
-      - ../../fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
     # Note: Ensure the user running Docker on the host (e.g., 'rodrigo') has permission for /dev/ttyUSB0 (belongs to 'dialout' group).
     # If not, run: sudo usermod -a -G dialout rodrigo (or relevant user) and then REBOOT or log out/in.
 
@@ -143,7 +143,7 @@ services:
       - DRONE_NAME=drone1 # Set a default drone name
     volumes:
       # Mount the FastDDS config file
-      - ../../fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
     command:
       - bash
       - -c
@@ -182,7 +182,7 @@ services:
       # Gazebo camera topic to bridge (default: /camera)
       - GZ_CAMERA_TOPIC=/camera
     volumes:
-      - ../../fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
     command:
       - bash
       - -c
@@ -208,7 +208,7 @@ services:
       - ROS_DOMAIN_ID=0
       - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
     volumes:
-      - ../../fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
       - ../../install:/root/ws_droneOS/install:ro
     command:
       - bash
@@ -236,7 +236,7 @@ services:
       # Mount the agent system source code for live development
       - ../../src/drone_agent_system:/root/ws_droneOS/src/drone_agent_system
       # Mount the FastDDS config file
-      - ../../fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
       # If you have a .env file for secrets like OPENAI_API_KEY at the root of ws_droneOS
       # - ../../.env:/root/ws_droneOS/.env 
     environment:
@@ -271,7 +271,7 @@ services:
       # Mount logs
       - ../../logs:/workspace/logs
       # Mount the FastDDS config file
-      - ../../fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
     devices:
       # Pass through USB devices (Edge TPU will show up as a USB device)
       - /dev/bus/usb:/dev/bus/usb

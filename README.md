@@ -228,7 +228,7 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
 
 #### Current Default Configuration (`fastdds_config.xml` at Project Root)
 
-The `fastdds_config.xml` file located at the root of the `ws_droneOS` project is currently configured for a simplified development setup where **all components (PX4 SITL, Micro XRCE-DDS Agent, Drone Core, GCS/AI Agent CLI, etc.) are expected to run on the same host machine (e.g., your development laptop)**.
+The `fastdds_config_dev_simple.xml` file located in `config/fastdds/` of the `ws_droneOS` project is currently configured for a simplified development setup where **all components (PX4 SITL, Micro XRCE-DDS Agent, Drone Core, GCS/AI Agent CLI, etc.) are expected to run on the same host machine (e.g., your development laptop)**.
 
 This configuration uses the `SIMPLE` discovery protocol, relying on multicast for nodes to find each other. This is the most straightforward way to get a development environment working quickly when all parts of the system are on one computer.
 
