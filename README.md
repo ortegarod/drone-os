@@ -27,7 +27,6 @@ When a 911 call comes in:
 
 **Get Started:**
 - `PREFLIGHT_CHECKLIST.md` — Pre-flight verification
-- `TESTING.md` — End-to-end test procedures
 
 **Architecture:**
 - `docs/DISPATCH_ARCHITECTURE.md` — How the dispatch system works
@@ -57,21 +56,17 @@ PX4 already publishes raw topics via DDS (through micro XRCE-DDS). You could con
 - Multi-drone fleet coordination
 - Cloud-ready (works over 4G/VPN with Tailscale)
 
-Technical Documentation:
+## Technical Documentation
 
-What is included? 
+### Components
 
 ### `camera_ros` (C++ with libcamera integration)
 
-Provides access to camera feed from a physical camera (e.g., Raspberry Pi camera module) connected to the drone's companion computer (e.g., Raspberry Pi 4/5). This component integrates `libcamera` for camera hardware interaction and `rpicam-apps` for lower-level camera control, packaged within a ROS 2 node.
+Provides camera feed from a physical camera (e.g., Raspberry Pi camera module) on the drone's companion computer. Built from source inside its Docker image — no local repo needed.
 
-- **Purpose**: Publishes image topics that can be consumed by other ROS 2 nodes for computer vision tasks, telemetry, or recording. Requires a functioning camera and correctly configured drivers on the host system where the service is run.
-- **Deployment**: Typically runs as a dedicated Docker service (`camera_service`) on the companion computer.
-- **Source**: Based on [christianrauch/camera_ros](https://github.com/christianrauch/camera_ros), built from source within its Docker image along with `libcamera` and `rpicam-apps`.
-- **Configuration**: Configured in `docker/dev/docker-compose.dev.yml` (for general service definition) and `docker/dev/camera.dev.Dockerfile` (for image build). The `docker-compose.prod.yml` would be used for on-drone deployment. Also runs web_video_server within the same container.
-
-web_video_server - HTTP Streaming of ROS Image Topics in Multiple Formats
-This node provides HTTP streaming of ROS image topics in various formats, making it easy to view robot camera feeds and other image topics in a web browser without requiring special plugins or extensions. see repo `web_video_server` for more details
+- **Source**: [christianrauch/camera_ros](https://github.com/christianrauch/camera_ros)
+- **Deployment**: Runs as a Docker service (`camera_service`), configured in `docker/dev/camera.dev.Dockerfile`
+- **Also runs**: `web_video_server` for HTTP streaming of ROS image topics to the web UI
 
 ### `drone_core` (C++)
 
@@ -103,7 +98,7 @@ Acts as a broker between the ROS 2 DDS network and the PX4 Autopilot (which typi
 - **Source**: Pulled from [eProsima/Micro-XRCE-DDS-Agent](https://github.com/eProsima/Micro-XRCE-DDS-Agent)
 - **See**: `Micro-XRCE-DDS-Agent/README.md`
 
-Tools:
+### Tools
 
 ### `drone_gcs_cli` (Python)
 
@@ -116,16 +111,18 @@ For detailed usage, commands, and architecture, see `src/drone_gcs_cli/README.md
   orchestrator.
    - see `/ws_droneOS/web_interface`
 
-RosBridge Suite
-rosbridge provides a JSON interface to ROS, allowing any client to send JSON to publish or subscribe to ROS topics, call ROS services, and more. rosbridge supports a variety of transport layers, including WebSockets and TCP. For information on the protocol itself, see the rosbridge protocol specification.
-- see source for reference `/ws_droneOS/rosbridge_suite` including `/ws_droneOS/rosbridge_suite/README.md`
-- this is what allows us to get real-time telemetry data delivered via cloud (drone > 4g > VPN > ROS2 > remote command center)
+### RosBridge Suite
 
-Object Detector - `/ws_droneOS/src/object_detector` - in the works - need to fix 4g connectivity to test properly
+Provides a JSON/WebSocket interface to ROS 2, allowing web clients to publish/subscribe to topics and call services. This is what enables real-time telemetry from the drone to the cloud (drone → 4G → VPN → ROS 2 → web UI).
 
-src/drone_agent_system (Python): AI/agent orchestration utilities and service (natural language control, tooling). highly experimental!
+- **Source**: [rosbridge_suite](https://github.com/RobotWebTools/rosbridge_suite)
+- **Deployment**: Runs as a Docker container (`rosbridge_server`) using the `ros:humble` image
 
-Issues: high bandwidth - ROS2 topics / camera feed
+### `object_detector` (Python — WIP)
+Located in `src/object_detector`. Coral Edge TPU object detection. Needs 4G connectivity to test properly.
+
+### `drone_agent_system` (Python — Experimental)
+Located in `src/drone_agent_system`. AI/agent orchestration with natural language control and tooling.
 
 
 ## 🚀 Getting Started
@@ -226,9 +223,9 @@ This outlines the steps to run a DroneOS SDK development environment using PX4 A
 
 ### Configuring ROS 2 Communication
 
-#### Current Default Configuration (`fastdds_config.xml` at Project Root)
+#### Current Default Configuration (`config/fastdds/fastdds_config_dev_simple.xml`)
 
-The `fastdds_config_dev_simple.xml` file located in `config/fastdds/` of the `ws_droneOS` project is currently configured for a simplified development setup where **all components (PX4 SITL, Micro XRCE-DDS Agent, Drone Core, GCS/AI Agent CLI, etc.) are expected to run on the same host machine (e.g., your development laptop)**.
+The `fastdds_config_dev_simple.xml` file located in `config/fastdds/` is currently configured for a simplified development setup where **all components (PX4 SITL, Micro XRCE-DDS Agent, Drone Core, GCS/AI Agent CLI, etc.) are expected to run on the same host machine (e.g., your development laptop)**.
 
 This configuration uses the `SIMPLE` discovery protocol, relying on multicast for nodes to find each other. This is the most straightforward way to get a development environment working quickly when all parts of the system are on one computer.
 
@@ -236,7 +233,7 @@ This configuration uses the `SIMPLE` discovery protocol, relying on multicast fo
 -   **Discovery Type**: `SIMPLE` (peer-to-peer via multicast).
 -   **Target Environment**: Single host development (e.g., running PX4 SITL and all Docker services on your local machine).
 -   **Simplicity**: Reduces the need for complex network configuration for initial development and testing.
--   **File Used**: The `fastdds_config.xml` at the project root is referenced by `FASTRTPS_DEFAULT_PROFILES_FILE` in `docker/dev/docker-compose.dev.yml` for the `drone_core`, `micro_agent`, and `agent_system` services.
+-   **File Used**: The `config/fastdds/fastdds_config_dev_simple.xml` is referenced by `FASTRTPS_DEFAULT_PROFILES_FILE` in `docker/dev/docker-compose.dev.yml` for the `drone_core`, `micro_agent`, and `agent_system` services.
 
 **Limitations and Future Considerations:**
 -   **LAN Communication (Multi-Machine)**: While the `SIMPLE` discovery with multicast *can* work across a LAN if multicast is properly configured on the network, it's often less reliable than static peer lists or a Discovery Server for multi-machine setups. The notes below on "Configuring for LAN Communication (Static Peers)" provide guidance if you need to connect nodes across different machines on the same LAN.
@@ -375,7 +372,7 @@ By correctly configuring the `initialPeersList` and `metatrafficUnicastLocatorLi
 
 6. **Cleanup**: When done, stop all services:
    ```bash
-   docker compose -f docker-compose.dev.yml down
+   docker compose -f docker/dev/docker-compose.dev.yml down
    ```
    Then stop the PX4 SITL instances in their respective terminals with `CTRL+C`.
 
@@ -457,7 +454,7 @@ dc.land()                # 4. Land
 **Setup DroneOS on RPi**:
    ```bash
    # Clone the repository
-   git clone https://github.com/ortegarod/droneOS.git ws_droneOS
+   git clone https://github.com/ortegarod/drone-os.git ws_droneOS
    cd ws_droneOS
    ```
 Use `docker/prod/docker-compose.yml` for real drone deployment
