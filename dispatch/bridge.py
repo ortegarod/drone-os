@@ -35,11 +35,12 @@ def _load_gateway_token():
 
 class DispatchBridge:
     def __init__(self):
-        self.paused = True  # Start paused — no tokens wasted
+        self.paused = False  # Start active — toggle button controls pause/resume
         self.running = False
         self.session_mode = "isolated"  # "main" or "isolated" — isolated enables concurrent dispatch
         self.model = "anthropic/claude-sonnet-4-5"  # Model for dispatch sessions
         self.seen_incidents = set()
+        self.reserved_drones = set()  # Drones claimed by in-progress dispatches
         self.activity_log = []
 
     def log(self, msg: str):
@@ -216,6 +217,19 @@ class DispatchBridge:
             self.log(f"Error updating incident {incident_id}: {e}")
             return False
 
+    async def unassign_drone_from_other_incidents(self, drone_name: str, current_incident_id: str):
+        """When a drone is rerouted, mark its old incident(s) as unassigned."""
+        try:
+            incidents = await self.get_active_incidents()
+            for inc in incidents:
+                if (inc.get("assigned_to") == drone_name
+                        and inc["id"] != current_incident_id
+                        and inc["status"] in ("dispatched", "on_scene")):
+                    self.log(f"Incident #{inc['id']} unassigned — {drone_name} rerouted to #{current_incident_id}")
+                    await self.update_incident(inc["id"], "unassigned")
+        except Exception as e:
+            self.log(f"Error unassigning drone: {e}")
+
     async def get_active_incidents(self) -> list:
         try:
             async with aiohttp.ClientSession() as s:
@@ -308,6 +322,10 @@ print(json.dumps(drones))
                 else:
                     status = 'READY'
                 
+                # Mark reserved drones
+                if name in self.reserved_drones:
+                    status = 'RESERVED (dispatch in progress)'
+                
                 # Cross-reference with incident assignment
                 mission_ctx = ""
                 inc = incident_by_drone.get(name)
@@ -331,8 +349,6 @@ print(json.dumps(drones))
         """Send an incident to the AI for decision-making."""
         inc_id = incident["id"]
 
-        # Gather context: fleet state + active incidents
-        fleet_state = await asyncio.get_event_loop().run_in_executor(None, self.get_fleet_state_sync)
         all_incidents = await self.get_active_incidents()
         
         incident_lines = []
@@ -360,31 +376,38 @@ print(json.dumps(drones))
             f"  Description: {incident['description']}\n"
             f"  Location: {incident['location']['name']} (x={target_x}, y={target_y})\n"
             f"\n"
-            f"FLEET STATUS:\n"
-            f"{fleet_state}\n"
-            f"\n"
             f"OTHER ACTIVE INCIDENTS:\n"
             f"{active_ctx}\n"
             f"\n"
-            f"You are an autonomous drone dispatcher. Use the DroneOS CLI to fly drones:\n"
-            f"  cd /root/ws_droneOS && python3 drone_control.py --drone DRONENAME --COMMAND\n"
-            f"  Commands: --set-offboard, --arm, --set-position X Y Z YAW, --rtl\n"
-            f"  Query state: python3 drone_control.py --drone DRONENAME (no command = print state)\n"
+            f"You are an autonomous drone dispatcher.\n"
             f"\n"
-            f"RULES:\n"
-            f"- Pick the CLOSEST available drone. READY and RETURNING drones are available.\n"
-            f"- RETURNING drones can be rerouted: --set-offboard cancels RTL, then --set-position to new target.\n"
-            f"- IN FLIGHT drones on active missions are busy — do NOT reassign.\n"
-            f"- Skip drones with battery < 30%.\n"
-            f"- Fly at z=-50 (50m altitude). Climb vertically first, then lateral.\n"
-            f"- Do NOT land or RTL — drone hovers on scene. Auto-RTL triggers after 30s.\n"
-            f"- Poll drone position every 5s until within ~30m of target.\n"
-            f"- You MUST use the exec tool for every command.\n"
+            f"PROCEDURE:\n"
+            f"1. Check current drone states using drone_control.py:\n"
+            f"   cd /root/ws_droneOS && python3 -c \"import drone_control; drone_control.set_drone_name('drone1'); print(drone_control.get_state())\"\n"
+            f"   Repeat for drone2, drone3, etc.\n"
+            f"2. Pick the CLOSEST available drone (DISARMED or RETURNING = available; ARMED/IN FLIGHT on other incidents = busy)\n"
+            f"3. Dispatch it (TWO STEPS — climb first, then fly):\n"
+            f"   Step A — climb to 50m altitude at current position:\n"
+            f"   python3 -c \"import drone_control as dc; dc.set_drone_name('droneX'); s=dc.get_state(); dc.set_offboard(); dc.arm(); dc.set_position(s['local_x'], s['local_y'], -50)\"\n"
+            f"   Step B — wait until altitude is above 45m (z < -45), then fly to target:\n"
+            f"   python3 -c \"import drone_control as dc; dc.set_drone_name('droneX'); dc.set_position({target_x}, {target_y}, -50)\"\n"
+            f"4. After dispatching step B, include DISPATCHED:droneX in your response\n"
+            f"5. MONITOR THE DRONE — poll its position every 5 seconds until it arrives:\n"
+            f"   python3 -c \"import drone_control as dc; dc.set_drone_name('droneX'); s=dc.get_state(); print(f'pos=({{s[\"local_x\"]:.1f}}, {{s[\"local_y\"]:.1f}}, {{s[\"local_z\"]:.1f}})')\"\n"
+            f"   Target is ({target_x}, {target_y}). When drone is within 10m of target (check x/y distance), include ON_SCENE:droneX in your response.\n"
+            f"   Report arrival: \"droneX arrived at [location name]\"\n"
             f"\n"
-            f"STATUS TAGS (include these exact tags in your response text):\n"
-            f"  DISPATCHED:droneX — after the drone is armed and heading to target\n"
-            f"  ON_SCENE:droneX — when the drone arrives near the target\n"
-            f"  NO_AVAILABLE_DRONES — if nothing can be dispatched\n"
+            f"NOTES:\n"
+            f"- RETURNING drones can be rerouted: set_offboard() cancels RTL\n"
+            f"- Skip drones with battery < 30%\n"
+            f"- Z=-50 = 50m altitude (NED coords: Z is DOWN)\n"
+            f"- Don't land or RTL after dispatch — auto-RTL triggers after 30s on scene\n"
+            f"- If no drones available, reply NO_AVAILABLE_DRONES\n"
+            f"\n"
+            f"STATUS TAGS (include in your response):\n"
+            f"  DISPATCHED:droneX — after successfully arming and sending position command\n"
+            f"  ON_SCENE:droneX — when drone arrives within 10m of target\n"
+            f"  NO_AVAILABLE_DRONES — if all drones busy or unavailable\n"
         )
 
         # Track which statuses we've already applied for this incident
@@ -412,18 +435,24 @@ print(json.dumps(drones))
             # Apply DISPATCHED when we first see it
             if dispatched_match and "dispatched" not in applied_statuses:
                 applied_statuses.add("dispatched")
+                self.reserved_drones.add(drone_name)
                 await self.update_incident(inc_id, "dispatched", drone_name)
+                await self.unassign_drone_from_other_incidents(drone_name, inc_id)
 
-            # Apply ON_SCENE when we first see it (after DISPATCHED)
+            # Apply ON_SCENE when we first see it — ensure DISPATCHED is set first
             if onscene_match and "on_scene" not in applied_statuses:
+                if "dispatched" not in applied_statuses:
+                    applied_statuses.add("dispatched")
+                    self.reserved_drones.add(drone_name)
+                    await self.update_incident(inc_id, "dispatched", drone_name)
+                    await self.unassign_drone_from_other_incidents(drone_name, inc_id)
                 applied_statuses.add("on_scene")
                 await self.update_incident(inc_id, "on_scene", drone_name)
 
         response = await self.send_to_ai(message, on_text=on_streaming_text)
 
         if response:
-            # Log the AI's actual response to the activity feed
-            # Strip status tags for cleaner display
+            # Log the AI's response
             import re
             clean_response = re.sub(r'(?i)(DISPATCHED|ON_SCENE|NO_AVAILABLE_DRONES)\s*:\s*\w*', '', response).strip()
             if clean_response:
@@ -441,19 +470,31 @@ print(json.dumps(drones))
                 drone_name = onscene_match.group(1)
             
             if drone_name and "dispatched" not in applied_statuses:
+                self.reserved_drones.add(drone_name)
                 await self.update_incident(inc_id, "dispatched", drone_name)
+                await self.unassign_drone_from_other_incidents(drone_name, inc_id)
             if drone_name and onscene_match and "on_scene" not in applied_statuses:
+                if "dispatched" not in applied_statuses:
+                    applied_statuses.add("dispatched")
+                    self.reserved_drones.add(drone_name)
+                    await self.update_incident(inc_id, "dispatched", drone_name)
+                    await self.unassign_drone_from_other_incidents(drone_name, inc_id)
                 await self.update_incident(inc_id, "on_scene", drone_name)
             if not drone_name:
                 self.log(f"No drone assigned for {inc_id}")
         else:
             self.log(f"No AI response for {inc_id}")
+        
+        # Release reservation when dispatch completes (drone is tracked by incident now)
+        if current_drone[0] and current_drone[0] in self.reserved_drones:
+            self.reserved_drones.discard(current_drone[0])
 
     async def poll_loop(self):
         """Main loop: poll for new incidents and send to AI."""
         self.running = True
         self.active_tasks: set[asyncio.Task] = set()
-        self.log("AI DISPATCH ONLINE — PAUSED")
+
+        self.log("AI DISPATCH ONLINE")
 
         while self.running:
             if not self.paused:
@@ -462,11 +503,14 @@ print(json.dumps(drones))
                     inc for inc in incidents
                     if inc["id"] not in self.seen_incidents and inc["status"] == "new"
                 ]
+                if new_incidents:
+                    print(f"[bridge] Found {len(new_incidents)} new incident(s): {[i['id'] for i in new_incidents]}")
 
                 for inc in new_incidents:
-                    # Only mark as seen AFTER processing, so dropped incidents get retried
-                    await self.process_incident(inc)
                     self.seen_incidents.add(inc["id"])
+                    task = asyncio.create_task(self.process_incident(inc))
+                    self.active_tasks.add(task)
+                    task.add_done_callback(self.active_tasks.discard)
             await asyncio.sleep(POLL_INTERVAL)
 
     def stop(self):

@@ -30,7 +30,7 @@ const streamUrl = (preset: Preset, drone: string) =>
 const SimpleCameraFeed: React.FC<Props> = ({ isConnected, droneStatus, commandOverlay, availableDrones, setTargetDrone }) => {
   const imgRef = useRef<HTMLImageElement>(null);
   const [status, setStatus] = useState('connecting');
-  const [preset, setPreset] = useState(presets[1]); // default 240p
+  const [preset, setPreset] = useState(presets[2]); // default 480p
   const [url, setUrl] = useState('');
   const [showQuality, setShowQuality] = useState(false);
 

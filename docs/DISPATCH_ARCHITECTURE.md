@@ -456,13 +456,12 @@ INCIDENT_INTERVAL_MAX = 180  # 3 min
 MAX_ACTIVE_INCIDENTS = 4
 ```
 
-**Run:**
+**Systemd Service:** `dispatch-service.service`
 ```bash
-cd /root/ws_droneOS/dispatch
-python3 dispatch_service.py
+systemctl restart dispatch-service   # Restart
+systemctl status dispatch-service    # Check status
+journalctl -u dispatch-service -f    # Live logs
 ```
-
-**Logs:** stdout (or redirect to file)
 
 ### Bridge
 
@@ -470,7 +469,7 @@ python3 dispatch_service.py
 
 ```python
 DISPATCH_API = "http://localhost:8081"
-POLL_INTERVAL = 5  # seconds
+POLL_INTERVAL = 2  # seconds
 ```
 
 **Gateway config:**
@@ -478,10 +477,11 @@ POLL_INTERVAL = 5  # seconds
 - Falls back to `OPENCLAW_GATEWAY_TOKEN` env var
 - WebSocket: `ws://127.0.0.1:18789`
 
-**Run:**
+**Systemd Service:** `dispatch-bridge.service` (depends on dispatch-service)
 ```bash
-cd /root/ws_droneOS/dispatch
-python3 bridge.py
+systemctl restart dispatch-bridge    # Restart
+systemctl status dispatch-bridge     # Check status
+journalctl -u dispatch-bridge -f     # Live logs
 ```
 
 **Control:**

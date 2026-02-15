@@ -45,11 +45,7 @@ export function useDispatchState() {
 
   const activeIncidents = incidents.filter(i => i.status !== 'resolved');
   const sortedIncidents = [...incidents].sort((a, b) => {
-    // Active first, then by priority, then by time
-    const aActive = a.status !== 'resolved' ? 0 : 1;
-    const bActive = b.status !== 'resolved' ? 0 : 1;
-    if (aActive !== bActive) return aActive - bActive;
-    if (a.priority !== b.priority) return a.priority - b.priority;
+    // Newest first (stable sort by creation time only)
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 

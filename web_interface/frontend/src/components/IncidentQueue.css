@@ -124,6 +124,13 @@
   width: 20px;
   text-align: center;
 }
+.iq-id {
+  color: #8b949e;
+  font-size: 0.85em;
+  flex-shrink: 0;
+  margin-right: 4px;
+  font-family: monospace;
+}
 .iq-desc {
   color: #c9d1d9;
   flex: 1;
@@ -148,9 +155,16 @@
 .iq-detail-row {
   color: #8b949e;
   font: 9px/1.6 monospace;
+  display: flex;
+  gap: 4px;
 }
 .iq-label {
   color: #484f58;
-  display: inline-block;
-  min-width: 54px;
+  flex-shrink: 0;
+  width: 48px;
+  text-align: right;
+}
+.iq-value {
+  flex: 1;
+  min-width: 0;
 }

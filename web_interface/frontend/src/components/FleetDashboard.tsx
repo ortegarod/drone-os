@@ -196,7 +196,9 @@ const FleetDashboard: React.FC<FleetDashboardProps> = ({
     const alt = -(st.local_z || 0);
     const airborne = alt > 1.0;
 
-    if (mode.includes('LAND')) return { label: 'Landing', className: 'status-landing' };
+    // Disarmed on the ground = ready, regardless of nav_state
+    if (!armed && !airborne) return { label: 'Ready', className: 'status-ready' };
+    if (mode.includes('LAND') && armed) return { label: 'Landing', className: 'status-landing' };
     if (mode.includes('RTL') || mode.includes('RETURN')) return { label: 'Returning', className: 'status-returning' };
     if (mode.includes('TAKEOFF')) return { label: 'Takeoff', className: 'status-takeoff' };
     if (armed && airborne) return { label: 'In Flight', className: 'status-mission' };

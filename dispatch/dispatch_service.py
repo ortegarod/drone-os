@@ -80,13 +80,19 @@ class DispatchService:
         self.ros_client = None
         self.incident_topic = None
         self._running = False
-        self._paused = True  # Start paused by default
+        self._paused = False  # Start active — toggle button controls pause/resume
         self._mode = "manual"  # "auto" or "manual" — manual requires trigger button
 
     def generate_incident(self) -> Incident:
-        """Generate a random 911 incident."""
+        """Generate a random 911 incident, avoiding recently used locations."""
         itype = random.choice(INCIDENT_TYPES)
-        location = random.choice(LANDMARKS)
+        
+        # Avoid locations used by active incidents
+        active_locations = {inc.location.get("name") for inc in self.incidents.values() if inc.status != "resolved"}
+        available = [loc for loc in LANDMARKS if loc["name"] not in active_locations]
+        if not available:
+            available = LANDMARKS
+        location = random.choice(available)
 
         # Fill in template placeholders
         template = random.choice(itype["templates"])

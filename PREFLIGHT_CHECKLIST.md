@@ -210,11 +210,14 @@ ssh rodrigo@<tailscale-ip> "bash -lc 'source /opt/ros/humble/setup.bash; source 
 | rosbridge_relay | Docker | root (in container) | TCP 9090 | WebSocket relay: Frontend ↔ srv01 rosbridge | `docker restart rosbridge_relay` |
 | camera_proxy_node | Docker | root (in container) | TCP 8080 | MJPEG proxy: Frontend ↔ srv01 web_video_server | `docker restart camera_proxy_node` |
 | OpenClaw | native | root | TCP 3031 | AI agent backend | `systemctl restart openclaw` |
+| Dispatch Service | native | root | TCP 8081 | 911 CAD — generates/manages incidents | `systemctl restart dispatch-service` |
+| Dispatch Bridge | native | root | TCP 8082 | Connects incidents to AI agent | `systemctl restart dispatch-bridge` |
 
 **Notes:**
 - All services run on VPS (207.148.9.142)
 - Frontend connects to local relays (`:9090`, `:8080`) which forward to srv01 over Tailscale
-- OpenClaw runs as native systemd service, not Docker
+- OpenClaw, dispatch-service, and dispatch-bridge run as native systemd services
+- Bridge depends on dispatch-service (auto-starts/stops with it)
 
 ### Verification Checklist
 
@@ -222,12 +225,17 @@ ssh rodrigo@<tailscale-ip> "bash -lc 'source /opt/ros/humble/setup.bash; source 
 - [ ] rosbridge relay (`:9090`) forwarding to srv01
 - [ ] camera proxy (`:8080`) streaming from srv01
 - [ ] OpenClaw (`:3031`) responding
+- [ ] Dispatch service (`:8081`) running
+- [ ] Dispatch bridge (`:8082`) running
 
 ```bash
 docker ps --format '{{.Names}}: {{.Status}}'
 curl -I http://localhost:3000
 curl -I http://localhost:8080
 systemctl status openclaw
+systemctl is-active dispatch-service dispatch-bridge
+curl -s http://localhost:8081/api/dispatch/status | python3 -m json.tool
+curl -s http://localhost:8082/api/bridge/status | python3 -m json.tool
 ```
 
 ## 3) PX4 Parameters

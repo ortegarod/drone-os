@@ -308,19 +308,18 @@ rm ~/PX4-Autopilot/build/px4_sitl_default/rootfs/1/parameters_backup.bson
 
 **Symptom:** Drone is upside down, drifting, or showing impossible altitude (e.g., 1000m+).
 
-**Fix:** Restart the PX4 service for that drone. This kills the PX4 process and respawns the model cleanly in Gazebo.
+**Fix:** Restart `px4-sitl` to reset Gazebo and all drone models. Restarting individual PX4 services (e.g., `px4-drone3`) does NOT reliably respawn a corrupted Gazebo model — it reconnects to the existing broken model.
 
 ```bash
-# On srv01
-systemctl --user restart px4-drone2   # drone2
-systemctl --user restart px4-drone3   # drone3
-systemctl --user restart px4-sitl     # drone1 (also restarts Gazebo — use as last resort)
+# On srv01 — this is the fix
+systemctl --user restart px4-sitl
+# px4-drone2 and px4-drone3 auto-restart after px4-sitl (After= dependency)
+# Wait ~45s for all to initialize
 ```
 
-Then restart the Docker SDK node so it reconnects:
+Then restart the Docker SDK nodes so they reconnect:
 ```bash
-docker restart drone_core_node2       # for drone2
-docker restart drone_core_node3       # for drone3
+docker restart drone_core_node drone_core_node2 drone_core_node3
 ```
 
 **Do NOT use `gz service set_pose`** — it resets the Gazebo model position but desyncs PX4's internal state, causing the drone to drift uncontrollably.

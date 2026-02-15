@@ -1,8 +1,7 @@
 # DroneOS - Autonomous Drone Control Framework
 
-> **🏆 Hackathon Submission:** [LaunchFund AI Meets Robotics](https://lablab.ai/ai-hackathons/launch-fund-ai-meets-robotics) — See [DRONE-HACKATHON.md](DRONE-HACKATHON.md) for demo details, setup, and submission materials.
+> **🏆 Hackathon Submission:** [LaunchFund AI Meets Robotics](https://lablab.ai/ai-hackathons/launch-fund-ai-meets-robotics)
 
-> **🤖 AI Agents:** Read the `droneos` skill (`~/.openclaw/skills/droneos/SKILL.md`) for flight commands and SDK usage. If not installed, copy from [`droneos/`](droneos/) to your skills folder.
 
 ## 🎯 AI Emergency Drone Dispatch Demo
 
@@ -27,7 +26,6 @@ When a 911 call comes in:
 ## 📚 Documentation
 
 **Get Started:**
-- **`DRONE-HACKATHON.md`** ⭐ — Hackathon demo setup (30 minutes)
 - `PREFLIGHT_CHECKLIST.md` — Pre-flight verification
 - `TESTING.md` — End-to-end test procedures
 
@@ -398,6 +396,61 @@ docker compose -f docker/dev/gcs/docker-compose.gcs.yml run --rm -it gcs_cli ros
 - Allows running the CLI from any machine that has Docker and Tailscale VPN installed
 - Isolates the CLI from the development environment, making it suitable for both development and production use
 - Simplifies deployment as the container can be run on any machine that needs to control the drones (requires Tailscale VPN for remote access)
+
+## Using drone_control.py (Programmatic Control)
+
+For AI agents or programmatic drone control (e.g., from the VPS command center), use `drone_control.py`:
+
+```python
+cd /root/ws_droneOS
+python3 -c "
+import drone_control
+
+# Check drone status
+state = drone_control.get_state()
+print(f'Drone position: ({state[\"local_x\"]}, {state[\"local_y\"]}, {state[\"local_z\"]})')
+print(f'Armed: {state[\"arming_state\"]}, Mode: {state[\"nav_state\"]}')
+print(f'Battery: {int(state[\"battery_remaining\"]*100)}%')
+
+# Switch to a different drone
+drone_control.set_drone_name('drone2')
+state = drone_control.get_state()
+"
+```
+
+**Available Functions:**
+```python
+# Mode control
+drone_control.set_offboard()      # Enable offboard mode (required before flight)
+drone_control.arm()               # Arm motors
+drone_control.disarm()            # Disarm motors
+drone_control.land()              # Land at current position
+drone_control.return_to_launch()  # RTL mode
+
+# Position control (NED coordinates: X=North, Y=East, Z=Down)
+drone_control.set_position(x, y, z, yaw)  # Z negative = UP (e.g., z=-15 = 15m altitude)
+drone_control.takeoff()                    # Autonomous takeoff
+
+# State retrieval
+drone_control.get_state()  # Returns full telemetry dict
+
+# Multi-drone
+drone_control.set_drone_name('drone2')  # Switch active drone
+drone_control.get_drone_name()          # Get current target
+```
+
+**Flight Sequence:**
+```python
+import drone_control as dc
+
+dc.set_offboard()        # 1. MUST be first
+dc.arm()                 # 2. Arm motors
+dc.set_position(0, 0, -15, 0)  # 3. Fly to 15m altitude
+# ... mission ...
+dc.land()                # 4. Land
+```
+
+**Note**: `drone_control.py` and `drone_gcs_cli` both use the same underlying `drone_core` ROS services via rosbridge. The CLI is for human operators, `drone_control.py` is for code/agents.
 
 ### Example: Running on a Real Drone (Raspberry Pi)
 

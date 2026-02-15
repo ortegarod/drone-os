@@ -16,6 +16,7 @@ const PRI: Record<number, { label: string; color: string }> = {
 const STATUS: Record<string, { label: string; color: string }> = {
   new:          { label: 'NEW', color: '#58a6ff' },
   'ai-pending': { label: 'PENDING', color: '#bc8cff' },
+  unassigned:   { label: 'UNASSIGNED', color: '#f0883e' },
   dispatched:   { label: 'EN ROUTE', color: '#d29922' },
   on_scene:     { label: 'ON SITE', color: '#3fb950' },
   returning:    { label: 'RETURNING', color: '#d29922' },
@@ -133,7 +134,7 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
   return (
     <div className="iq-root">
       <div className="iq-header">
-        <span>DISPATCH FEED</span>
+        <span>INCIDENT DISPATCH FEED</span>
         <span className={`iq-status ${connected ? 'on' : 'off'}`}>{connected ? '●' : '○'}</span>
       </div>
       <div className="iq-stats">
@@ -152,7 +153,7 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
           const st = STATUS[realStatus] || { label: realStatus, color: '#8b949e' };
           const isResolved = inc.status === 'resolved';
           return (
-            <div key={inc.id} className="iq-entry" style={isResolved ? { opacity: 0.5 } : {}}>
+            <div key={inc.id} className="iq-entry">
               <div className="iq-row" onClick={() => setSelected(expanded ? null : inc.id)}>
                 <span className="iq-pri" style={{ color: pri.color }}>{pri.label}</span>
                 <span className="iq-desc">{inc.type.replace(/_/g, ' ')}</span>
@@ -160,17 +161,19 @@ const IncidentQueue: React.FC<IncidentQueueProps> = ({ incidents, connected }) =
               </div>
               {expanded && (
                 <div className="iq-detail">
-                  <div className="iq-detail-row"><span className="iq-label">what</span>{inc.description}</div>
-                  <div className="iq-detail-row"><span className="iq-label">where</span>{inc.location.name}</div>
-                  <div className="iq-detail-row"><span className="iq-label">when</span>{fmt(inc.created_at)} ({elapsed(inc.created_at)} ago)</div>
-                  <div className="iq-detail-row"><span className="iq-label">status</span><span style={{ color: st.color }}>{st.label}</span></div>
+                  <div className="iq-detail-row"><span className="iq-label">id</span><span className="iq-value">#{inc.id}</span></div>
+                  <div className="iq-detail-row"><span className="iq-label">what</span><span className="iq-value">{inc.description}</span></div>
+                  <div className="iq-detail-row"><span className="iq-label">where</span><span className="iq-value">{inc.location.name} ({inc.location.x}, {inc.location.y})</span></div>
+                  <div className="iq-detail-row"><span className="iq-label">when</span><span className="iq-value">{fmt(inc.created_at)} ({elapsed(inc.created_at)} ago)</span></div>
+                  <div className="iq-detail-row"><span className="iq-label">status</span><span className="iq-value" style={{ color: st.color }}>{st.label}</span></div>
                   {inc.assigned_to && inc.assigned_to !== 'ai-pending' ? (
                     <div className="iq-detail-row"><span className="iq-label">drone</span>{inc.assigned_to} (deployed {fmt(inc.updated_at)})</div>
                   ) : (
                     <div className="iq-detail-row"><span className="iq-label">drone</span><span style={{ color: '#484f58' }}>none assigned</span></div>
                   )}
                   <div className="iq-detail-row"><span className="iq-label">ai</span>
-                    {realStatus === 'new' ? <span style={{ color: '#58a6ff' }}>waiting for AI</span>
+                    {isResolved ? <span style={{ color: '#484f58' }}>resolved{inc.assigned_to ? ` (${inc.assigned_to})` : ''}</span>
+                    : realStatus === 'new' ? <span style={{ color: '#58a6ff' }}>waiting for AI</span>
                     : realStatus === 'ai-pending' ? <span style={{ color: '#bc8cff' }}>AI responded, no drone assigned yet</span>
                     : inc.assigned_to && inc.assigned_to !== 'ai-pending' ? <span style={{ color: '#3fb950' }}>dispatched {inc.assigned_to}</span>
                     : <span style={{ color: '#484f58' }}>pending</span>}

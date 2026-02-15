@@ -115,15 +115,22 @@ def set_position_mode() -> dict:
 # Position control
 # ---------------------------------------------------------------------------
 
-def set_position(x: float, y: float, z: float, yaw: float = 0.0) -> dict:
+def set_position(x: float, y: float, z: float, yaw: float = None) -> dict:
     """Set target position in NED frame.
 
     Args:
         x:   Meters north of home (positive = north)
         y:   Meters east of home  (positive = east)
         z:   Altitude -- use NEGATIVE values to go UP (e.g. -10 = 10m above home)
-        yaw: Heading in radians (0 = north, pi/2 = east)
+        yaw: Heading in radians (0 = north, pi/2 = east). If None, keeps current heading.
     """
+    if yaw is None:
+        # Keep current heading to avoid spin on takeoff
+        try:
+            state = get_state()
+            yaw = state.get("local_yaw", 0.0)
+        except Exception:
+            yaw = 0.0
     ros = get_ros()
     svc = roslibpy.Service(
         ros, f"/{_drone_name}/set_position", "drone_interfaces/srv/SetPosition"
