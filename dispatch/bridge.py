@@ -51,154 +51,64 @@ class DispatchBridge:
         print(f"[bridge] {msg}")
 
     async def send_to_ai(self, message: str, on_text=None) -> str | None:
-        """Send a message to AI via OpenClaw gateway WebSocket (full protocol).
+        """Send a message to AI via OpenClaw HTTP Chat Completions API.
         
-        on_text: optional async callback(text_chunk) called when assistant text streams in.
+        Uses streaming to process status tags in real-time via on_text callback.
         """
-        import websockets
-
         token = _load_gateway_token()
-        auth_obj = {"token": token} if token else None
+        gateway_http = GATEWAY_WS.replace("ws://", "http://").replace("wss://", "https://")
+        url = f"{gateway_http}/v1/chat/completions"
+
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        body = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": message}],
+            "stream": bool(on_text),
+        }
 
         try:
-            async with websockets.connect(GATEWAY_WS, max_size=8 * 1024 * 1024) as ws:
-                # 0) Wait for connect.challenge from gateway
-                raw = await asyncio.wait_for(ws.recv(), timeout=5)
-                challenge = json.loads(raw)
-                if challenge.get("event") != "connect.challenge":
-                    self.log(f"Expected challenge, got: {challenge}")
-                    return None
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=body, headers=headers, timeout=aiohttp.ClientTimeout(total=300)) as resp:
+                    if resp.status != 200:
+                        error_text = await resp.text()
+                        self.log(f"HTTP API error {resp.status}: {error_text[:200]}")
+                        return None
 
-                # 1) Connect
-                connect_id = f"connect-{int(time.time() * 1000)}"
-                await ws.send(json.dumps({
-                    "type": "req",
-                    "id": connect_id,
-                    "method": "connect",
-                    "params": {
-                        "minProtocol": 3,
-                        "maxProtocol": 3,
-                        "client": {
-                            "id": "cli",
-                            "version": "1.0.0",
-                            "platform": "linux",
-                            "mode": "cli",
-                        },
-                        "auth": auth_obj,
-                    },
-                }))
-
-                # Wait for connect response
-                deadline = time.time() + 8
-                while time.time() < deadline:
-                    raw = await asyncio.wait_for(ws.recv(), timeout=8)
-                    frame = json.loads(raw)
-                    if frame.get("type") == "res" and frame.get("id") == connect_id:
-                        if not frame.get("ok"):
-                            self.log(f"Gateway connect failed: {frame}")
-                            return None
-                        break
-
-                # 2) Send agent request
-                run_id_str = f"agent-{int(time.time() * 1000)}"
-                params = {
-                    "message": message,
-                    "idempotencyKey": f"dispatch-{int(time.time() * 1000)}",
-                }
-                if self.session_mode == "isolated":
-                    params["sessionKey"] = f"dispatch-{int(time.time())}"
-                    params["deliver"] = False  # Don't announce isolated dispatch sessions
-                else:
-                    params["sessionKey"] = "main"
-                    params["deliver"] = False
-
-                await ws.send(json.dumps({
-                    "type": "req",
-                    "id": run_id_str,
-                    "method": "agent",
-                    "params": params,
-                }))
-
-                # Wait for accepted + get runId
-                run_id = None
-                deadline = time.time() + 10
-                while time.time() < deadline:
-                    raw = await asyncio.wait_for(ws.recv(), timeout=10)
-                    frame = json.loads(raw)
-                    if frame.get("type") == "res" and frame.get("id") == run_id_str:
-                        if not frame.get("ok"):
-                            self.log(f"Agent request failed: {frame}")
-                            return None
-                        run_id = (frame.get("payload") or {}).get("runId")
-                        break
-
-                if not run_id:
-                    self.log("No runId from gateway")
-                    return None
-
-                # 3) Wait for lifecycle end, process streamed text in real-time
-                accumulated_text = []
-                deadline = time.time() + 300
-                while time.time() < deadline:
-                    raw = await asyncio.wait_for(ws.recv(), timeout=300)
-                    evt = json.loads(raw)
-                    if evt.get("type") != "event" or evt.get("event") != "agent":
-                        continue
-                    p = evt.get("payload") or {}
-                    if p.get("runId") != run_id:
-                        continue
-                    
-                    stream = p.get("stream")
-                    data = p.get("data") or {}
-                    
-                    # Process assistant text stream in real-time
-                    if stream == "assistant" and isinstance(data, dict):
-                        text = data.get("text", "")
-                        if text and on_text:
-                            accumulated_text.append(text)
+                    if on_text:
+                        # Streaming mode — parse SSE chunks
+                        accumulated = []
+                        async for line in resp.content:
+                            line = line.decode("utf-8").strip()
+                            if not line.startswith("data: "):
+                                continue
+                            data_str = line[6:]
+                            if data_str == "[DONE]":
+                                break
                             try:
-                                await on_text("".join(accumulated_text))
-                            except Exception as e:
-                                self.log(f"on_text callback error: {e}")
-                    
-                    # Check for lifecycle end
-                    if stream == "lifecycle" and isinstance(data, dict):
-                        if data.get("phase") == "error":
-                            self.log(f"AI run error: {data}")
-                            return None
-                        if data.get("phase") == "end":
-                            break
-
-                # 4) Fetch last assistant reply (full text)
-                hist_id = f"hist-{int(time.time() * 1000)}"
-                await ws.send(json.dumps({
-                    "type": "req",
-                    "id": hist_id,
-                    "method": "chat.history",
-                    "params": {"sessionKey": params["sessionKey"], "limit": 5},
-                }))
-
-                deadline = time.time() + 10
-                while time.time() < deadline:
-                    raw = await asyncio.wait_for(ws.recv(), timeout=10)
-                    frame = json.loads(raw)
-                    if frame.get("type") == "res" and frame.get("id") == hist_id:
-                        if frame.get("ok"):
-                            messages = (frame.get("payload") or {}).get("messages", [])
-                            for m in reversed(messages):
-                                if m.get("role") == "assistant":
-                                    content = m.get("content")
-                                    if isinstance(content, str):
-                                        return content
-                                    if isinstance(content, list):
-                                        texts = [p["text"] for p in content if isinstance(p, dict) and p.get("type") == "text"]
-                                        return "".join(texts)
-                        break
-
-                return None
+                                chunk = json.loads(data_str)
+                                delta = (chunk.get("choices", [{}])[0].get("delta", {}).get("content", ""))
+                                if delta:
+                                    accumulated.append(delta)
+                                    try:
+                                        await on_text("".join(accumulated))
+                                    except Exception as e:
+                                        self.log(f"on_text callback error: {e}")
+                            except json.JSONDecodeError:
+                                continue
+                        return "".join(accumulated) if accumulated else None
+                    else:
+                        # Non-streaming mode
+                        result = await resp.json()
+                        choices = result.get("choices", [])
+                        if choices:
+                            return choices[0].get("message", {}).get("content", "")
+                        return None
 
         except Exception as e:
-            self.log(f"Gateway error: {e}")
+            self.log(f"Gateway HTTP error: {e}")
             return None
 
     async def update_incident(self, incident_id: str, status: str, assigned_to: str = None):
@@ -510,7 +420,11 @@ print(json.dumps(drones))
                     self.seen_incidents.add(inc["id"])
                     task = asyncio.create_task(self.process_incident(inc))
                     self.active_tasks.add(task)
-                    task.add_done_callback(self.active_tasks.discard)
+                    def _on_done(t, iid=inc["id"]):
+                        self.active_tasks.discard(t)
+                        if t.exception():
+                            print(f"[bridge] TASK ERROR for {iid}: {t.exception()}")
+                    task.add_done_callback(_on_done)
             await asyncio.sleep(POLL_INTERVAL)
 
     def stop(self):

@@ -4,28 +4,26 @@ const path = require('path');
 
 const app = express();
 
-// Proxy API requests to openclaw_proxy (v2 syntax)
-app.use('/api/openclaw', createProxyMiddleware({
+// Proxy API requests — use pathFilter (http-proxy-middleware v3)
+// In Express 5 + HPM v3, app.use() strips the mount path before forwarding.
+// Using app.use('/') with pathFilter preserves the full original URL.
+
+app.use('/', createProxyMiddleware({
   target: 'http://127.0.0.1:3031',
   changeOrigin: true,
-  pathRewrite: {
-    '^/api/openclaw': '/api/openclaw', // Keep the path
-  },
+  pathFilter: '/api/openclaw',
 }));
 
-// Proxy dispatch service API
-app.use('/api/incidents', createProxyMiddleware({
+app.use('/', createProxyMiddleware({
   target: 'http://127.0.0.1:8081',
   changeOrigin: true,
+  pathFilter: ['/api/incidents', '/api/dispatch'],
 }));
-app.use('/api/dispatch', createProxyMiddleware({
-  target: 'http://127.0.0.1:8081',
-  changeOrigin: true,
-}));
-// Proxy bridge control API
-app.use('/api/bridge', createProxyMiddleware({
+
+app.use('/', createProxyMiddleware({
   target: 'http://127.0.0.1:8082',
   changeOrigin: true,
+  pathFilter: '/api/bridge',
 }));
 
 // Serve static production build
