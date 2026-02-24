@@ -1,0 +1,98 @@
+# === VPS Services (Tailscale-only, no public ports) ===
+#
+# Runs the cloud-side services for DroneOS demo:
+# - Frontend (React UI)
+# - OpenClaw proxy (gateway token proxy)
+# - Rosbridge relay (WebSocket proxy to srv01)
+# - Camera proxy (MJPEG relay from srv01)
+# - Dispatch service (911 CAD simulator)
+# - Bridge (dispatch → OpenClaw connector)
+#
+# Usage:
+#   cd /home/ubuntu/drone-os
+#   docker compose -f docker/vps/docker-compose.vps.yml up -d
+#
+
+services:
+  frontend:
+    build:
+      context: ../..
+      dockerfile: docker/dev/frontend.dev.Dockerfile
+    container_name: frontend_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../../web_interface/frontend:/app
+      - /app/node_modules
+    working_dir: /app
+    command: node server.js
+
+  openclaw_proxy:
+    build:
+      context: ../..
+      dockerfile: docker/dev/openclaw_proxy.dev.Dockerfile
+    container_name: openclaw_proxy_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../../web_interface/backend/openclaw_proxy.py:/app/openclaw_proxy.py:ro
+      - /home/ubuntu/.openclaw/openclaw.json:/root/.openclaw/openclaw.json:ro
+      - /home/ubuntu/.openclaw/workspace:/root/.openclaw/workspace:ro
+      - /home/ubuntu/.openclaw/openclaw.json:/home/ubuntu/.openclaw/openclaw.json:ro
+      - /home/ubuntu/.openclaw/workspace:/home/ubuntu/.openclaw/workspace:ro
+    environment:
+      - OPENCLAW_GATEWAY_WS_URL=ws://127.0.0.1:18789
+      - OPENCLAW_PROXY_BIND=0.0.0.0
+      - OPENCLAW_PROXY_PORT=3031
+
+  rosbridge_relay:
+    build:
+      context: ../..
+      dockerfile: docker/dev/rosbridge_relay.dev.Dockerfile
+    container_name: rosbridge_relay_node
+    network_mode: "host"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  camera_proxy:
+    build:
+      context: ../..
+      dockerfile: docker/dev/camera_proxy.dev.Dockerfile
+    container_name: camera_proxy_node
+    network_mode: "host"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  dispatch:
+    build:
+      context: ../..
+      dockerfile: docker/vps/dispatch.Dockerfile
+    container_name: dispatch_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../../dispatch:/app/dispatch
+    working_dir: /app
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: python3 dispatch/dispatch_service.py
+
+  bridge:
+    build:
+      context: ../..
+      dockerfile: docker/vps/bridge.Dockerfile
+    container_name: bridge_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../../dispatch:/app/dispatch
+      - /home/ubuntu/.openclaw/openclaw.json:/root/.openclaw/openclaw.json:ro
+    working_dir: /app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OPENCLAW_GATEWAY_WS_URL=ws://127.0.0.1:18789
+    depends_on:
+      - dispatch
+    command: python3 dispatch/bridge.py
