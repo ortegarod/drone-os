@@ -166,39 +166,63 @@ class DispatchService:
             await asyncio.sleep(delay)
 
     async def _monitor_on_scene(self):
-        """Auto-RTL drones 30s after reaching on_scene (for demo flow)."""
+        """Auto-resolve incidents when the assigned drone arrives at the target.
+        
+        Uses droneos CLI to check drone position. When a dispatched drone
+        is within 15m of the target, marks on_scene. After 30s, sends RTL and resolves.
+        """
         import subprocess
-        # Track when each incident entered on_scene
-        on_scene_times: dict[str, float] = {}
+        import math
+        
+        arrival_times: dict[str, float] = {}
         
         while self._running:
             for inc in list(self.incidents.values()):
-                if inc.status == "on_scene" and inc.assigned_to:
-                    # Record first time we see it on_scene
-                    if inc.id not in on_scene_times:
-                        on_scene_times[inc.id] = time.time()
-                        print(f"[dispatch] ON_SCENE timer started for {inc.id} ({inc.assigned_to}) — auto-RTL in 30s")
+                if inc.status == "resolved" or not inc.assigned_to:
+                    continue
+                
+                drone_name = inc.assigned_to
+                target_x = inc.location.get("x", 0)
+                target_y = inc.location.get("y", 0)
+                
+                try:
+                    result = subprocess.run(
+                        ["droneos", "--drone", drone_name, "--get-state"],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if result.returncode != 0:
+                        continue
+                    state = json.loads(result.stdout)
+                    dx = state.get("local_x", 0) - target_x
+                    dy = state.get("local_y", 0) - target_y
+                    dist = math.sqrt(dx*dx + dy*dy)
+                except Exception:
+                    continue
+                
+                if dist < 15:
+                    if inc.id not in arrival_times:
+                        arrival_times[inc.id] = time.time()
+                        if inc.status == "dispatched":
+                            self.update_incident(inc.id, "on_scene", drone_name)
+                            print(f"[dispatch] ON_SCENE: {inc.id} ({drone_name}) — {dist:.0f}m from target. Auto-RTL in 30s")
                     
-                    # Check if 30s elapsed
-                    elapsed = time.time() - on_scene_times[inc.id]
+                    elapsed = time.time() - arrival_times[inc.id]
                     if elapsed >= 30:
-                        drone_name = inc.assigned_to
                         print(f"[dispatch] AUTO-RESOLVE: {inc.id} ({drone_name}, {elapsed:.0f}s on scene) — sending RTL")
                         self.update_incident(inc.id, "resolved", drone_name)
-                        on_scene_times.pop(inc.id, None)
+                        arrival_times.pop(inc.id, None)
                         
-                        # Issue RTL command (drone can still be rerouted by AI)
                         try:
                             subprocess.run(
-                                ["python3", "/root/ws_droneOS/drone_control.py", "--drone", drone_name, "--rtl"],
+                                ["droneos", "--drone", drone_name, "--rtl"],
                                 capture_output=True, text=True, timeout=10
                             )
+                            print(f"[dispatch] RTL sent to {drone_name}")
                         except Exception as e:
-                            print(f"[dispatch] Auto-RTL command error for {inc.id}: {e}")
-                
-                # Clean up timers for incidents that moved past on_scene
-                elif inc.id in on_scene_times and inc.status != "on_scene":
-                    on_scene_times.pop(inc.id, None)
+                            print(f"[dispatch] Auto-RTL error for {inc.id}: {e}")
+                else:
+                    if inc.id in arrival_times:
+                        arrival_times.pop(inc.id, None)
             
             await asyncio.sleep(5)
 

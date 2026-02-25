@@ -7,19 +7,30 @@
 
 **🚁 Autonomous 911 dispatch system where AI commands drones to respond to emergencies.**
 
-**Demo:** http://207.148.9.142:3000 (Live frontend)  
 **Hackathon:** LaunchFund AI Meets Robotics (Feb 14, 2026)
 
 ### What This Does
 
 When a 911 call comes in:
-1. AI dispatcher receives incident details
-2. Evaluates priority and location
-3. Selects and dispatches available drone autonomously
-4. Monitors flight progress via live camera feed
-5. Updates incident status in real-time
+1. Dispatch service creates incident with type, priority, and location
+2. Bridge detects incident, queries live fleet status (drone positions, battery, availability)
+3. AI fleet commander receives pre-sorted fleet data with distance calculations
+4. AI picks the best drone and sends flight commands directly (set-offboard → arm → set-position)
+5. Dispatch service monitors drone position, marks on_scene when within 15m of target
+6. After 30s on scene, auto-RTL and resolve
 
 **No human pilot needed.** The AI makes decisions and flies the drones.
+
+### Measured Performance (2026-02-25)
+
+| Metric | Measured | Notes |
+|--------|----------|-------|
+| Incident-to-Dispatch | ~10-12s | End-to-end: incident created → drone armed and flying |
+| AI Decision Time | ~3-4s | Fleet data pre-calculated, AI picks and executes in 1 turn |
+| Bridge Detection | ~0.5-1.5s | Polling interval |
+| Drone Command Execution | ~2.5s | 3 commands over Tailscale VPN (~98ms RTT) |
+| VPS ↔ Drone Latency | ~98ms | Tailscale VPN, VPS in US to srv01 |
+| Auto-Resolve Cycle | ~50s | Dispatch → on_scene → 30s hold → RTL → resolved |
 
 ---
 
@@ -30,6 +41,8 @@ When a 911 call comes in:
 
 **Architecture:**
 - `docs/DISPATCH_ARCHITECTURE.md` — How the dispatch system works
+- `skills/fleet-commander/SKILL.md` — Fleet commander AI instructions
+- `skills/pilot/SKILL.md` — Pilot sub-agent instructions (deprecated — fleet commander flies directly now)
 - **`docs/MULTI_DRONE_SETUP.md`** — **Multi-drone setup, adding drones, cameras** ⭐
 - `docs/COORDINATE_FRAMES.md` — Local vs global coordinates
 
@@ -394,60 +407,104 @@ docker compose -f docker/dev/gcs/docker-compose.gcs.yml run --rm -it gcs_cli ros
 - Isolates the CLI from the development environment, making it suitable for both development and production use
 - Simplifies deployment as the container can be run on any machine that needs to control the drones (requires Tailscale VPN for remote access)
 
-## Using drone_control.py (Programmatic Control)
+## Using drone_control.py (Remote / Programmatic Control)
 
-For AI agents or programmatic drone control (e.g., from the VPS command center), use `drone_control.py`:
+`drone_control.py` is a Python library + CLI in the repo root that talks to `drone_core` via **rosbridge** (WebSocket). Unlike `drone_gcs_cli` which uses native ROS2 (`rclpy`) and must run where ROS is installed, `drone_control.py` works from anywhere that can reach rosbridge over the network — including the VPS command center over Tailscale.
 
-```python
-cd /root/ws_droneOS
-python3 -c "
-import drone_control
+**Both tools control the same drones through the same `drone_core` services — they just use different transports:**
+- `drone_gcs_cli` → native ROS2 (rclpy) → requires ROS2 environment → interactive REPL for human operators
+- `drone_control.py` → rosbridge (WebSocket via roslibpy) → works remotely → used by AI agents, dispatch system, and scripts
 
-# Check drone status
-state = drone_control.get_state()
-print(f'Drone position: ({state[\"local_x\"]}, {state[\"local_y\"]}, {state[\"local_z\"]})')
-print(f'Armed: {state[\"arming_state\"]}, Mode: {state[\"nav_state\"]}')
-print(f'Battery: {int(state[\"battery_remaining\"]*100)}%')
+### Connection Config
 
-# Switch to a different drone
-drone_control.set_drone_name('drone2')
-state = drone_control.get_state()
-"
+`drone_control.py` reads connection settings from `.env` in the repo root, with environment variable overrides:
+
+```bash
+# .env
+ROSBRIDGE_HOST=<tailscale-ip>   # drone-dev (srv01) Tailscale IP
+ROSBRIDGE_PORT=9090
 ```
 
-**Available Functions:**
-```python
-# Mode control
-drone_control.set_offboard()      # Enable offboard mode (required before flight)
-drone_control.arm()               # Arm motors
-drone_control.disarm()            # Disarm motors
-drone_control.land()              # Land at current position
-drone_control.return_to_launch()  # RTL mode
+### CLI Usage
 
-# Position control (NED coordinates: X=North, Y=East, Z=Down)
-drone_control.set_position(x, y, z, yaw)  # Z negative = UP (e.g., z=-15 = 15m altitude)
-drone_control.takeoff()                    # Autonomous takeoff
+```bash
+# Fleet overview — scan all drones, show status and availability
+python3 drone_control.py --fleet-status
 
-# State retrieval
-drone_control.get_state()  # Returns full telemetry dict
+# Single drone state (full JSON)
+python3 drone_control.py --drone drone1 --get-state
 
-# Multi-drone
-drone_control.set_drone_name('drone2')  # Switch active drone
-drone_control.get_drone_name()          # Get current target
+# Flight commands
+python3 drone_control.py --drone drone1 --set-offboard
+python3 drone_control.py --drone drone1 --arm
+python3 drone_control.py --drone drone1 --set-position 0 0 -50   # climb to 50m
+python3 drone_control.py --drone drone1 --land
+python3 drone_control.py --drone drone1 --rtl
+python3 drone_control.py --drone drone1 --disarm
 ```
 
-**Flight Sequence:**
+### Python Library Usage
+
 ```python
 import drone_control as dc
 
-dc.set_offboard()        # 1. MUST be first
-dc.arm()                 # 2. Arm motors
-dc.set_position(0, 0, -15, 0)  # 3. Fly to 15m altitude
-# ... mission ...
-dc.land()                # 4. Land
+dc.set_drone_name("drone1")
+state = dc.get_state()
+print(f"Position: ({state['local_x']:.0f}, {state['local_y']:.0f}) Alt: {-state['local_z']:.0f}m")
+print(f"Armed: {state['arming_state']}, Battery: {state['battery_remaining']*100:.0f}%")
+
+# Flight sequence
+dc.set_offboard()               # 1. Enter offboard mode
+dc.arm()                        # 2. Arm motors
+dc.set_position(0, 0, -50, 0)  # 3. Climb to 50m (z negative = up)
+dc.set_position(80, -40, -50)  # 4. Fly to target
+dc.land()                       # 5. Land
 ```
 
-**Note**: `drone_control.py` and `drone_gcs_cli` both use the same underlying `drone_core` ROS services via rosbridge. The CLI is for human operators, `drone_control.py` is for code/agents.
+### Available Functions
+
+| Function | Description |
+|----------|-------------|
+| `set_drone_name(name)` | Target a drone (e.g., "drone1") |
+| `get_drone_name()` | Get current target |
+| `get_state()` | Full telemetry: position, arming, battery, nav mode |
+| `set_offboard()` | Enter offboard mode (required before position control) |
+| `set_position_mode()` | Switch to manual position-hold mode |
+| `arm()` / `disarm()` | Arm/disarm motors |
+| `takeoff()` | Autonomous takeoff |
+| `set_position(x, y, z, yaw)` | Fly to position (NED: z negative = up) |
+| `land()` | Land at current position |
+| `return_to_launch()` | Return to home and land |
+| `flight_termination()` | **EMERGENCY** — immediate motor cutoff |
+| `upload_mission(waypoints)` | Upload waypoint mission |
+| `mission_control(command)` | START, PAUSE, RESUME, STOP, CLEAR, GOTO_ITEM |
+| `get_mission_status()` | Mission progress |
+
+### MCP Server (AI Tool Interface)
+
+`scripts/drone_mcp_server.py` wraps `drone_control.py` as an MCP (Model Context Protocol) tool server. Instead of CLI commands or Python imports, AI agents see native tool calls:
+
+```
+arm()                          → arm the drone
+get_state()                    → full telemetry
+set_position(x, y, z, yaw)    → fly to position
+set_target_drone("drone2")     → switch drone
+get_fleet_status()             → scan all drones
+...
+```
+
+Config: `.mcp.json` in repo root (Claude Code format). For OpenClaw, register via mcporter:
+
+```bash
+npm i -g mcporter
+mcporter config add drone-control --command '/path/to/uv run /path/to/drone-os/scripts/drone_mcp_server.py'
+mcporter list drone-control --schema   # verify 15 tools show up
+mcporter call drone-control.get_state()  # test a call
+```
+
+**Relationship:** `drone_mcp_server.py` imports `drone_control.py` as a library — it's a thin wrapper that exposes the same functions as MCP tools. No duplicate logic.
+
+**Note:** The MCP server is not used by OpenClaw's current dispatch setup (which uses the CLI directly). It exists for compatibility with Claude Code (`.mcp.json`) and mcporter, and can be wired into other AI tools that support MCP.
 
 ### Example: Running on a Real Drone (Raspberry Pi)
 
@@ -572,13 +629,28 @@ ssh rodrigo@<tailscale-ip> 'pkill -f ros_gz_bridge'
 
 ### AI Agent Integration
 
-The frontend includes a built-in AI chat interface (right panel) connected to the OpenClaw agent (Ada). Same session as Telegram — messages from either surface reach the same agent.
+The frontend includes a built-in AI chat interface (right panel) connected to the OpenClaw agent (Ada). Same session as Matrix — messages from either surface reach the same agent.
 
 **Pipeline:** Frontend `:3000` → `server.js` proxy → `openclaw_proxy :3031` → Gateway WS `:18789`
 
 - `openclaw_proxy.py` — Backend proxy that hides the gateway token from the browser
-- Session: `main` (shared with Telegram)
+- Session: `main` (shared with Matrix)
 - Camera feeds: PiP overlay shows non-selected drone, click to switch
+
+### `droneos` CLI
+
+`droneos` is a standalone CLI wrapper around `drone_control.py`, installed at `/usr/local/bin/droneos`. It's the primary interface used by the AI fleet commander and the dispatch services inside Docker containers.
+
+```bash
+droneos --fleet-status                              # Scan all drones
+droneos --drone drone1 --get-state                  # Full JSON state
+droneos --drone drone1 --set-offboard               # Enter offboard mode
+droneos --drone drone1 --arm                        # Arm motors
+droneos --drone drone1 --set-position 60 -60 -50    # Fly to position
+droneos --drone drone1 --rtl                        # Return to launch
+```
+
+**Docker containers** mount `droneos` as a read-only volume (`/usr/local/bin/droneos:/usr/local/bin/droneos:ro`) so both the dispatch service and bridge can query drone state and send commands without needing roslibpy or drone_control.py inside the container.
 
 ### Quick Reference
 

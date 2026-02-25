@@ -74,6 +74,7 @@ services:
     restart: unless-stopped
     volumes:
       - ../../dispatch:/app/dispatch
+      - /usr/local/bin/droneos:/usr/local/bin/droneos:ro
     working_dir: /app
     environment:
       - PYTHONUNBUFFERED=1
@@ -88,6 +89,7 @@ services:
     restart: unless-stopped
     volumes:
       - ../../dispatch:/app/dispatch
+      - /usr/local/bin/droneos:/usr/local/bin/droneos:ro
       - /home/ubuntu/.openclaw/openclaw.json:/root/.openclaw/openclaw.json:ro
     working_dir: /app
     environment:

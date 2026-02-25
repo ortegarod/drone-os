@@ -4,6 +4,12 @@
 """Drone Control MCP Server -- wraps drone_control as MCP tools for Claude."""
 
 import json
+import os
+import sys
+
+# Ensure drone_control.py (repo root) is importable
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 from mcp.server.fastmcp import FastMCP
 import drone_control
 

@@ -4,10 +4,10 @@
       "command": "uv",
       "args": [
         "run",
-        "drone_mcp_server.py"
+        "scripts/drone_mcp_server.py"
       ],
       "env": {
-        "ROSBRIDGE_HOST": "localhost"
+        "ROSBRIDGE_HOST": "<tailscale-ip>"
       }
     }
   }

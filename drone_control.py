@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 DroneOS Drone Control Library
 
@@ -16,8 +17,29 @@ import roslibpy
 # Configuration
 # ---------------------------------------------------------------------------
 
-ROSBRIDGE_HOST = os.environ.get("ROSBRIDGE_HOST", "localhost")
-ROSBRIDGE_PORT = int(os.environ.get("ROSBRIDGE_PORT", "9090"))
+def _load_config() -> dict:
+    """Load config from .env file in repo root, then environment overrides."""
+    config = {"ROSBRIDGE_HOST": "localhost", "ROSBRIDGE_PORT": "9090"}
+    # Read .env from same directory as this script
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, _, value = line.partition("=")
+                    config[key.strip()] = value.strip().strip('"').strip("'")
+    # Env vars override .env file
+    for key in config:
+        if key in os.environ:
+            config[key] = os.environ[key]
+    return config
+
+_config = _load_config()
+ROSBRIDGE_HOST = _config["ROSBRIDGE_HOST"]
+ROSBRIDGE_PORT = int(_config["ROSBRIDGE_PORT"])
 
 _ros: roslibpy.Ros | None = None
 _drone_name: str = os.environ.get("DRONE_NAME", "drone1")
@@ -276,6 +298,7 @@ if __name__ == "__main__":
     parser.add_argument("--set-position", nargs='+', metavar='N',
                         help="Set position: X Y Z [YAW] - z is NEGATIVE for up (e.g. -15 = 15m altitude)")
     parser.add_argument("--get-state", action="store_true", help="Get full state (JSON)")
+    parser.add_argument("--fleet-status", action="store_true", help="Scan all drones and print fleet summary")
     
     args = parser.parse_args()
 
@@ -331,6 +354,61 @@ if __name__ == "__main__":
         import json
         state = get_state()
         print(json.dumps(state, indent=2))
+        executed = True
+
+    if args.fleet_status:
+        import math
+        print("FLEET STATUS")
+        print("=" * 70)
+        found = 0
+        for i in range(1, 6):
+            name = f"drone{i}"
+            try:
+                set_drone_name(name)
+                s = get_state()
+                if not s.get("nav_state") or s["nav_state"] == "UNKNOWN":
+                    continue
+                found += 1
+                armed = s.get("arming_state", "UNKNOWN")
+                nav = (s.get("nav_state") or "").upper()
+                x, y, z = s.get("local_x", 0), s.get("local_y", 0), s.get("local_z", 0)
+                alt = -z
+                bat = s.get("battery_remaining", 0) * 100
+                can_arm = s.get("can_arm", False)
+                dist_home = math.sqrt(x**2 + y**2)
+
+                # Derive status
+                if "LAND" in nav:
+                    status = "LANDING"
+                    avail = "no"
+                elif "RTL" in nav or "RETURN" in nav:
+                    status = "RETURNING"
+                    avail = "yes (reroutable)"
+                elif "TAKEOFF" in nav:
+                    status = "TAKEOFF"
+                    avail = "no"
+                elif armed == "ARMED" and alt > 1.0:
+                    status = "IN FLIGHT"
+                    avail = "no"
+                elif armed == "ARMED":
+                    status = "ARMED"
+                    avail = "no"
+                else:
+                    # Drone is responding and DISARMED — it's ready.
+                    # can_arm is unreliable in SITL (PX4 reports False due to
+                    # "GCS connection lost" but drones still arm fine).
+                    status = "READY"
+                    avail = "yes"
+
+                if bat < 30:
+                    avail = "no (low battery)"
+
+                print(f"  {name}: {status} | pos=({x:.0f}, {y:.0f}) alt={alt:.0f}m | bat={bat:.0f}% | home={dist_home:.0f}m | available={avail}")
+            except Exception as e:
+                pass
+        if found == 0:
+            print("  No drones responding")
+        print()
         executed = True
 
     # If no command given, show status (legacy behavior)
