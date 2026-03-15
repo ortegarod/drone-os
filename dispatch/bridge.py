@@ -10,8 +10,27 @@ import asyncio
 import json
 import os
 import time
+import logging
 import aiohttp
 from aiohttp import web
+
+# --- Dispatch logger (end-to-end tracing) ---
+DISPATCH_LOG = os.environ.get("DISPATCH_LOG", os.path.join(os.path.dirname(os.path.abspath(__file__)), "dispatch.log"))
+dispatch_logger = logging.getLogger("dispatch_trace")
+dispatch_logger.setLevel(logging.DEBUG)
+_fh = logging.FileHandler(DISPATCH_LOG, mode='a')
+_fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+dispatch_logger.addHandler(_fh)
+_sh = logging.StreamHandler()
+_sh.setFormatter(logging.Formatter("%(asctime)s [DISPATCH] %(message)s"))
+dispatch_logger.addHandler(_sh)
+
+# --- Prompt template (loaded from file, editable without code changes) ---
+PROMPT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dispatch-prompt.md")
+
+def load_prompt_template():
+    with open(PROMPT_FILE, "r") as f:
+        return f.read()
 
 # --- Config (all overridable via env vars) ---
 DISPATCH_API = os.environ.get("DISPATCH_API_URL", "http://localhost:8081")
@@ -64,7 +83,7 @@ class DispatchBridge:
         gateway_http = GATEWAY_WS.replace("ws://", "http://").replace("wss://", "https://")
         url = f"{gateway_http}/v1/chat/completions"
 
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", "x-openclaw-session-key": "fleet-commander"}
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
@@ -114,6 +133,7 @@ class DispatchBridge:
 
         except Exception as e:
             self.log(f"Gateway HTTP error: {e}")
+            dispatch_logger.error(f"Gateway HTTP error: {e}")
             return None
 
     async def update_incident(self, incident_id: str, status: str, assigned_to: str = None):
@@ -237,19 +257,24 @@ class DispatchBridge:
         available = [(dist, name) for dist, name, _ in drones if "AVAILABLE" in _]
         if available:
             best = available[0]
-            lines.append(f"\n  → RECOMMENDED: {best[1]} ({best[0]:.0f}m from target)")
+            lines.append(f"\n  → CLOSEST AVAILABLE: {best[1]} ({best[0]:.0f}m from target)")
 
         return "\n".join(lines)
 
     async def process_incident(self, incident: dict):
         """Send incident to fleet commander for decision + delegation to pilot sub-agent."""
         inc_id = incident["id"]
+        dispatch_logger.info(f"===== INCIDENT {inc_id} START =====")
+        dispatch_logger.info(f"INCIDENT CREATED: id={inc_id} type={incident.get('type')} priority={incident.get('priority')} location={incident.get('location')}")
 
         # Gather context — pass target coords for distance calculation + sorting
         target_x = incident['location']['x']
         target_y = incident['location']['y']
+        dispatch_logger.info(f"[{inc_id}] Querying fleet status (target={target_x},{target_y})...")
         fleet_status = await asyncio.to_thread(self.get_fleet_state_sync, target_x, target_y)
+        dispatch_logger.info(f"[{inc_id}] Fleet status:\n{fleet_status}")
         all_incidents = await self.get_active_incidents()
+        dispatch_logger.info(f"[{inc_id}] Active incidents: {len(all_incidents)}")
 
         incident_lines = []
         for inc in all_incidents:
@@ -266,33 +291,17 @@ class DispatchBridge:
 
         active_ctx = "\n".join(incident_lines) if incident_lines else "  None"
 
-        message = (
-            f"DISPATCH ALERT — NEW INCIDENT\n"
-            f"  ID: {inc_id}\n"
-            f"  Type: {incident['type']} (Priority {incident['priority']})\n"
-            f"  Description: {incident['description']}\n"
-            f"  Location: {incident['location']['name']} (x={target_x}, y={target_y})\n"
-            f"\n"
-            f"FLEET STATUS (live):\n{fleet_status}\n"
-            f"\n"
-            f"OTHER ACTIVE INCIDENTS:\n{active_ctx}\n"
-            f"\n"
-            f"=== INSTRUCTIONS ===\n"
-            f"You are the fleet commander. Act FAST — no unnecessary tool calls.\n"
-            f"\n"
-            f"Fleet status above is LIVE and sorted by distance to target. The RECOMMENDED drone is the best choice.\n"
-            f"Trust the data — do NOT re-query fleet status.\n"
-            f"\n"
-            f"STEP 1: Pick the RECOMMENDED drone (or override if you have a good reason — e.g. P1 reroute).\n"
-            f"\n"
-            f"STEP 2: Run this ONE exec call (replace DRONE_NAME):\n"
-            f"  /usr/local/bin/droneos --drone DRONE_NAME --set-offboard && /usr/local/bin/droneos --drone DRONE_NAME --arm && /usr/local/bin/droneos --drone DRONE_NAME --set-position {target_x} {target_y} -50\n"
-            f"  Do NOT poll, monitor, or wait. The dispatch service handles arrival and RTL.\n"
-            f"\n"
-            f"STEP 3: Include DISPATCHED:droneX in your response.\n"
-            f"  If no drones available: NO_AVAILABLE_DRONES\n"
-            f"\n"
-            f"ONE turn only: pick → exec → DISPATCHED.\n"
+        prompt_template = load_prompt_template()
+        message = prompt_template.format(
+            inc_id=inc_id,
+            inc_type=incident['type'],
+            priority=incident['priority'],
+            description=incident['description'],
+            location_name=incident['location']['name'],
+            target_x=target_x,
+            target_y=target_y,
+            fleet_status=fleet_status,
+            active_ctx=active_ctx,
         )
 
         # Track status updates
@@ -315,10 +324,15 @@ class DispatchBridge:
             if dispatched_match and "dispatched" not in applied_statuses:
                 applied_statuses.add("dispatched")
                 self.reserved_drones.add(drone_name)
+                dispatch_logger.info(f"[{inc_id}] DISPATCHED (streaming): {drone_name}")
                 await self.update_incident(inc_id, "dispatched", drone_name)
                 await self.unassign_drone_from_other_incidents(drone_name, inc_id)
 
+        dispatch_logger.info(f"[{inc_id}] Sending to OpenClaw AI...")
+        dispatch_logger.debug(f"[{inc_id}] Full prompt:\n{message}")
         response = await self.send_to_ai(message, on_text=on_streaming_text)
+        dispatch_logger.info(f"[{inc_id}] AI response received: {len(response) if response else 0} chars")
+        dispatch_logger.info(f"[{inc_id}] Full AI response:\n{response}")
 
         if response:
             import re
@@ -338,13 +352,43 @@ class DispatchBridge:
                 self.reserved_drones.add(drone_name)
                 await self.update_incident(inc_id, "dispatched", drone_name)
                 await self.unassign_drone_from_other_incidents(drone_name, inc_id)
+                dispatch_logger.info(f"[{inc_id}] DISPATCHED: {drone_name} (final pass)")
+
+            # Post-dispatch verification — confirm drone is actually flying
+            if drone_name:
+                try:
+                    import subprocess as _sp
+                    verify = await asyncio.to_thread(
+                        lambda: _sp.run(["droneos", "--drone", drone_name, "--get-state"],
+                                       capture_output=True, text=True, timeout=5)
+                    )
+                    if verify.returncode == 0:
+                        import json as _json
+                        st = _json.loads(verify.stdout)
+                        armed = st.get("arming_state", "?")
+                        nav = st.get("nav_state", "?")
+                        alt = -st.get("local_z", 0)
+                        x, y = st.get("local_x", 0), st.get("local_y", 0)
+                        dispatch_logger.info(
+                            f"[{inc_id}] VERIFY: {drone_name} armed={armed} nav={nav} "
+                            f"pos=({x:.0f},{y:.0f}) alt={alt:.0f}m"
+                        )
+                    else:
+                        dispatch_logger.warning(f"[{inc_id}] VERIFY FAILED: {verify.stderr[:100]}")
+                except Exception as e:
+                    dispatch_logger.warning(f"[{inc_id}] VERIFY ERROR: {e}")
+
             if not drone_name:
                 self.log(f"No drone assigned for {inc_id}")
+                dispatch_logger.warning(f"[{inc_id}] NO DRONE ASSIGNED — AI did not return DISPATCHED:droneX")
         else:
             self.log(f"No AI response for {inc_id}")
+            dispatch_logger.error(f"[{inc_id}] NO AI RESPONSE — OpenClaw returned nothing")
 
         if current_drone[0] and current_drone[0] in self.reserved_drones:
             self.reserved_drones.discard(current_drone[0])
+
+        dispatch_logger.info(f"===== INCIDENT {inc_id} END =====")
 
     async def poll_loop(self):
         """Main loop: poll for new incidents and send to AI."""

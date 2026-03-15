@@ -30,11 +30,7 @@ const ActivityFeed: React.FC = () => {
     <div className="af-root">
       <div className="af-header">
         <span className="af-title">AI LOG</span>
-        {status?.session_mode && (
-          <span className="af-session-mode">
-            {status.session_mode === 'isolated' ? 'ISOLATED' : 'MAIN'}
-          </span>
-        )}
+        <span className="af-session-mode">FLEET COMMANDER</span>
       </div>
       <div className="af-feed">
         {(!status?.activity_log || status.activity_log.length === 0) && (
