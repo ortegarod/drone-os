@@ -1,5 +1,7 @@
 log
 logs/*
+*.log
+dispatch/incidents.db
 build/*
 install/*
 docker/dev/build/*
@@ -28,4 +30,7 @@ __pycache__/
 *$py.class
 
 # Internal planning docs (no longer excluded - cleaned for public)
-CLAUDE.md
+CLAUDE.md*.log
+web_interface/frontend/dist/
+ROADMAP.md
+infra/
