@@ -8,20 +8,138 @@ simple HTTP endpoint:
 
 POST /api/openclaw/chat { message, session_key? } -> { ok, text, sessionKey }
 
-Based on OpenClaw gateway WS methods: connect + chat.send + chat events.
+Based on OpenClaw gateway WS protocol v3:
+  - Ed25519 device identity (keypair generated + persisted on first run)
+  - Challenge-response nonce signing
+  - Operator role with read/write scopes
 """
 
 import asyncio
+import base64
+import hashlib
 import json
 import os
 import time
 from typing import Any, Dict, Optional
 
 import websockets
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+    PublicFormat,
+)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+
+# ---------------------------------------------------------------------------
+# Device identity helpers (mirrors OpenClaw's device-identity.ts)
+# ---------------------------------------------------------------------------
+
+DEVICE_IDENTITY_PATH = os.environ.get(
+    "DEVICE_IDENTITY_PATH",
+    os.path.expanduser("~/.openclaw/identity/droneos-proxy.json"),
+)
+
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def _generate_identity() -> dict:
+    """Generate a new Ed25519 keypair and derive deviceId."""
+    private_key = Ed25519PrivateKey.generate()
+    public_key = private_key.public_key()
+    public_pem = public_key.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode()
+    private_pem = private_key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode()
+    raw_public = public_key.public_bytes(Encoding.Raw, PublicFormat.Raw)
+    device_id = hashlib.sha256(raw_public).hexdigest()
+    return {
+        "version": 1,
+        "deviceId": device_id,
+        "publicKeyPem": public_pem,
+        "privateKeyPem": private_pem,
+    }
+
+
+def _load_or_create_identity(path: str = DEVICE_IDENTITY_PATH) -> dict:
+    """Load existing identity or create and persist a new one."""
+    try:
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                data = json.load(f)
+            if data.get("version") == 1 and data.get("deviceId") and data.get("privateKeyPem"):
+                return data
+    except Exception:
+        pass
+    identity = _generate_identity()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(identity, f, indent=2)
+    os.chmod(path, 0o600)
+    return identity
+
+
+def _sign_payload(private_key_pem: str, payload: str) -> str:
+    """Sign a UTF-8 payload with Ed25519 and return base64url signature."""
+    from cryptography.hazmat.primitives.serialization import load_pem_private_key
+    key = load_pem_private_key(private_key_pem.encode(), password=None)
+    signature = key.sign(payload.encode())
+    return _b64url_encode(signature)
+
+
+def _public_key_raw_b64url(public_key_pem: str) -> str:
+    """Extract raw 32-byte Ed25519 public key and return as base64url."""
+    from cryptography.hazmat.primitives.serialization import load_pem_public_key
+    pub = load_pem_public_key(public_key_pem.encode())
+    raw = pub.public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return _b64url_encode(raw)
+
+
+def _build_device_auth_payload(
+    device_id: str,
+    client_id: str,
+    client_mode: str,
+    role: str,
+    scopes: list,
+    signed_at_ms: int,
+    token: str,
+    nonce: str,
+) -> str:
+    """Build the v2 device auth payload string (matches OpenClaw's buildDeviceAuthPayload)."""
+    parts = [
+        "v2",
+        device_id,
+        client_id,
+        client_mode,
+        role,
+        ",".join(scopes),
+        str(signed_at_ms),
+        token or "",
+        nonce or "",
+    ]
+    return "|".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Lazy-load identity once at module level
+# ---------------------------------------------------------------------------
+_identity: Optional[dict] = None
+
+
+def _get_identity() -> dict:
+    global _identity
+    if _identity is None:
+        _identity = _load_or_create_identity()
+    return _identity
+
+
+# ---------------------------------------------------------------------------
+# Config / models
+# ---------------------------------------------------------------------------
 
 class OpenClawCommand(BaseModel):
     message: str
@@ -29,7 +147,6 @@ class OpenClawCommand(BaseModel):
 
 
 def _load_gateway_token() -> Optional[str]:
-    # Prefer reading the local OpenClaw config (authoritative for this host).
     try:
         cfg_path = os.path.expanduser("~/.openclaw/openclaw.json")
         with open(cfg_path, "r", encoding="utf-8") as f:
@@ -39,22 +156,60 @@ def _load_gateway_token() -> Optional[str]:
             return t.strip()
     except Exception:
         pass
-
-    # Fallback: explicit env override.
     tok = os.environ.get("OPENCLAW_GATEWAY_TOKEN")
     return tok.strip() if isinstance(tok, str) and tok.strip() else None
 
 
+# ---------------------------------------------------------------------------
+# Core chat function
+# ---------------------------------------------------------------------------
+
 async def openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict[str, Any]:
-    # Use an isolated session by default so the web UI doesn't pollute the main chat transcript.
     if not session_key:
         session_key = "hook:webui"
     gateway_ws_url = os.environ.get("OPENCLAW_GATEWAY_WS_URL", "ws://127.0.0.1:18789")
     token = _load_gateway_token()
     auth_obj = {"token": token} if token else None
+    identity = _get_identity()
+    role = "operator"
+    scopes = ["operator.read", "operator.write"]
+    client_id = "cli"
+    client_mode = "cli"
 
     async with websockets.connect(gateway_ws_url, max_size=8 * 1024 * 1024) as ws:
-        # 1) connect
+        # 1) Wait for the connect.challenge event
+        nonce = None
+        challenge_deadline = time.time() + 5
+        while time.time() < challenge_deadline:
+            raw = await asyncio.wait_for(ws.recv(), timeout=5)
+            evt = json.loads(raw)
+            if evt.get("type") == "event" and evt.get("event") == "connect.challenge":
+                nonce = (evt.get("payload") or {}).get("nonce", "")
+                break
+
+        # 2) Build device identity with signed challenge
+        signed_at_ms = int(time.time() * 1000)
+        payload_str = _build_device_auth_payload(
+            device_id=identity["deviceId"],
+            client_id=client_id,
+            client_mode=client_mode,
+            role=role,
+            scopes=scopes,
+            signed_at_ms=signed_at_ms,
+            token=token or "",
+            nonce=nonce or "",
+        )
+        signature = _sign_payload(identity["privateKeyPem"], payload_str)
+
+        device_obj = {
+            "id": identity["deviceId"],
+            "publicKey": _public_key_raw_b64url(identity["publicKeyPem"]),
+            "signature": signature,
+            "signedAt": signed_at_ms,
+            "nonce": nonce or "",
+        }
+
+        # 3) Send connect request
         connect_id = f"connect-{int(time.time() * 1000)}"
         await ws.send(
             json.dumps(
@@ -66,19 +221,22 @@ async def openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict
                         "minProtocol": 3,
                         "maxProtocol": 3,
                         "client": {
-                            "id": "cli",
+                            "id": client_id,
                             "displayName": "DroneOS OpenClaw Proxy",
                             "version": "dev",
-                            "platform": "backend",
-                            "mode": "cli",
+                            "platform": "linux",
+                            "mode": client_mode,
                         },
+                        "role": role,
+                        "scopes": scopes,
                         "auth": auth_obj,
+                        "device": device_obj,
                     },
                 }
             )
         )
 
-        # The gateway may emit a pre-connect challenge event first.
+        # Wait for connect response
         connect_deadline = time.time() + 8
         msg = None
         while time.time() < connect_deadline:
@@ -87,11 +245,16 @@ async def openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict
             if candidate.get("type") == "res" and candidate.get("id") == connect_id:
                 msg = candidate
                 break
-            # Ignore pre-connect events like connect.challenge
 
         if not msg or not msg.get("ok"):
             err = (msg.get("error") or {}).get("message") if isinstance(msg, dict) else None
             raise Exception(err or "OpenClaw connect failed")
+
+        # Store device token if issued (for future use)
+        auth_info = (msg.get("payload") or {}).get("auth")
+        if auth_info and auth_info.get("deviceToken"):
+            # Could persist this for reconnects; for now just log it
+            pass
 
         main_session_key = session_key
         sk = (((msg.get("payload") or {}).get("snapshot") or {}).get("sessionDefaults") or {}).get(
@@ -102,7 +265,7 @@ async def openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict
         if not main_session_key:
             main_session_key = "main"
 
-        # 2) agent (runs the agent loop; delivers a 2-phase response on the same id)
+        # 4) agent request
         run_req_id = f"agent-{int(time.time() * 1000)}"
         await ws.send(
             json.dumps(
@@ -120,7 +283,7 @@ async def openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict
             )
         )
 
-        # Wait for the initial accepted response to get runId.
+        # Wait for agent ack
         deadline = time.time() + 10
         run_id = None
         while time.time() < deadline:
@@ -138,8 +301,7 @@ async def openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict
         if not run_id:
             raise Exception("OpenClaw agent ack missing runId")
 
-        # Best-effort: many deployments don't stream assistant text over `agent` events.
-        # We'll wait for lifecycle end, then fetch the latest assistant message from chat.history.
+        # Wait for agent lifecycle end
         end_deadline = time.time() + 90
         while time.time() < end_deadline:
             raw = await asyncio.wait_for(ws.recv(), timeout=90)
@@ -157,8 +319,7 @@ async def openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict
             if isinstance(data, dict) and data.get("phase") == "end":
                 break
 
-        # Fetch last assistant reply from the session transcript.
-        # (chat.history returns recent messages; we pick the newest assistant content.)
+        # 5) Fetch last assistant reply
         hist_id = f"chat.history-{int(time.time() * 1000)}"
         await ws.send(
             json.dumps(
@@ -187,7 +348,6 @@ async def openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict
             def content_to_text(content: Any) -> str:
                 if isinstance(content, str):
                     return content
-                # OpenAI-style content arrays: [{type:'text', text:'...'}, ...]
                 if isinstance(content, list):
                     parts: list[str] = []
                     for p in content:
@@ -195,10 +355,8 @@ async def openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict
                             parts.append(p["text"])
                     if parts:
                         return "".join(parts)
-                # Fallback
                 return json.dumps(content, ensure_ascii=False)
 
-            # walk newest->oldest
             for m in reversed(items):
                 if m.get("role") == "assistant":
                     text = content_to_text(m.get("content"))
@@ -207,7 +365,11 @@ async def openclaw_chat(message: str, session_key: Optional[str] = None) -> Dict
         return {"ok": True, "sessionKey": main_session_key, "text": text}
 
 
-app = FastAPI(title="OpenClaw Proxy", version="0.1")
+# ---------------------------------------------------------------------------
+# FastAPI app
+# ---------------------------------------------------------------------------
+
+app = FastAPI(title="OpenClaw Proxy", version="0.2")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -229,7 +391,6 @@ async def status():
             model = ((cfg.get("agents") or {}).get("defaults") or {}).get("model", {}).get("primary")
         except Exception:
             pass
-        # Read agent name from workspace identity
         try:
             ws = ((cfg.get("agents") or {}).get("defaults") or {}).get("workspace", os.path.expanduser("~/.openclaw/workspace"))
             id_path = os.path.join(ws, "IDENTITY.md")

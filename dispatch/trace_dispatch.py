@@ -82,7 +82,7 @@ async def main():
     bridge_log_count_before = len(bridge_before.get("activity_log", []))
     bridge_seen_before = bridge_before["seen_count"]
     print(f"  Bridge paused={bridge_before['paused']}, seen_count={bridge_seen_before}, log_entries={bridge_log_count_before}")
-    print(f"  Session mode: {bridge_before.get('session_mode')}, model: {bridge_before.get('model')}")
+    print(f"  Model: {bridge_before.get('model')}, model: {bridge_before.get('model')}")
 
     if bridge_before["paused"]:
         print(f"  ⚠️  Bridge is PAUSED — resuming...")

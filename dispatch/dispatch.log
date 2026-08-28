@@ -64,3 +64,1141 @@ Be fast. One turn only.
 Dispatching **drone1** to traffic accident at Eastside Shopping Ctr.**DISPATCHED:drone1** → Incident 008 (traffic_accident) at Eastside Shopping Ctr (40, 80) at 50m altitude. Priority 1.
 2026-02-27 01:29:08,197 [INFO] [008] VERIFY: drone1 armed=ARMED nav=OFFBOARD pos=(7,15) alt=13m
 2026-02-27 01:29:08,197 [INFO] ===== INCIDENT 008 END =====
+2026-02-27 01:36:06,836 [INFO] ===== INCIDENT 009 START =====
+2026-02-27 01:36:06,836 [INFO] INCIDENT CREATED: id=009 type=traffic_accident priority=1 location={'name': 'Riverside Apartments', 'x': -30, 'y': 60}
+2026-02-27 01:36:06,837 [INFO] [009] Querying fleet status (target=-30,60)...
+2026-02-27 01:36:09,226 [INFO] [009] Fleet status:
+  drone1: READY | pos=(0, 0) alt=0m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+  drone2: READY | pos=(0, 0) alt=2m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=1m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone1 (67m from target)
+2026-02-27 01:36:09,228 [INFO] [009] Active incidents: 1
+2026-02-27 01:36:09,228 [INFO] [009] Sending to OpenClaw AI...
+2026-02-27 01:36:09,228 [DEBUG] [009] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 009
+  Type: traffic_accident (Priority 1)
+  Description: Hit and run, victim injured at Riverside Apartments
+  Location: Riverside Apartments (x=-30, y=60)
+
+FLEET STATUS (live):
+  drone1: READY | pos=(0, 0) alt=0m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+  drone2: READY | pos=(0, 0) alt=2m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=1m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone1 (67m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --takeoff            Autonomous takeoff (requires offboard + armed). Only climbs to ~10m.
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. They cannot see trees, buildings, or terrain. YOU are responsible for safe flight. The environment has trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+If you send a lateral position before clearing 50m, the drone WILL crash into trees.
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position -30 60 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 01:36:20,859 [INFO] ===== INCIDENT 010 START =====
+2026-02-27 01:36:20,859 [INFO] INCIDENT CREATED: id=010 type=missing_person priority=2 location={'name': 'Lincoln Elementary', 'x': -60, 'y': -20}
+2026-02-27 01:36:20,859 [INFO] [010] Querying fleet status (target=-60,-20)...
+2026-02-27 01:36:23,175 [INFO] [010] Fleet status:
+  drone3: READY | pos=(0, -0) alt=1m | bat=100% | dist_to_target=63m | available=yes ★ AVAILABLE
+  drone1: ARMED | pos=(0, 0) alt=1m | bat=100% | dist_to_target=64m | available=no
+  drone2: READY | pos=(1, 0) alt=2m | bat=100% | dist_to_target=64m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone3 (63m from target)
+2026-02-27 01:36:23,176 [INFO] [010] Active incidents: 2
+2026-02-27 01:36:23,176 [INFO] [010] Sending to OpenClaw AI...
+2026-02-27 01:36:23,177 [DEBUG] [010] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 010
+  Type: missing_person (Priority 2)
+  Description: Hiker overdue, last known position near Lincoln Elementary
+  Location: Lincoln Elementary (x=-60, y=-20)
+
+FLEET STATUS (live):
+  drone3: READY | pos=(0, -0) alt=1m | bat=100% | dist_to_target=63m | available=yes ★ AVAILABLE
+  drone1: ARMED | pos=(0, 0) alt=1m | bat=100% | dist_to_target=64m | available=no
+  drone2: READY | pos=(1, 0) alt=2m | bat=100% | dist_to_target=64m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone3 (63m from target)
+
+OTHER ACTIVE INCIDENTS:
+  009: traffic_accident P1 at Riverside Apartments (-30, 60) [new]
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --takeoff            Autonomous takeoff (requires offboard + armed). Only climbs to ~10m.
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. They cannot see trees, buildings, or terrain. YOU are responsible for safe flight. The environment has trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+If you send a lateral position before clearing 50m, the drone WILL crash into trees.
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position -60 -20 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 01:36:48,358 [INFO] [009] DISPATCHED (streaming): drone1
+2026-02-27 01:36:49,959 [INFO] [009] AI response received: 386 chars
+2026-02-27 01:36:49,960 [INFO] [009] Full AI response:
+Dispatching **drone1** to Riverside Apartments. Climbing to safe altitude first.Climbing to 50m... checking altitude.At ~25m (local_z=-24.6), still climbing. Waiting a bit more.50.1m — clear of trees. Sending to target.**DISPATCHED:drone1** → Incident 009 (traffic_accident) at Riverside Apartments (-30, 60) at 50m altitude. Priority 1. Safe altitude confirmed before lateral movement.
+2026-02-27 01:36:50,609 [INFO] [009] VERIFY: drone1 armed=ARMED nav=OFFBOARD pos=(-16,32) alt=50m
+2026-02-27 01:36:50,609 [INFO] ===== INCIDENT 009 END =====
+2026-02-27 01:37:25,129 [INFO] ===== INCIDENT 010 START =====
+2026-02-27 01:37:25,130 [INFO] INCIDENT CREATED: id=010 type=missing_person priority=2 location={'name': 'Lincoln Elementary', 'x': -60, 'y': -20}
+2026-02-27 01:37:25,130 [INFO] [010] Querying fleet status (target=-60,-20)...
+2026-02-27 01:37:28,810 [INFO] [010] Fleet status:
+  drone3: IN FLIGHT | pos=(0, 0) alt=48m | bat=68% | dist_to_target=63m | available=no
+  drone2: READY | pos=(1, 0) alt=1m | bat=100% | dist_to_target=64m | available=yes ★ AVAILABLE
+  drone1: RETURNING | pos=(-19, 38) alt=50m | bat=67% | dist_to_target=71m | available=yes (reroutable) | mission: INC-009 (on_scene) at Riverside Apartments (-30,60) ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (64m from target)
+2026-02-27 01:37:28,812 [INFO] [010] Active incidents: 1
+2026-02-27 01:37:28,812 [INFO] [010] Sending to OpenClaw AI...
+2026-02-27 01:37:28,812 [DEBUG] [010] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 010
+  Type: missing_person (Priority 2)
+  Description: Hiker overdue, last known position near Lincoln Elementary
+  Location: Lincoln Elementary (x=-60, y=-20)
+
+FLEET STATUS (live):
+  drone3: IN FLIGHT | pos=(0, 0) alt=48m | bat=68% | dist_to_target=63m | available=no
+  drone2: READY | pos=(1, 0) alt=1m | bat=100% | dist_to_target=64m | available=yes ★ AVAILABLE
+  drone1: RETURNING | pos=(-19, 38) alt=50m | bat=67% | dist_to_target=71m | available=yes (reroutable) | mission: INC-009 (on_scene) at Riverside Apartments (-30,60) ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (64m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --takeoff            Autonomous takeoff (requires offboard + armed). Only climbs to ~10m.
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. They cannot see trees, buildings, or terrain. YOU are responsible for safe flight. The environment has trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+If you send a lateral position before clearing 50m, the drone WILL crash into trees.
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position -60 -20 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 01:38:17,527 [INFO] [010] DISPATCHED (streaming): drone2
+2026-02-27 01:38:18,743 [INFO] [010] AI response received: 253 chars
+2026-02-27 01:38:18,743 [INFO] [010] Full AI response:
+At 20m, still climbing. Waiting a bit more.50m confirmed. Sending to target.**DISPATCHED:drone2** → INC-010 (missing_person) at Lincoln Elementary (-60, -20) at 50m altitude. Battery 99%, ETA based on 64m distance. Flight handed off to dispatch service.
+2026-02-27 01:38:19,223 [INFO] [010] VERIFY: drone2 armed=ARMED nav=OFFBOARD pos=(-31,-11) alt=50m
+2026-02-27 01:38:19,223 [INFO] ===== INCIDENT 010 END =====
+2026-02-27 01:40:07,402 [INFO] ===== INCIDENT 011 START =====
+2026-02-27 01:40:07,402 [INFO] INCIDENT CREATED: id=011 type=suspicious_activity priority=2 location={'name': 'Oak St Residential', 'x': -40, 'y': 40}
+2026-02-27 01:40:07,402 [INFO] [011] Querying fleet status (target=-40,40)...
+2026-02-27 01:40:11,164 [INFO] [011] Fleet status:
+  drone3: READY | pos=(-0, -0) alt=2m | bat=100% | dist_to_target=57m | available=yes ★ AVAILABLE
+  drone2: READY | pos=(1, 0) alt=1m | bat=100% | dist_to_target=57m | available=yes ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=57m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone3 (57m from target)
+2026-02-27 01:40:11,166 [INFO] [011] Active incidents: 1
+2026-02-27 01:40:11,166 [INFO] [011] Sending to OpenClaw AI...
+2026-02-27 01:40:11,166 [DEBUG] [011] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 011
+  Type: suspicious_activity (Priority 2)
+  Description: Trespasser on commercial property at Oak St Residential
+  Location: Oak St Residential (x=-40, y=40)
+
+FLEET STATUS (live):
+  drone3: READY | pos=(-0, -0) alt=2m | bat=100% | dist_to_target=57m | available=yes ★ AVAILABLE
+  drone2: READY | pos=(1, 0) alt=1m | bat=100% | dist_to_target=57m | available=yes ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=57m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone3 (57m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --takeoff            Autonomous takeoff (requires offboard + armed). Only climbs to ~10m.
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. They cannot see trees, buildings, or terrain. YOU are responsible for safe flight. The environment has trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+If you send a lateral position before clearing 50m, the drone WILL crash into trees.
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position -40 40 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 01:40:52,761 [INFO] [011] DISPATCHED (streaming): drone3
+2026-02-27 01:40:54,602 [INFO] [011] AI response received: 339 chars
+2026-02-27 01:40:54,602 [INFO] [011] Full AI response:
+Still climbing — at ~23m. Waiting a bit more.At 49.9m — close enough to 50m. Sending to target.**DISPATCHED:drone3** → Incident 011 (suspicious_activity, Oak St Residential)
+
+- **Drone:** drone3
+- **Target:** (-40, 40) at 50m altitude
+- **Status:** Armed, offboard, en route at safe altitude
+- **ETA:** ~57m distance, should arrive shortly
+2026-02-27 01:40:55,111 [INFO] [011] VERIFY: drone3 armed=ARMED nav=OFFBOARD pos=(-28,27) alt=50m
+2026-02-27 01:40:55,111 [INFO] ===== INCIDENT 011 END =====
+2026-02-27 01:50:22,866 [INFO] ===== INCIDENT 012 START =====
+2026-02-27 01:50:22,866 [INFO] INCIDENT CREATED: id=012 type=traffic_accident priority=1 location={'name': 'Memorial Hospital', 'x': 60, 'y': -60}
+2026-02-27 01:50:22,866 [INFO] [012] Querying fleet status (target=60,-60)...
+2026-02-27 01:50:25,145 [INFO] [012] Fleet status:
+  drone1: READY | pos=(1, 0) alt=2m | bat=100% | dist_to_target=85m | available=yes ★ AVAILABLE
+  drone2: READY | pos=(1, 0) alt=0m | bat=100% | dist_to_target=85m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=2m | bat=100% | dist_to_target=85m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone1 (85m from target)
+2026-02-27 01:50:25,146 [INFO] [012] Active incidents: 1
+2026-02-27 01:50:25,147 [INFO] [012] Sending to OpenClaw AI...
+2026-02-27 01:50:25,147 [DEBUG] [012] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 012
+  Type: traffic_accident (Priority 1)
+  Description: Rollover accident, occupants trapped
+  Location: Memorial Hospital (x=60, y=-60)
+
+FLEET STATUS (live):
+  drone1: READY | pos=(1, 0) alt=2m | bat=100% | dist_to_target=85m | available=yes ★ AVAILABLE
+  drone2: READY | pos=(1, 0) alt=0m | bat=100% | dist_to_target=85m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=2m | bat=100% | dist_to_target=85m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone1 (85m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --takeoff            Autonomous takeoff (requires offboard + armed). Only climbs to ~10m.
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. They cannot see trees, buildings, or terrain. YOU are responsible for safe flight. The environment has trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+If you send a lateral position before clearing 50m, the drone WILL crash into trees.
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position 60 -60 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 01:51:09,110 [INFO] [012] DISPATCHED (streaming): drone1
+2026-02-27 01:51:11,012 [INFO] [012] AI response received: 279 chars
+2026-02-27 01:51:11,012 [INFO] [012] Full AI response:
+Altitude ~29m, still climbing. Waiting a bit more.50m confirmed. Sending to target.**DISPATCHED:drone1** → Incident 012 (rollover accident, Memorial Hospital)
+
+- **Drone:** drone1
+- **Altitude:** 50m ✅ (safe clearance)
+- **Target:** (60, -60) at 50m altitude
+- **Distance:** ~85m
+2026-02-27 01:51:11,458 [INFO] [012] VERIFY: drone1 armed=ARMED nav=OFFBOARD pos=(25,-25) alt=50m
+2026-02-27 01:51:11,458 [INFO] ===== INCIDENT 012 END =====
+2026-02-27 01:56:16,039 [INFO] ===== INCIDENT 013 START =====
+2026-02-27 01:56:16,039 [INFO] INCIDENT CREATED: id=013 type=property_damage priority=3 location={'name': 'Downtown Plaza', 'x': 10, 'y': 10}
+2026-02-27 01:56:16,040 [INFO] [013] Querying fleet status (target=10,10)...
+2026-02-27 01:56:18,710 [INFO] [013] Fleet status:
+  drone2: READY | pos=(1, 0) alt=0m | bat=100% | dist_to_target=14m | available=yes ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=14m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=2m | bat=100% | dist_to_target=14m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (14m from target)
+2026-02-27 01:56:18,712 [INFO] [013] Active incidents: 1
+2026-02-27 01:56:18,712 [INFO] [013] Sending to OpenClaw AI...
+2026-02-27 01:56:18,712 [DEBUG] [013] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 013
+  Type: property_damage (Priority 3)
+  Description: Graffiti reported on Downtown Plaza
+  Location: Downtown Plaza (x=10, y=10)
+
+FLEET STATUS (live):
+  drone2: READY | pos=(1, 0) alt=0m | bat=100% | dist_to_target=14m | available=yes ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=14m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=2m | bat=100% | dist_to_target=14m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (14m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --takeoff            Autonomous takeoff (requires offboard + armed). Only climbs to ~10m.
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. They cannot see trees, buildings, or terrain. YOU are responsible for safe flight. The environment has trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+If you send a lateral position before clearing 50m, the drone WILL crash into trees.
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position 10 10 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 01:57:00,997 [INFO] [013] DISPATCHED (streaming): drone2
+2026-02-27 01:57:01,021 [INFO] [013] AI response received: 365 chars
+2026-02-27 01:57:01,021 [INFO] [013] Full AI response:
+Incident 013 — P3 property_damage at Downtown Plaza (10, 10). Sending drone2 (closest, 14m).Still climbing — at ~13m. Waiting for 50m.Altitude confirmed: `local_z = -49.8m` (~50m) ✓. Sending to target.**drone2 en route to Downtown Plaza (10, 10) at 50m altitude.** Battery 79%, armed, offboard. Dispatch service handles arrival detection and RTL.
+
+DISPATCHED:drone2
+2026-02-27 01:57:01,975 [INFO] [013] VERIFY: drone2 armed=ARMED nav=OFFBOARD pos=(10,10) alt=50m
+2026-02-27 01:57:01,975 [INFO] ===== INCIDENT 013 END =====
+2026-02-27 02:05:12,000 [INFO] ===== INCIDENT 014 START =====
+2026-02-27 02:05:12,000 [INFO] INCIDENT CREATED: id=014 type=structure_fire priority=1 location={'name': 'Main St & 3rd Ave', 'x': 50, 'y': 30}
+2026-02-27 02:05:12,000 [INFO] [014] Querying fleet status (target=50,30)...
+2026-02-27 02:05:14,288 [INFO] [014] Fleet status:
+  drone2: READY | pos=(1, 0) alt=1m | bat=100% | dist_to_target=58m | available=yes ★ AVAILABLE
+  drone1: READY | pos=(0, -0) alt=2m | bat=100% | dist_to_target=58m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=1m | bat=100% | dist_to_target=58m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (58m from target)
+2026-02-27 02:05:14,290 [INFO] [014] Active incidents: 1
+2026-02-27 02:05:14,291 [INFO] [014] Sending to OpenClaw AI...
+2026-02-27 02:05:14,291 [DEBUG] [014] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 014
+  Type: structure_fire (Priority 1)
+  Description: Residential fire, smoke visible from Main St & 3rd Ave
+  Location: Main St & 3rd Ave (x=50, y=30)
+
+FLEET STATUS (live):
+  drone2: READY | pos=(1, 0) alt=1m | bat=100% | dist_to_target=58m | available=yes ★ AVAILABLE
+  drone1: READY | pos=(0, -0) alt=2m | bat=100% | dist_to_target=58m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=1m | bat=100% | dist_to_target=58m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (58m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+
+**droneos CLI** — drone control:
+  droneos --drone <name> --get-state          # telemetry JSON
+  droneos --drone <name> --set-offboard       # enter offboard mode
+  droneos --drone <name> --arm                # arm motors
+  droneos --drone <name> --set-position X Y Z # fly to position (NED: Z negative = up)
+  droneos --drone <name> --land               # land at current position
+  droneos --drone <name> --rtl                # return to launch
+
+**curl** — update incident status:
+  curl -s -X PATCH http://localhost:8081/api/incidents/014 \
+    -H "Content-Type: application/json" \
+    -d '{"status": "dispatched", "assigned_to": "droneX"}'
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. Trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. droneos --drone droneX --set-offboard
+  3. droneos --drone droneX --arm
+  4. droneos --drone droneX --set-position 0 0 -50  (climb to 50m)
+  5. droneos --drone droneX --get-state → confirm altitude ≥ 45m
+  6. Update incident status:
+     curl -s -X PATCH http://localhost:8081/api/incidents/014 \
+       -H "Content-Type: application/json" \
+       -d '{"status": "dispatched", "assigned_to": "droneX"}'
+  7. droneos --drone droneX --set-position 50 30 -50  (fly to target)
+
+Do NOT poll, monitor, or wait after step 7. The dispatch service handles arrival and RTL.
+If no drones are available, do nothing.
+
+Be fast but safe. One turn only.
+
+2026-02-27 02:05:58,016 [INFO] [014] AI response received: 450 chars
+2026-02-27 02:05:58,016 [INFO] [014] Full AI response:
+**Dispatching drone2 to incident 014 — structure fire at Main St & 3rd Ave.**Still climbing — at ~21m. Waiting for 50m.Close enough — nearly 50m. Updating incident and sending to target.**✅ Dispatch complete.**
+
+| Detail | Value |
+|---|---|
+| **Incident** | 014 — Structure fire |
+| **Drone** | drone2 |
+| **Altitude** | ~50m (safe cruise) |
+| **Target** | (50, 30) at 50m altitude |
+| **Status** | En route — dispatch service handles arrival & RTL |
+2026-02-27 02:05:58,016 [WARNING] [014] NO DRONE ASSIGNED — AI did not return DISPATCHED:droneX
+2026-02-27 02:05:58,016 [INFO] ===== INCIDENT 014 END =====
+2026-02-27 02:08:11,539 [INFO] ===== INCIDENT 015 =====
+2026-02-27 02:08:11,540 [INFO] INCIDENT: id=015 type=medical_emergency P1 location={'name': 'Baylands Park', 'x': 80, 'y': -40}
+2026-02-27 02:08:11,540 [INFO] [015] Querying fleet status...
+2026-02-27 02:08:13,900 [INFO] [015] Fleet status:
+  drone2: READY | pos=(1, 0) alt=1m | bat=100% | dist_to_target=89m | available=yes | mission: INC-014 (on_scene) at Main St & 3rd Ave (50,30) ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=3m | bat=100% | dist_to_target=89m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=3m | bat=100% | dist_to_target=89m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (89m from target)
+2026-02-27 02:08:13,902 [INFO] [015] Firing hook...
+2026-02-27 02:08:13,902 [DEBUG] [015] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 015
+  Type: medical_emergency (Priority 1)
+  Description: Cardiac arrest, 33yo male
+  Location: Baylands Park (x=80, y=-40)
+
+FLEET STATUS (live):
+  drone2: READY | pos=(1, 0) alt=1m | bat=100% | dist_to_target=89m | available=yes | mission: INC-014 (on_scene) at Main St & 3rd Ave (50,30) ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=3m | bat=100% | dist_to_target=89m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=3m | bat=100% | dist_to_target=89m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (89m from target)
+
+OTHER ACTIVE INCIDENTS:
+  014: structure_fire P1 at Main St & 3rd Ave (50, 30) [on_scene — drone2]
+
+=== YOUR TOOLS ===
+
+**droneos CLI** — drone control:
+  droneos --drone <name> --get-state          # telemetry JSON
+  droneos --drone <name> --set-offboard       # enter offboard mode
+  droneos --drone <name> --arm                # arm motors
+  droneos --drone <name> --set-position X Y Z # fly to position (NED: Z negative = up)
+  droneos --drone <name> --land               # land at current position
+  droneos --drone <name> --rtl                # return to launch
+
+**curl** — update incident status:
+  curl -s -X PATCH http://localhost:8081/api/incidents/015 \
+    -H "Content-Type: application/json" \
+    -d '{"status": "dispatched", "assigned_to": "droneX"}'
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. Trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. droneos --drone droneX --set-offboard
+  3. droneos --drone droneX --arm
+  4. droneos --drone droneX --set-position 0 0 -50  (climb to 50m)
+  5. droneos --drone droneX --get-state → confirm altitude ≥ 45m
+  6. Update incident status:
+     curl -s -X PATCH http://localhost:8081/api/incidents/015 \
+       -H "Content-Type: application/json" \
+       -d '{"status": "dispatched", "assigned_to": "droneX"}'
+  7. droneos --drone droneX --set-position 80 -40 -50  (fly to target)
+
+Do NOT poll, monitor, or wait after step 7. The dispatch service handles arrival and RTL.
+If no drones are available, do nothing.
+
+Be fast but safe. One turn only.
+
+2026-02-27 02:08:13,919 [INFO] [015] Hook accepted (202), session=hook:dispatch:015
+2026-02-27 02:20:18,391 [INFO] ===== INCIDENT 016 START =====
+2026-02-27 02:20:18,391 [INFO] INCIDENT: id=016 type=traffic_accident P1 location={'name': 'City Hall', 'x': 0, 'y': 20}
+2026-02-27 02:20:18,391 [INFO] [016] Querying fleet status...
+2026-02-27 02:20:20,810 [INFO] [016] Fleet status:
+  drone2: RETURNING | pos=(0, 0) alt=0m | bat=100% | dist_to_target=20m | available=yes (reroutable) ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=20m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=3m | bat=100% | dist_to_target=20m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (20m from target)
+2026-02-27 02:20:20,812 [INFO] [016] Sending to AI (session=dispatch:016)...
+2026-02-27 02:20:20,812 [DEBUG] [016] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 016
+  Type: traffic_accident (Priority 1)
+  Description: Rollover accident, occupants trapped
+  Location: City Hall (x=0, y=20)
+
+FLEET STATUS (live):
+  drone2: RETURNING | pos=(0, 0) alt=0m | bat=100% | dist_to_target=20m | available=yes (reroutable) ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=20m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=3m | bat=100% | dist_to_target=20m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (20m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. Trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position 0 20 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 02:21:08,210 [INFO] [016] DISPATCHED (streaming): drone2
+2026-02-27 02:21:09,776 [INFO] [016] AI response: 412 chars
+2026-02-27 02:21:09,776 [INFO] [016] Full response:
+Priority 1 — rollover with trapped occupants. Dispatching drone2 (closest, 20m).Still climbing — at ~15m (z=-14.7). Waiting a bit more.Altitude ~49m (z=-49.4) — close enough to 50m and climbing rate minimal. Safe to proceed laterally.**DISPATCHED:drone2** 🛸
+
+Incident 016 — rollover accident at City Hall (0, 20). drone2 armed, climbed to 50m safe altitude, now en route at 50m. Battery 79%, 20m lateral transit.
+2026-02-27 02:21:09,776 [INFO] ===== INCIDENT 016 END =====
+2026-02-27 02:27:35,330 [INFO] ===== INCIDENT 017 START =====
+2026-02-27 02:27:35,331 [INFO] INCIDENT: id=017 type=medical_emergency P1 location={'name': 'Riverside Apartments', 'x': -30, 'y': 60}
+2026-02-27 02:27:35,331 [INFO] [017] Querying fleet status...
+2026-02-27 02:27:38,168 [INFO] [017] Fleet status:
+  drone2: READY | pos=(0, 0) alt=0m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(-0, -0) alt=3m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (67m from target)
+2026-02-27 02:27:38,170 [INFO] [017] Sending to AI (session=dispatch:017)...
+2026-02-27 02:27:38,170 [DEBUG] [017] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 017
+  Type: medical_emergency (Priority 1)
+  Description: Unconscious person at Riverside Apartments
+  Location: Riverside Apartments (x=-30, y=60)
+
+FLEET STATUS (live):
+  drone2: READY | pos=(0, 0) alt=0m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(-0, -0) alt=3m | bat=100% | dist_to_target=67m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (67m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. Trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position -30 60 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 02:28:20,537 [INFO] [017] DISPATCHED (streaming): drone2
+2026-02-27 02:28:22,997 [INFO] [017] AI response: 572 chars
+2026-02-27 02:28:22,997 [INFO] [017] Full response:
+**INCIDENT 017 — Medical Emergency | Priority 1**
+
+Dispatching **drone2** to Riverside Apartments.Armed (the exception is benign). Now climbing to 50m:Only 17m up, still climbing. Waiting a bit more...Altitude ~48m and climbing — close enough (45m+ threshold met). Sending to target now:**DISPATCHED:drone2** 🛸
+
+- **Drone:** drone2
+- **Target:** Riverside Apartments (x=-30, y=60) at 50m altitude
+- **Incident:** 017 — Unconscious person (medical emergency, P1)
+- **Battery:** 77% at dispatch
+
+Drone2 is en route at safe altitude. Dispatch service handles arrival and RTL.
+2026-02-27 02:28:22,997 [INFO] ===== INCIDENT 017 END =====
+2026-02-27 02:34:15,536 [INFO] ===== INCIDENT 018 START =====
+2026-02-27 02:34:15,537 [INFO] INCIDENT: id=018 type=suspicious_activity P2 location={'name': 'Industrial Park', 'x': 90, 'y': -80}
+2026-02-27 02:34:15,537 [INFO] [018] Querying fleet status...
+2026-02-27 02:34:17,801 [INFO] [018] Fleet status:
+  drone1: READY | pos=(0, 0) alt=-0m | bat=100% | dist_to_target=120m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=2m | bat=100% | dist_to_target=120m | available=yes ★ AVAILABLE
+  drone2: READY | pos=(0, 0) alt=0m | bat=100% | dist_to_target=120m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone1 (120m from target)
+2026-02-27 02:34:17,802 [INFO] [018] Sending to AI (session=dispatch:018)...
+2026-02-27 02:34:17,803 [DEBUG] [018] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 018
+  Type: suspicious_activity (Priority 2)
+  Description: Suspicious vehicle circling Industrial Park
+  Location: Industrial Park (x=90, y=-80)
+
+FLEET STATUS (live):
+  drone1: READY | pos=(0, 0) alt=-0m | bat=100% | dist_to_target=120m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=2m | bat=100% | dist_to_target=120m | available=yes ★ AVAILABLE
+  drone2: READY | pos=(0, 0) alt=0m | bat=100% | dist_to_target=120m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone1 (120m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. Trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position 90 -80 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 02:34:43,578 [INFO] ===== INCIDENT 019 START =====
+2026-02-27 02:34:43,578 [INFO] INCIDENT: id=019 type=noise_complaint P3 location={'name': 'Oak St Residential', 'x': -40, 'y': 40}
+2026-02-27 02:34:43,578 [INFO] [019] Querying fleet status...
+2026-02-27 02:34:45,809 [INFO] [019] Fleet status:
+  drone1: IN FLIGHT | pos=(0, 0) alt=42m | bat=90% | dist_to_target=57m | available=no
+  drone2: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=57m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=2m | bat=100% | dist_to_target=57m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (57m from target)
+2026-02-27 02:34:45,811 [INFO] [019] Sending to AI (session=dispatch:019)...
+2026-02-27 02:34:45,811 [DEBUG] [019] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 019
+  Type: noise_complaint (Priority 3)
+  Description: Construction noise outside permitted hours at Oak St Residential
+  Location: Oak St Residential (x=-40, y=40)
+
+FLEET STATUS (live):
+  drone1: IN FLIGHT | pos=(0, 0) alt=42m | bat=90% | dist_to_target=57m | available=no
+  drone2: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=57m | available=yes ★ AVAILABLE
+  drone3: READY | pos=(0, -0) alt=2m | bat=100% | dist_to_target=57m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone2 (57m from target)
+
+OTHER ACTIVE INCIDENTS:
+  018: suspicious_activity P2 at Industrial Park (90, -80) [new]
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. Trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position -40 40 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 02:34:54,242 [INFO] [018] DISPATCHED (streaming): drone1
+2026-02-27 02:34:55,331 [INFO] [018] AI response: 218 chars
+2026-02-27 02:34:55,332 [INFO] [018] Full response:
+Still climbing — at ~20m. Waiting a bit more.50m ✅ — safe to proceed laterally.**DISPATCHED:drone1** 🛸
+
+Incident 018 — drone1 en route to Industrial Park (90, -80) at 50m altitude. 120m distance, should arrive shortly.
+2026-02-27 02:34:55,332 [INFO] ===== INCIDENT 018 END =====
+2026-02-27 02:35:36,295 [INFO] [019] DISPATCHED (streaming): drone2
+2026-02-27 02:35:37,031 [INFO] [019] AI response: 312 chars
+2026-02-27 02:35:37,032 [INFO] [019] Full response:
+Dispatching drone2 to incident 019 (noise complaint, Oak St Residential).Still climbing — at 18m. Waiting a bit more.Altitude 49.3m and climbing — close enough to 50m. Sending to target now.**DISPATCHED:drone2** → Incident 019 (noise_complaint) at Oak St Residential (-40, 40) at 50m altitude. Drone is en route.
+2026-02-27 02:35:37,032 [INFO] ===== INCIDENT 019 END =====
+2026-02-27 02:36:56,653 [INFO] ===== INCIDENT 020 START =====
+2026-02-27 02:36:56,653 [INFO] INCIDENT: id=020 type=medical_emergency P1 location={'name': 'Baylands Park', 'x': 80, 'y': -40}
+2026-02-27 02:36:56,653 [INFO] [020] Querying fleet status...
+2026-02-27 02:36:58,921 [INFO] [020] Fleet status:
+  drone1: READY | pos=(0, 0) alt=2m | bat=99% | dist_to_target=89m | available=yes ★ AVAILABLE
+  drone2: RETURNING | pos=(0, 0) alt=13m | bat=66% | dist_to_target=89m | available=yes (reroutable) ★ AVAILABLE
+  drone3: READY | pos=(-0, -0) alt=1m | bat=100% | dist_to_target=89m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone1 (89m from target)
+2026-02-27 02:36:58,923 [INFO] [020] Sending to AI (session=dispatch:020)...
+2026-02-27 02:36:58,923 [DEBUG] [020] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 020
+  Type: medical_emergency (Priority 1)
+  Description: Cardiac arrest, 30yo female
+  Location: Baylands Park (x=80, y=-40)
+
+FLEET STATUS (live):
+  drone1: READY | pos=(0, 0) alt=2m | bat=99% | dist_to_target=89m | available=yes ★ AVAILABLE
+  drone2: RETURNING | pos=(0, 0) alt=13m | bat=66% | dist_to_target=89m | available=yes (reroutable) ★ AVAILABLE
+  drone3: READY | pos=(-0, -0) alt=1m | bat=100% | dist_to_target=89m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone1 (89m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. Trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position 80 -40 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 02:37:12,680 [INFO] ===== INCIDENT 021 START =====
+2026-02-27 02:37:12,680 [INFO] INCIDENT: id=021 type=property_damage P3 location={'name': 'Lincoln Elementary', 'x': -60, 'y': -20}
+2026-02-27 02:37:12,680 [INFO] [021] Querying fleet status...
+2026-02-27 02:37:14,999 [INFO] [021] Fleet status:
+  drone3: READY | pos=(-0, -0) alt=1m | bat=100% | dist_to_target=63m | available=yes ★ AVAILABLE
+  drone1: IN FLIGHT | pos=(-0, -0) alt=6m | bat=100% | dist_to_target=63m | available=no
+  drone2: RETURNING | pos=(0, 0) alt=1m | bat=66% | dist_to_target=64m | available=yes (reroutable) ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone3 (63m from target)
+2026-02-27 02:37:15,000 [INFO] [021] Sending to AI (session=dispatch:021)...
+2026-02-27 02:37:15,000 [DEBUG] [021] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 021
+  Type: property_damage (Priority 3)
+  Description: Broken storefront window at Lincoln Elementary
+  Location: Lincoln Elementary (x=-60, y=-20)
+
+FLEET STATUS (live):
+  drone3: READY | pos=(-0, -0) alt=1m | bat=100% | dist_to_target=63m | available=yes ★ AVAILABLE
+  drone1: IN FLIGHT | pos=(-0, -0) alt=6m | bat=100% | dist_to_target=63m | available=no
+  drone2: RETURNING | pos=(0, 0) alt=1m | bat=66% | dist_to_target=64m | available=yes (reroutable) ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone3 (63m from target)
+
+OTHER ACTIVE INCIDENTS:
+  020: medical_emergency P1 at Baylands Park (80, -40) [new]
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. Trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position -60 -20 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 02:37:36,590 [INFO] [020] DISPATCHED (streaming): drone1
+2026-02-27 02:37:37,657 [INFO] [020] AI response: 346 chars
+2026-02-27 02:37:37,657 [INFO] [020] Full response:
+**P1 MEDICAL EMERGENCY — Cardiac arrest. Moving fast.**
+
+Dispatching drone1 (closest, 99% battery, READY).Alt ~25m, still climbing. Waiting a few more seconds.~50m — safe altitude reached. Sending to target.**DISPATCHED:drone1** → Baylands Park (80, -40) at 50m altitude. ETA ~89m distance at cruise speed. Dispatch service handles arrival + RTL.
+2026-02-27 02:37:37,657 [INFO] ===== INCIDENT 020 END =====
+2026-02-27 02:38:00,134 [INFO] [021] DISPATCHED (streaming): drone3
+2026-02-27 02:38:01,149 [INFO] [021] AI response: 230 chars
+2026-02-27 02:38:01,150 [INFO] [021] Full response:
+Alt ~21m, still climbing. Waiting a bit more.50m reached. Sending to target.**DISPATCHED:drone3** → Incident 021 (property_damage, Lincoln Elementary) at (-60, -20). Drone3 climbing to 50m confirmed, now en route at safe altitude.
+2026-02-27 02:38:01,150 [INFO] ===== INCIDENT 021 END =====
+2026-02-27 16:15:20,134 [INFO] ===== INCIDENT 022 START =====
+2026-02-27 16:15:20,135 [INFO] INCIDENT: id=022 type=medical_emergency P1 location={'name': 'Willow Creek Trail', 'x': -80, 'y': -70}
+2026-02-27 16:15:20,135 [INFO] [022] Querying fleet status...
+2026-02-27 16:15:22,383 [INFO] [022] Fleet status:
+  drone3: READY | pos=(-0, -0) alt=1m | bat=100% | dist_to_target=106m | available=yes ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=2m | bat=100% | dist_to_target=107m | available=yes ★ AVAILABLE
+  drone2: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=107m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone3 (106m from target)
+2026-02-27 16:15:22,385 [INFO] [022] Sending to AI (session=dispatch:022)...
+2026-02-27 16:15:22,385 [DEBUG] [022] Full prompt:
+DISPATCH ALERT — NEW INCIDENT
+  ID: 022
+  Type: medical_emergency (Priority 1)
+  Description: Severe allergic reaction, child
+  Location: Willow Creek Trail (x=-80, y=-70)
+
+FLEET STATUS (live):
+  drone3: READY | pos=(-0, -0) alt=1m | bat=100% | dist_to_target=106m | available=yes ★ AVAILABLE
+  drone1: READY | pos=(0, 0) alt=2m | bat=100% | dist_to_target=107m | available=yes ★ AVAILABLE
+  drone2: READY | pos=(0, 0) alt=1m | bat=100% | dist_to_target=107m | available=yes ★ AVAILABLE
+
+  → CLOSEST AVAILABLE: drone3 (106m from target)
+
+OTHER ACTIVE INCIDENTS:
+  None
+
+=== YOUR TOOLS ===
+CLI: droneos --drone <name> <command>
+
+Commands:
+  --get-state          Get full telemetry: position, arming, battery, nav mode
+  --set-offboard       Enter offboard mode (required before position control)
+  --arm                Arm motors (required before flight)
+  --set-position X Y Z [YAW]
+                       Fly to position in NED frame:
+                         X = meters north (positive = north)
+                         Y = meters east (positive = east)
+                         Z = altitude, NEGATIVE = up (e.g. -50 = 50m altitude)
+                         YAW = heading in radians (optional, keeps current if omitted)
+  --land               Land at current position
+  --rtl                Return to launch and land
+  --disarm             Disarm motors (only works on ground)
+
+=== INSTRUCTIONS ===
+You are a drone pilot. You have ONE job: get a drone to the incident location safely.
+
+CRITICAL SAFETY: These drones have NO obstacle sensors. Trees up to 40m tall. You MUST:
+  1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
+  2. Verify you've reached 50m using --get-state before ANY lateral movement
+  3. Only then fly to the target (set-position X Y -50)
+
+Flight sequence:
+  1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)
+  2. --set-offboard
+  3. --arm
+  4. --set-position 0 0 -50  (climb straight up to 50m)
+  5. --get-state → confirm altitude is at least 45m before proceeding
+  6. --set-position -80 -70 -50  (fly to target at safe altitude)
+
+Do NOT poll, monitor, or wait after step 6. The dispatch service handles arrival and RTL.
+
+Include DISPATCHED:droneX in your response when the drone is on its way.
+If no drones are available: NO_AVAILABLE_DRONES
+
+Be fast but safe. One turn only.
+
+2026-02-27 16:16:05,546 [INFO] [022] DISPATCHED (streaming): drone3
+2026-02-27 16:16:07,031 [INFO] [022] AI response: 470 chars
+2026-02-27 16:16:07,031 [INFO] [022] Full response:
+Altitude ~38m, still climbing (velocity_z negative = going up). Let me check again.local_z = -43.8m, still climbing. One more check.local_z = -49.97m ≈ 50m altitude, velocity_z ≈ 0. Safe to proceed.Position command accepted (the ROS warning is non-critical). drone3 is en route to Willow Creek Trail at 50m altitude.
+
+**DISPATCHED:drone3** → Incident 022 (medical_emergency, Priority 1) at (-80, -70). Severe allergic reaction, child. ETA ~106m distance at cruise speed.
+2026-02-27 16:16:07,031 [INFO] ===== INCIDENT 022 END =====
