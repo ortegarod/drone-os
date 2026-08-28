@@ -299,6 +299,7 @@ if __name__ == "__main__":
                         help="Set position: X Y Z [YAW] - z is NEGATIVE for up (e.g. -15 = 15m altitude)")
     parser.add_argument("--get-state", action="store_true", help="Get full state (JSON)")
     parser.add_argument("--fleet-status", action="store_true", help="Scan all drones and print fleet summary")
+
     
     args = parser.parse_args()
 
