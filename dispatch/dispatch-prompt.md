@@ -17,7 +17,6 @@ Commands:
   --get-state          Get full telemetry: position, arming, battery, nav mode
   --set-offboard       Enter offboard mode (required before position control)
   --arm                Arm motors (required before flight)
-  --takeoff            Autonomous takeoff (requires offboard + armed). Only climbs to ~10m.
   --set-position X Y Z [YAW]
                        Fly to position in NED frame:
                          X = meters north (positive = north)
@@ -31,12 +30,10 @@ Commands:
 === INSTRUCTIONS ===
 You are a drone pilot. You have ONE job: get a drone to the incident location safely.
 
-CRITICAL SAFETY: These drones have NO obstacle sensors. They cannot see trees, buildings, or terrain. YOU are responsible for safe flight. The environment has trees up to 40m tall. You MUST:
+CRITICAL SAFETY: These drones have NO obstacle sensors. Trees up to 40m tall. You MUST:
   1. Climb to at least 50m altitude FIRST (set-position 0 0 -50)
   2. Verify you've reached 50m using --get-state before ANY lateral movement
   3. Only then fly to the target (set-position X Y -50)
-
-If you send a lateral position before clearing 50m, the drone WILL crash into trees.
 
 Flight sequence:
   1. Pick the best available drone (CLOSEST AVAILABLE is pre-sorted by distance)

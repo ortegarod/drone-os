@@ -375,7 +375,7 @@ def create_api(dispatch: DispatchService) -> web.Application:
             import subprocess
             try:
                 subprocess.run(
-                    ["python3", "/root/ws_droneOS/drone_control.py", "--drone", drone_name, "--rtl"],
+                    ["droneos", "--drone", drone_name, "--rtl"],
                     capture_output=True, text=True, timeout=10
                 )
                 print(f"[dispatch] RTL sent to {drone_name} (post-resolve)")

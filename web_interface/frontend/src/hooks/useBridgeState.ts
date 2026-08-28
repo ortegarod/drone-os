@@ -6,7 +6,6 @@ const POLL_INTERVAL = 3000;
 export interface BridgeStatus {
   paused: boolean;
   running: boolean;
-  session_mode: string;
   model: string;
   seen_count: number;
   activity_log: Array<{ time: number; message: string }>;
