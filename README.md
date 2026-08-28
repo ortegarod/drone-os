@@ -2,8 +2,6 @@
 
 Open-source framework for autonomous drone control, built on ROS 2 and PX4 Autopilot.
 
-> **[Full Documentation →](https://aerisrobotics.com/docs)**
-
 ## What It Does
 
 DroneOS provides the software layer between you and PX4. Instead of publishing raw DDS topics, you get:
@@ -11,84 +9,90 @@ DroneOS provides the software layer between you and PX4. Instead of publishing r
 - **C++ SDK** (`drone_core`) — High-level drone control as ROS 2 services
 - **Python API** (`drone_control.py`) — Remote control via rosbridge from anywhere
 - **CLI** (`droneos`) — Quick operations and AI agent interface
-- **AI Fleet Dispatch** — Autonomous multi-drone dispatch in simulation
-- **Web Command Center** — Real-time dashboard with telemetry, cameras, and AI chat
 
 Works in simulation (PX4 SITL + Gazebo) and on real hardware (Pixhawk + Raspberry Pi over 4G/VPN).
 
-## AI Fleet Dispatch
+## Quick Start (Simulation)
 
-An AI agent receives incidents, evaluates fleet status, picks the best drone, and flies it to the scene — no human pilot.
+This gets you from zero to a drone flying in simulation on a single machine. One simulated drone, one computer, no physical drone hardware required.
 
-```
-Incident → Dispatch Service (:8081)
-                ↓ polled by
-           Bridge (:8082) → queries fleet, builds prompt
-                ↓ POST /hooks/agent
-           OpenClaw AI → picks drone, arms, climbs, flies
-                ↓
-           Dispatch Service monitors → on_scene → auto-RTL → resolved
-```
-
-**~10 seconds** from incident to drone airborne.
-
-| Metric | Measured |
-|--------|----------|
-| Incident-to-Dispatch | ~10-12s |
-| AI Decision Time | ~3-4s |
-| Command Execution | ~2.5s (over Tailscale VPN) |
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────┐
-│                   VPS (Command Center)                    │
-│                                                           │
-│  Frontend (:3000)  ·  OpenClaw AI  ·  Bridge (:8082)     │
-│  Dispatch Service (:8081)  ·  droneos CLI                │
-│                        │ Tailscale VPN                    │
-└────────────────────────┼──────────────────────────────────┘
-                         ▼
-┌──────────────────────────────────────────────────────────┐
-│              Drone / Simulation Server                     │
-│                                                           │
-│  PX4 SITL + Gazebo  ·  drone_core  ·  rosbridge (:9090) │
-│  Micro-XRCE-DDS Agent  ·  Camera feeds                   │
-└──────────────────────────────────────────────────────────┘
-```
-
-## Quick Start
+### 1. Clone
 
 ```bash
-# Clone PX4 Autopilot
+# Clone PX4 Autopilot (in your workspace)
 git clone https://github.com/PX4/PX4-Autopilot.git
+
+# Clone DroneOS
+git clone https://github.com/ortegarod/drone-os.git
+```
+
+### 2. Start PX4 Simulation
+
+```bash
 cd PX4-Autopilot
 HEADLESS=1 make px4_sitl gz_x500
+```
 
-# Clone DroneOS (in another terminal)
-git clone https://github.com/ortegarod/drone-os.git
+Wait for `Ready for takeoff!` in the terminal. This runs PX4 with Gazebo — a full drone simulator.
+
+### 3. Start DroneOS
+
+In a new terminal:
+
+```bash
 cd drone-os
 docker compose -f docker/dev/docker-compose.dev.yml up -d --build drone_core micro_agent
+```
 
-# Fly
+This starts:
+- **`drone_core`** — the SDK node that exposes drone control services
+- **`micro_agent`** — the DDS bridge between PX4 and ROS 2
+
+### 4. Verify
+
+```bash
+docker logs -f drone_core_node
+```
+
+You should see services registering: `/drone1/arm`, `/drone1/takeoff`, `/drone1/set_position`, etc. If you see those, you're good.
+
+### 5. Fly
+
+```bash
 python3 drone_control.py --drone drone1 --set-offboard
 python3 drone_control.py --drone drone1 --arm
 python3 drone_control.py --drone drone1 --set-position 0 0 -50
+```
+
+The drone is now 50 meters up. The coordinate system is NED (North-East-Down), so **negative Z = altitude**. `-50` means 50 meters above the takeoff point.
+
+```bash
+python3 drone_control.py --drone drone1 --set-position 80 -40 -50
+```
+
+Now it's flying 80m north and 40m west at 50m altitude.
+
+```bash
 python3 drone_control.py --drone drone1 --land
 ```
 
-See [Prerequisites](https://aerisrobotics.com/docs/getting-started/prerequisites) and [Quick Start Guide](https://aerisrobotics.com/docs/getting-started/quick-start) for full setup.
+That's it. You just flew a drone.
 
-## CLI Reference
+### 6. Cleanup
 
 ```bash
-droneos --fleet-status                           # All drones
-droneos --drone drone1 --get-state               # Full telemetry (JSON)
-droneos --drone drone1 --set-offboard            # Enter offboard mode
-droneos --drone drone1 --arm                     # Arm motors
-droneos --drone drone1 --set-position 60 -60 -50 # Fly to position (NED)
-droneos --drone drone1 --land                    # Land
-droneos --drone drone1 --rtl                     # Return to launch
+docker compose -f docker/dev/docker-compose.dev.yml down
+```
+
+Then `CTRL+C` in the PX4 terminal.
+
+## Real Hardware Deployment
+
+Same codebase, different Docker Compose file:
+
+```bash
+# On Raspberry Pi with Pixhawk connected
+docker compose -f docker/prod/docker-compose.yml up -d --build drone_core micro_agent
 ```
 
 ## Tech Stack
@@ -100,48 +104,17 @@ droneos --drone drone1 --rtl                     # Return to launch
 | Middleware | ROS 2 Humble + Micro XRCE-DDS |
 | SDK | C++ (`drone_core`) |
 | Remote Control | Python (`drone_control.py`) via rosbridge |
-| AI | OpenClaw + Claude |
-| Frontend | React + TypeScript |
-| Networking | Tailscale VPN |
 | Deployment | Docker |
-
-## Real Hardware
-
-Same codebase, different Docker Compose file:
-
-```bash
-# On Raspberry Pi with Pixhawk connected
-docker compose -f docker/prod/docker-compose.yml up -d --build drone_core micro_agent
-```
-
-Build the camera service separately when you need camera support. It compiles Raspberry Pi camera components from source, so it can take much longer than the control stack.
-
-```bash
-docker compose -f docker/prod/docker-compose.yml build camera_service
-docker compose -f docker/prod/docker-compose.yml up -d camera_service
-```
-
-After the images are built, start all services without rebuilding:
-
-```bash
-docker compose -f docker/prod/docker-compose.yml up -d drone_core micro_agent camera_service
-```
-
-X500 airframe · Pixhawk · Raspberry Pi 5 · 4G + Tailscale VPN
-
-See [Real Hardware Setup](https://aerisrobotics.com/docs/getting-started/pixhawk_drone_deployment).
-
-## Documentation
-
-Full docs at **[aerisrobotics.com/docs](https://aerisrobotics.com/docs)**
-
-- [SDK Reference](https://aerisrobotics.com/docs/sdk-reference/drone-core) — C++ SDK, Python API, CLI, MCP Server
-- [Architecture](https://aerisrobotics.com/docs/architecture/system-overview) — System overview, AI dispatch, coordinate frames
-- [Operations](https://aerisrobotics.com/docs/operations/multi-drone) — Multi-drone, cameras, preflight, troubleshooting
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
+
+## Documentation & More Info
+
+For thorough documentation, roadmaps, multi-drone setups, camera configurations, and the full system architecture, please visit the official website:
+
+**[aerisrobotics.com/docs](https://aerisrobotics.com/docs)**
 
 ## License
 
