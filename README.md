@@ -7,8 +7,10 @@ Open-source framework for autonomous drone control, built on ROS 2 and PX4 Autop
 DroneOS provides the software layer between you and PX4. Instead of publishing raw DDS topics, you get:
 
 - **C++ SDK** (`drone_core`) — High-level drone control as ROS 2 services
-- **Python API** (`drone_control.py`) — Remote control via rosbridge from anywhere
-- **CLI** (`droneos`) — Quick operations and AI agent interface
+- **Fleet API** (`fleet_api/`) — the one gateway to the drones: operator login, one pilot per drone, command log, live telemetry
+- **Python client + CLI** (`droneos`, `sdk/python/`) — script or fly drones through the fleet API; the AI agent uses the same CLI
+- **Command center** (`web_interface/`) — web UI on the same API
+- **Jobs as plugins** (`plugins/`, [docs/plugins.md](docs/plugins.md)) — what a drone does beyond hand flying: Patrol, Inspect, Dispatch (demo); install your own while everything runs
 
 Works in simulation (PX4 SITL + Gazebo) and on real hardware (Pixhawk + Raspberry Pi over 4G/VPN).
 
@@ -22,8 +24,8 @@ This gets you from zero to a drone flying in simulation on a single machine. One
 # Clone PX4 Autopilot (in your workspace)
 git clone https://github.com/PX4/PX4-Autopilot.git
 
-# Clone DroneOS
-git clone https://github.com/ortegarod/drone-os.git
+# Clone DroneOS (with px4-ros2-interface-lib, a submodule)
+git clone --recurse-submodules https://github.com/ortegarod/drone-os.git
 ```
 
 ### 2. Start PX4 Simulation
@@ -58,25 +60,24 @@ You should see services registering: `/drone1/arm`, `/drone1/takeoff`, `/drone1/
 
 ### 5. Fly
 
-```bash
-python3 drone_control.py --drone drone1 --set-offboard
-python3 drone_control.py --drone drone1 --arm
-python3 drone_control.py --drone drone1 --set-position 0 0 -50
-```
-
-The drone is now 50 meters up. The coordinate system is NED (North-East-Down), so **negative Z = altitude**. `-50` means 50 meters above the takeoff point.
+Start the fleet API (it reaches `drone_core` through rosbridge), then fly with the `droneos` CLI:
 
 ```bash
-python3 drone_control.py --drone drone1 --set-position 80 -40 -50
+mkdir -p ~/.config/droneos
+KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')
+echo "{\"$KEY\": \"me\"}" > ~/.config/droneos/fleet_api_tokens.json      # operator keys
+echo "{\"api\": \"http://127.0.0.1:8090\", \"token\": \"$KEY\"}" > ~/.config/droneos/client.json
+
+cd fleet_api && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/uvicorn app:app --port 8090 &
+cd .. && pip install ./sdk/python
+
+droneos takeoff drone1 --alt 50      # arm and climb to 50 m
+droneos goto drone1 80 -40           # 80 m north, 40 m west
+droneos land drone1
 ```
 
-Now it's flying 80m north and 40m west at 50m altitude.
-
-```bash
-python3 drone_control.py --drone drone1 --land
-```
-
-That's it. You just flew a drone.
+That's it. You just flew a drone. `droneos -h` lists everything (patrol, return home, control, log).
 
 ### 6. Cleanup
 
@@ -85,6 +86,28 @@ docker compose -f docker/dev/docker-compose.dev.yml down
 ```
 
 Then `CTRL+C` in the PX4 terminal.
+
+## Program Your Drone (Python client + CLI)
+
+The `droneos` Python package and CLI fly drones through the **fleet API** (`fleet_api/`), the same API the command center uses. Tested in simulation (PX4 SITL); not yet tested on real hardware.
+
+```bash
+pip install ./sdk/python
+droneos drones
+droneos patrol drone1 "40,0 40,30 -10,30" --alt 15 --loops 2   # runs onboard, survives disconnects
+```
+
+```python
+from droneos import Drone
+
+with Drone("drone1") as d:
+    d.takeoff(10)                      # arm and climb to 10 m
+    for n, e in [(20, 0), (20, 20), (0, 20), (0, 0)]:
+        d.goto(n, e)                   # meters north, east of home; waits until arrival
+    d.land()
+```
+
+Setup and all commands: `sdk/python/README.md`. API: `fleet_api/README.md`.
 
 ## Real Hardware Deployment
 
@@ -103,7 +126,7 @@ docker compose -f docker/prod/docker-compose.yml up -d --build drone_core micro_
 | Simulation | Gazebo |
 | Middleware | ROS 2 Humble + Micro XRCE-DDS |
 | SDK | C++ (`drone_core`) |
-| Remote Control | Python (`drone_control.py`) via rosbridge |
+| Remote Control | Fleet API (FastAPI) + `droneos` Python client/CLI |
 | Deployment | Docker |
 
 ## Contributing

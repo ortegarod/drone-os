@@ -30,7 +30,8 @@ __pycache__/
 *$py.class
 
 # Internal planning docs (no longer excluded - cleaned for public)
-CLAUDE.md*.log
+CLAUDE.md
+*.log
 web_interface/frontend/dist/
 ROADMAP.md
 infra/

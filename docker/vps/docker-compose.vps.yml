@@ -3,13 +3,13 @@
 # Runs the cloud-side services for DroneOS demo:
 # - Frontend (React UI)
 # - OpenClaw proxy (gateway token proxy)
-# - Rosbridge relay (WebSocket proxy to srv01)
-# - Camera proxy (MJPEG relay from srv01)
+# - Fleet API (the only service that talks to the drones; everything else goes through it)
+# - Camera proxy (MJPEG relay from the sim host)
 # - Dispatch service (911 CAD simulator)
 # - Bridge (dispatch → OpenClaw connector)
 #
 # Usage:
-#   cd /home/ubuntu/drone-os
+#   cd ${HOME}/drone-os
 #   docker compose -f docker/vps/docker-compose.vps.yml up -d
 #
 
@@ -24,37 +24,16 @@ services:
     volumes:
       - ../../web_interface/frontend:/app
       - /app/node_modules
+      - ${HOME}/.config/droneos/fleet_api_tokens.json:/run/secrets/fleet_api_tokens.json:ro
+    environment:
+      # No key screen: the browser is logged in as this operator (Tailscale-only dev setup)
+      - AUTO_LOGIN_OPERATOR=${AUTO_LOGIN_OPERATOR:-}
+      - FLEET_API_TOKENS=/run/secrets/fleet_api_tokens.json
     working_dir: /app
-    command: node server.js
+    # Build the UI from source on start (dist/ isn't in git), then serve it.
+    command: sh -c "npm run build && node server.js"
 
-  openclaw_proxy:
-    build:
-      context: ../..
-      dockerfile: docker/dev/openclaw_proxy.dev.Dockerfile
-    container_name: openclaw_proxy_node
-    network_mode: "host"
-    restart: unless-stopped
-    volumes:
-      - ../../web_interface/backend/openclaw_proxy.py:/app/openclaw_proxy.py:ro
-      - /home/ubuntu/.openclaw/openclaw.json:/root/.openclaw/openclaw.json:ro
-      - /home/ubuntu/.openclaw/workspace:/root/.openclaw/workspace:ro
-      - /home/ubuntu/.openclaw/openclaw.json:/home/ubuntu/.openclaw/openclaw.json:ro
-      - /home/ubuntu/.openclaw/workspace:/home/ubuntu/.openclaw/workspace:ro
-    environment:
-      - OPENCLAW_GATEWAY_WS_URL=ws://127.0.0.1:18789
-      - OPENCLAW_PROXY_BIND=0.0.0.0
-      - OPENCLAW_PROXY_PORT=3031
-
-  rosbridge_relay:
-    build:
-      context: ../..
-      dockerfile: docker/dev/rosbridge_relay.dev.Dockerfile
-    container_name: rosbridge_relay_node
-    network_mode: "host"
-    restart: unless-stopped
-    environment:
-      - PYTHONUNBUFFERED=1
-
+  # Camera: /camera on :3000 and the plugins' photos go through this to web_video_server on the sim.
   camera_proxy:
     build:
       context: ../..
@@ -64,6 +43,7 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
+      - CAMERA_UPSTREAM_HOST=${SIM_HOST:?set SIM_HOST in docker/vps/.env}
 
   dispatch:
     build:
@@ -74,11 +54,116 @@ services:
     restart: unless-stopped
     volumes:
       - ../../dispatch:/app/dispatch
-      - /usr/local/bin/droneos:/usr/local/bin/droneos:ro
+      - ${HOME}/.config/droneos/dispatch_client.json:/root/.config/droneos/client.json:ro
     working_dir: /app
     environment:
       - PYTHONUNBUFFERED=1
+    depends_on:
+      - fleet_api
     command: python3 dispatch/dispatch_service.py
+
+  fleet_api:
+    build:
+      context: ../..
+      dockerfile: docker/vps/fleet_api.Dockerfile
+    container_name: fleet_api_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/.config/droneos/fleet_api_tokens.json:/run/secrets/fleet_api_tokens.json:ro
+      - ${HOME}/.local/state/droneos:/var/lib/droneos
+      - ../../plugins:/plugins:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ROSBRIDGE_HOST=${SIM_HOST:?set SIM_HOST in docker/vps/.env}
+      - ROSBRIDGE_PORT=9090
+      - FLEET_API_TOKENS=/run/secrets/fleet_api_tokens.json
+      - FLEET_API_LOG=/var/lib/droneos/fleet_api_log.jsonl
+      - FLEET_API_CONTROL=/var/lib/droneos/fleet_api_control.json
+      - FLEET_API_JOBS=/var/lib/droneos/fleet_api_jobs.json
+      - FLEET_API_PLUGINS=/plugins
+      - FLEET_API_INSTALLED_PLUGINS=/var/lib/droneos/fleet_api_plugins.json
+      - FLEET_API_OPERATORS=/var/lib/droneos/fleet_api_operators.json
+      - FLEET_API_GEOFENCE=/var/lib/droneos/fleet_api_geofence.json
+      - FLEET_API_ADMINS=${FLEET_API_ADMINS:-admin}
+
+  # Plugin #1: Patrol (cloud part). The onboard part is the PATROL mode on each drone.
+  patrol_plugin:
+    build:
+      context: ../..
+      dockerfile: docker/vps/patrol_plugin.Dockerfile
+    container_name: patrol_plugin_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/.config/droneos/patrol_plugin.json:/run/secrets/patrol_plugin.json:ro
+      - ${HOME}/.local/state/droneos:/var/lib/droneos
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PATROL_CONFIG=/run/secrets/patrol_plugin.json
+      - PATROL_REPORTS=/var/lib/droneos/patrols
+      - PATROL_ROUTES=/var/lib/droneos/patrol_routes.json
+      - CAMERA_URL=http://127.0.0.1:8080
+    depends_on:
+      - fleet_api
+
+  # Plugin #3: Inspect, the example plugin (docs/plugins.md). Cloud-only.
+  inspect_plugin:
+    build:
+      context: ../..
+      dockerfile: docker/vps/inspect_plugin.Dockerfile
+    container_name: inspect_plugin_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/.config/droneos/inspect_plugin.json:/run/secrets/inspect_plugin.json:ro
+      - ${HOME}/.local/state/droneos:/var/lib/droneos
+    environment:
+      - PYTHONUNBUFFERED=1
+      - INSPECT_CONFIG=/run/secrets/inspect_plugin.json
+      - INSPECT_REPORTS=/var/lib/droneos/inspections
+      - CAMERA_URL=http://127.0.0.1:8080
+    depends_on:
+      - fleet_api
+
+  # Plugin #4: Search. Look points, scan, report what the object detector confirms
+  # (listens to the fleet API's "detected" events). Cloud-only.
+  search_plugin:
+    build:
+      context: ../..
+      dockerfile: docker/vps/search_plugin.Dockerfile
+    container_name: search_plugin_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/.config/droneos/search_plugin.json:/run/secrets/search_plugin.json:ro
+      - ${HOME}/.local/state/droneos:/var/lib/droneos
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SEARCH_CONFIG=/run/secrets/search_plugin.json
+      - SEARCH_REPORTS=/var/lib/droneos/searches
+      - CAMERA_URL=http://127.0.0.1:8080
+    depends_on:
+      - fleet_api
+
+  # Plugin #5: Follow. Keep a person in view from above (reads the drone's detections). Cloud-only.
+  follow_plugin:
+    build:
+      context: ../..
+      dockerfile: docker/vps/follow_plugin.Dockerfile
+    container_name: follow_plugin_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/.config/droneos/follow_plugin.json:/run/secrets/follow_plugin.json:ro
+      - ${HOME}/.local/state/droneos:/var/lib/droneos
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FOLLOW_CONFIG=/run/secrets/follow_plugin.json
+      - FOLLOW_REPORTS=/var/lib/droneos/follows
+      - CAMERA_URL=http://127.0.0.1:8080
+    depends_on:
+      - fleet_api
 
   bridge:
     build:
@@ -89,8 +174,8 @@ services:
     restart: unless-stopped
     volumes:
       - ../../dispatch:/app/dispatch
-      - /usr/local/bin/droneos:/usr/local/bin/droneos:ro
-      - /home/ubuntu/.openclaw/openclaw.json:/root/.openclaw/openclaw.json:ro
+      - ${HOME}/.config/droneos/dispatch_client.json:/root/.config/droneos/client.json:ro
+      - ${HOME}/.openclaw/openclaw.json:/root/.openclaw/openclaw.json:ro
     working_dir: /app
     environment:
       - PYTHONUNBUFFERED=1

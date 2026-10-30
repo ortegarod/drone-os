@@ -17,7 +17,7 @@ DroneOS requires:
 - **ROS 2 Humble** (for the SDK)
 - **PX4 Autopilot** (SITL for simulation)
 - **Docker** (for containerized deployment)
-- **Python 3.10+** (for drone_control.py and dispatch services)
+- **Python 3.10+** (for the fleet API, the droneos client and dispatch)
 - **Node.js 18+** (for the web interface)
 
 See [Prerequisites](https://aerisrobotics.com/docs/getting-started/prerequisites) for detailed setup instructions.
@@ -27,7 +27,8 @@ See [Prerequisites](https://aerisrobotics.com/docs/getting-started/prerequisites
 ```
 drone-os/
 ├── src/drone_core/        # C++ SDK (ROS 2 node)
-├── drone_control.py       # Python API for remote drone control
+├── fleet_api/             # Fleet API: the one gateway to the drones
+├── sdk/python/            # droneos Python client + CLI
 ├── dispatch/              # AI dispatch service + bridge
 ├── web_interface/         # React/TypeScript ground station
 │   ├── frontend/          # React app
@@ -44,7 +45,7 @@ drone-os/
 
 ### Good First Issues
 - Documentation improvements
-- Test coverage for `drone_control.py`
+- Test coverage for `sdk/python` (the droneos client)
 - Docker Compose optimizations
 - Frontend UI improvements
 
@@ -70,7 +71,7 @@ cd PX4-Autopilot
 HEADLESS=1 make px4_sitl gz_x500
 
 # Test drone control
-python3 drone_control.py --drone drone1 --fleet-status
+droneos drones
 
 # Run the web interface
 cd web_interface/frontend
