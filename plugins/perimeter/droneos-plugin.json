@@ -1,0 +1,9 @@
+{
+  "id": "perimeter",
+  "name": "Fence check",
+  "version": "0.1.0",
+  "description": "Fly just inside the property fence, photograph it looking out, and report people and vehicles, marking what's new since the last check.",
+  "operator": "perimeter",
+  "service_url": "http://127.0.0.1:8095",
+  "ui": "/ui/job.js"
+}
