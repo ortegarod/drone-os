@@ -8,14 +8,16 @@
 
 // Include message types needed for subscriptions
 #include <px4_msgs/msg/vehicle_status.hpp>
-#include <px4_msgs/msg/vehicle_land_detected.hpp>
 #include <px4_msgs/msg/vehicle_global_position.hpp>
 #include <px4_msgs/msg/vehicle_local_position.hpp>
 #include <px4_msgs/msg/battery_status.hpp>
 #include <px4_msgs/msg/sensor_gps.hpp>
 #include <px4_msgs/msg/failsafe_flags.hpp>
-#include <px4_msgs/msg/telemetry_status.hpp>
-#include <px4_msgs/msg/wind.hpp>
+#include <px4_msgs/msg/vehicle_attitude.hpp>
+#include <px4_msgs/msg/estimator_status_flags.hpp>
+#include <px4_msgs/msg/position_setpoint_triplet.hpp>
+#include <px4_msgs/msg/mode_completed.hpp>
+#include <drone_interfaces/msg/mode_completed.hpp>
 
 // Include shared state enums
 #include "drone_core/utils/state_enums.hpp"
@@ -67,6 +69,10 @@ public:
      * @return True if lat/lon and alt data are currently considered valid, false otherwise.
      */
     bool get_latest_global_position(double& lat, double& lon, float& alt) const;
+    // Why get_latest_global_position() is false ("" when it is valid)
+    std::string global_position_problem() const;
+    /** True if no VehicleLocalPosition has arrived for more than LOCAL_POS_STALE_NS (or none yet). */
+    bool is_local_position_stale() const;
 
     /** 
      * @brief Get the latest received local position.
@@ -162,6 +168,59 @@ public:
     bool get_wind_data(WindData& data) const;
     uint32_t get_flight_time_elapsed() const;
 
+    // PX4-native health (vehicle_status / failsafe_flags)
+    struct HealthData {
+        bool status_valid = false;
+        bool failsafe = false;                     // vehicle_status.failsafe
+        bool pre_flight_checks_pass = false;       // vehicle_status.pre_flight_checks_pass
+        std::string nav_state_user_intention = "UNKNOWN";
+        bool flags_valid = false;
+        std::vector<std::string> failsafe_reasons; // active failsafe_flags (manual control filtered if rc_input_mode==4)
+        bool local_position_invalid = true;
+        bool global_position_invalid = true;
+        bool home_position_invalid = true;
+        bool battery_low_remaining_time = false;
+        uint8_t battery_warning = 0;               // failsafe_flags.battery_warning (BatteryStatus levels)
+    };
+    HealthData get_health() const;
+
+    // attitude (vehicle_attitude) and EKF position health (estimator_status_flags)
+    struct AttitudeHealth {
+        float roll_deg = NAN;
+        float pitch_deg = NAN;
+        bool position_trusted = false;
+        std::vector<std::string> estimator_warnings;
+    };
+    AttitudeHealth get_attitude_health() const;
+    bool rc_input_disabled() const;
+
+    // Home as PX4 defines it: position while disarmed and landed (Commander.cpp:1801). home_position is not bridged.
+    bool get_home(double& lat, double& lon, float& alt_amsl) const;
+    // raw PX4 nav_state / nav_state_user_intention (255 = none yet) and the PATROL external mode's id
+    uint8_t get_raw_nav_state() const { return raw_nav_state_.load(); }
+    uint8_t get_raw_user_intention() const { return raw_user_intention_.load(); }
+    void set_patrol_nav_state(uint8_t id) { patrol_nav_state_.store(id); }
+    uint8_t get_patrol_nav_state() const { return patrol_nav_state_.load(); }
+    static bool is_external_nav_state(uint8_t raw) { return raw >= 23 && raw <= 30; }  // VehicleStatus.msg EXTERNAL1..8
+    // Name for DroneState.nav_state etc.: the PATROL mode's id -> "PATROL", other external modes -> "EXTERNAL<n>"
+    std::string nav_state_name(uint8_t raw) const;
+    // Local NED (metres, EKF origin) -> lat/lon with PX4's MapProjection::reproject (lib/geo/geo.cpp:90-110)
+    bool local_to_global(float north, float east, double& lat, double& lon) const;
+    // Latest position_setpoint_triplet.current (lat/lon) and its arrival time (steady ns)
+    bool get_triplet_current(double& lat, double& lon, int64_t& rx_ns) const;
+
+    // Where PX4 is heading: latest position_setpoint_triplet (dds_topics.yaml:38; px4_msgs PositionSetpoint.msg)
+    struct TargetData {
+        bool target_valid = false;
+        double target_lat = NAN, target_lon = NAN;
+        float target_alt = NAN;          // AMSL
+        std::string target_type = "NONE";
+        float target_loiter_radius = 0.0f;
+        bool next_valid = false;
+        double next_lat = NAN, next_lon = NAN;
+    };
+    TargetData get_target() const;
+
 private:
     // --- ROS Communication ---
     rclcpp::Node* node_; ///< Pointer to the parent ROS node
@@ -175,18 +234,44 @@ private:
 
     // Subscriptions
     rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr status_sub_;
-    rclcpp::Subscription<px4_msgs::msg::VehicleLandDetected>::SharedPtr land_detected_sub_;
     rclcpp::Subscription<px4_msgs::msg::VehicleGlobalPosition>::SharedPtr global_pos_sub_;
+    // steady_clock ns of the last VehicleGlobalPosition; 0 = never received. Global position is reported
+    // invalid when older than GLOBAL_POS_STALE_NS (PX4 stops publishing it when it loses the estimate).
+    std::atomic<int64_t> last_global_pos_ns_{0};
+    static constexpr int64_t GLOBAL_POS_STALE_NS = 1000000000LL;
+    std::atomic<int64_t> last_local_pos_ns_{0};  // same rule for VehicleLocalPosition (waypoint completion uses it)
+    static constexpr int64_t LOCAL_POS_STALE_NS = 1000000000LL;
     rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr local_pos_sub_;
     // VehicleAttitude subscription removed - using heading from VehicleLocalPosition
     rclcpp::Subscription<px4_msgs::msg::BatteryStatus>::SharedPtr battery_sub_;
     rclcpp::Subscription<px4_msgs::msg::SensorGps>::SharedPtr gps_sub_;
     rclcpp::Subscription<px4_msgs::msg::FailsafeFlags>::SharedPtr failsafe_sub_;
-    rclcpp::Subscription<px4_msgs::msg::TelemetryStatus>::SharedPtr telemetry_sub_;
-    rclcpp::Subscription<px4_msgs::msg::Wind>::SharedPtr wind_sub_;
+    rclcpp::Subscription<px4_msgs::msg::PositionSetpointTriplet>::SharedPtr triplet_sub_;
+
+    mutable std::mutex health_mutex_;
+    HealthData health_;
+    mutable std::mutex home_mutex_;
+    bool home_valid_{false};
+    double home_lat_{0.0}, home_lon_{0.0};
+    float home_alt_{0.0f};
+    bool ref_valid_{false};
+    double ref_lat_{0.0}, ref_lon_{0.0};
+    double triplet_lat_{NAN}, triplet_lon_{NAN};
+    TargetData target_;
+    rclcpp::Subscription<px4_msgs::msg::ModeCompleted>::SharedPtr mode_completed_sub_;
+    rclcpp::Publisher<drone_interfaces::msg::ModeCompleted>::SharedPtr mode_completed_pub_;
+    // De-dup of PX4 mode_completed bursts (PX4 v1.15 land.cpp:93-96 re-publishes every navigator cycle while landed)
+    uint8_t last_mc_nav_state_{255};
+    uint8_t last_mc_result_{255};
+    uint64_t last_mc_px4_us_{0};
+    int64_t triplet_rx_ns_{0};
+    void update_home();
 
     // --- State Variables (Atomic for thread safety) ---
     std::atomic<NavState> current_nav_state_{NavState::UNKNOWN};
+    std::atomic<uint8_t> raw_nav_state_{255};
+    std::atomic<uint8_t> raw_user_intention_{255};
+    std::atomic<uint8_t> patrol_nav_state_{0};
     std::atomic<LandingState> current_landing_state_{LandingState::UNKNOWN};
     std::atomic<PositionFixState> current_pos_fix_state_{PositionFixState::UNKNOWN};
     std::atomic<ArmingState> current_arming_state_{ArmingState::UNKNOWN};
@@ -204,6 +289,9 @@ private:
     double latest_lat_{0.0}; 
     double latest_lon_{0.0}; 
     float latest_alt_{0.0f};
+    std::atomic<float> latest_eph_{0.0f};
+    std::atomic<float> latest_epv_{0.0f};
+    std::atomic<bool> latest_dead_reckoning_{false};
     float latest_local_x_{0.0f};
     float latest_local_y_{0.0f};
     float latest_local_z_{0.0f};
@@ -230,20 +318,26 @@ private:
 
     // --- Private Callbacks ---
     void vehicle_status_callback(const px4_msgs::msg::VehicleStatus::SharedPtr msg);
-    void vehicle_land_detected_callback(const px4_msgs::msg::VehicleLandDetected::SharedPtr msg);
     void vehicle_global_position_callback(const px4_msgs::msg::VehicleGlobalPosition::SharedPtr msg);
     void vehicle_local_position_callback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg);
     // vehicle_attitude_callback removed - using heading from VehicleLocalPosition
     void battery_status_callback(const px4_msgs::msg::BatteryStatus::SharedPtr msg);
     void sensor_gps_callback(const px4_msgs::msg::SensorGps::SharedPtr msg);
     void failsafe_flags_callback(const px4_msgs::msg::FailsafeFlags::SharedPtr msg);
-    void telemetry_status_callback(const px4_msgs::msg::TelemetryStatus::SharedPtr msg);
-    void wind_callback(const px4_msgs::msg::Wind::SharedPtr msg);
+    void vehicle_attitude_callback(const px4_msgs::msg::VehicleAttitude::SharedPtr msg);
+    void estimator_flags_callback(const px4_msgs::msg::EstimatorStatusFlags::SharedPtr msg);
+    rclcpp::Subscription<px4_msgs::msg::VehicleAttitude>::SharedPtr attitude_sub_;
+    rclcpp::Subscription<px4_msgs::msg::EstimatorStatusFlags>::SharedPtr estimator_flags_sub_;
+    mutable std::mutex att_mutex_;
+    float roll_deg_ = NAN, pitch_deg_ = NAN;
+    bool est_flags_valid_ = false;
+    bool est_position_ok_ = false;
+    std::vector<std::string> est_warnings_;
+    std::chrono::steady_clock::time_point est_rx_{};
 
     // --- Private Helper Functions (State Conversion) ---
     // (Definitions will be in drone_state.cpp)
-    NavState uint8_t_to_nav_state(uint8_t px4_state);
-    LandingState vehicle_land_detected_to_landing_state(const px4_msgs::msg::VehicleLandDetected& msg);
+    NavState uint8_t_to_nav_state(uint8_t px4_state) const;
     PositionFixState msg_to_position_fix_state(const px4_msgs::msg::VehicleGlobalPosition& msg);
     ArmingState uint8_t_to_arming_state(uint8_t px4_arming_state);
 }; 

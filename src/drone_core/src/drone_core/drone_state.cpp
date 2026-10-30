@@ -1,8 +1,23 @@
 #include "drone_core/drone_state.hpp"
 #include <chrono> // For chrono_literals
 #include <cmath>  // For std::abs, std::sqrt, M_PI
+#include <algorithm>
 
 using namespace std::chrono_literals;
+
+// Max PX4 position error estimate (1 sigma, meters) for global position to count as valid
+static constexpr float HORIZONTAL_ACCURACY_THRESHOLD = 5.0f;
+static constexpr float VERTICAL_ACCURACY_THRESHOLD = 10.0f;
+
+// Worse of battery_status.warning (string) and failsafe_flags.battery_warning (BatteryStatus levels 0-3)
+static std::string worst_battery_warning(const std::string& current, uint8_t flags_level) {
+    static const char* names[] = {"NONE", "LOW", "CRITICAL", "EMERGENCY"};
+    int cur = -1;
+    for (int i = 0; i < 4; ++i) if (current == names[i]) cur = i;
+    const int lvl = flags_level <= 3 ? flags_level : -1;
+    const int worst = std::max(cur, lvl);
+    return worst < 0 ? current : names[worst];
+}
 
 DroneState::DroneState(rclcpp::Node* node, const std::string& ns, const std::string& name)
     : node_(node), ns_(ns), name_(name)
@@ -30,12 +45,12 @@ DroneState::DroneState(rclcpp::Node* node, const std::string& ns, const std::str
         [this](const px4_msgs::msg::VehicleStatus::SharedPtr msg) { this->vehicle_status_callback(msg); });
     RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %s", name_.c_str(), status_topic.c_str());
 
-    std::string land_detected_topic = ns_ + "out/vehicle_land_detected";
-    land_detected_sub_ = node_->create_subscription<px4_msgs::msg::VehicleLandDetected>(
-        land_detected_topic,
-        rclcpp::QoS(1).best_effort(),
-        [this](const px4_msgs::msg::VehicleLandDetected::SharedPtr msg) { this->vehicle_land_detected_callback(msg); });
-    RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %s", name_.c_str(), land_detected_topic.c_str());
+    // Landing state is derived from vehicle_status (vehicle_land_detected is not in PX4 v1.15.4 dds_topics.yaml).
+    if (!node_->has_parameter("rc_input_mode")) {
+        // Must match PX4 COM_RC_IN_MODE. 4 = "Stick input disabled" (commander_params.c:179): PX4 then always
+        // reports manual_control_signal_lost, which is not a fault for us.
+        node_->declare_parameter<int>("rc_input_mode", 4);
+    }
 
     std::string global_pos_topic = ns_ + "out/vehicle_global_position";
     global_pos_sub_ = node_->create_subscription<px4_msgs::msg::VehicleGlobalPosition>(
@@ -61,7 +76,8 @@ DroneState::DroneState(rclcpp::Node* node, const std::string& ns, const std::str
         [this](const px4_msgs::msg::BatteryStatus::SharedPtr msg) { this->battery_status_callback(msg); });
     RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %s", name_.c_str(), battery_topic.c_str());
 
-    std::string gps_topic = ns_ + "out/sensor_gps";
+    // PX4 v1.15.4 bridges SensorGps as out/vehicle_gps_position (dds_topics.yaml:62-63); out/sensor_gps does not exist.
+    std::string gps_topic = ns_ + "out/vehicle_gps_position";
     gps_sub_ = node_->create_subscription<px4_msgs::msg::SensorGps>(
         gps_topic,
         rclcpp::QoS(1).best_effort(),
@@ -75,19 +91,75 @@ DroneState::DroneState(rclcpp::Node* node, const std::string& ns, const std::str
         [this](const px4_msgs::msg::FailsafeFlags::SharedPtr msg) { this->failsafe_flags_callback(msg); });
     RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %s", name_.c_str(), failsafe_topic.c_str());
 
-    std::string telemetry_topic = ns_ + "out/telemetry_status";
-    telemetry_sub_ = node_->create_subscription<px4_msgs::msg::TelemetryStatus>(
-        telemetry_topic,
-        rclcpp::QoS(1).best_effort(),
-        [this](const px4_msgs::msg::TelemetryStatus::SharedPtr msg) { this->telemetry_status_callback(msg); });
-    RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %s", name_.c_str(), telemetry_topic.c_str());
+    // attitude (dds_topics.yaml:50) and EKF status flags (dds_topics.yaml:26)
+    attitude_sub_ = node_->create_subscription<px4_msgs::msg::VehicleAttitude>(
+        ns_ + "out/vehicle_attitude", rclcpp::QoS(1).best_effort(),
+        [this](const px4_msgs::msg::VehicleAttitude::SharedPtr msg) { this->vehicle_attitude_callback(msg); });
+    estimator_flags_sub_ = node_->create_subscription<px4_msgs::msg::EstimatorStatusFlags>(
+        ns_ + "out/estimator_status_flags", rclcpp::QoS(1).best_effort(),
+        [this](const px4_msgs::msg::EstimatorStatusFlags::SharedPtr msg) { this->estimator_flags_callback(msg); });
+    RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %sout/vehicle_attitude, %sout/estimator_status_flags",
+                name_.c_str(), ns_.c_str(), ns_.c_str());
 
-    std::string wind_topic = ns_ + "out/wind";
-    wind_sub_ = node_->create_subscription<px4_msgs::msg::Wind>(
-        wind_topic,
+    // out/telemetry_status and out/wind are not bridged on PX4 v1.15.4 (dds_topics.yaml); fields stay 0 (deprecated).
+
+    std::string triplet_topic = ns_ + "out/position_setpoint_triplet";  // dds_topics.yaml:38
+    triplet_sub_ = node_->create_subscription<px4_msgs::msg::PositionSetpointTriplet>(
+        triplet_topic,
         rclcpp::QoS(1).best_effort(),
-        [this](const px4_msgs::msg::Wind::SharedPtr msg) { this->wind_callback(msg); });
-    RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %s", name_.c_str(), wind_topic.c_str());
+        [this](const px4_msgs::msg::PositionSetpointTriplet::SharedPtr msg) {
+            static const char* kTypes[] = {"POSITION", "VELOCITY", "LOITER", "TAKEOFF", "LAND", "IDLE"};  // PositionSetpoint.msg:5-10
+            std::lock_guard<std::mutex> lock(home_mutex_);
+            target_.target_valid = msg->current.valid;
+            target_.target_lat = msg->current.lat;
+            target_.target_lon = msg->current.lon;
+            target_.target_alt = msg->current.alt;
+            target_.target_type = msg->current.type <= 5 ? kTypes[msg->current.type] : "TYPE_" + std::to_string(msg->current.type);
+            target_.target_loiter_radius = msg->current.loiter_radius;
+            target_.next_valid = msg->next.valid;
+            target_.next_lat = msg->next.lat;
+            target_.next_lon = msg->next.lon;
+            if (msg->current.valid) {
+                triplet_lat_ = msg->current.lat;
+                triplet_lon_ = msg->current.lon;
+                triplet_rx_ns_ = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count();
+            }
+        });
+    RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %s", name_.c_str(), triplet_topic.c_str());
+
+    // Mode completion events (dds_topics.yaml:17) re-published as /<drone>/mode_completed
+    mode_completed_pub_ = node_->create_publisher<drone_interfaces::msg::ModeCompleted>(
+        "/" + name_ + "/mode_completed", rclcpp::QoS(10).reliable());
+    std::string mc_topic = ns_ + "out/mode_completed";
+    mode_completed_sub_ = node_->create_subscription<px4_msgs::msg::ModeCompleted>(
+        mc_topic, rclcpp::QoS(10).best_effort(),
+        [this](const px4_msgs::msg::ModeCompleted::SharedPtr msg) {
+            // PX4 v1.15.4 Land::on_active() (src/modules/navigator/land.cpp:93-96) calls mode_completed(AUTO_LAND) on
+            // every navigator cycle while land_detected.landed, without the "!finished" guard Takeoff has
+            // (takeoff.cpp:67), so one landing arrives as ~40 copies (~20 Hz until auto-disarm). Forward only the
+            // first of a burst: same nav_state + result with < 0.5 s (PX4 time) since the previous copy is a repeat.
+            // The gap rolls forward with every copy, so a long burst stays one event; a later landing is new.
+            const bool same = msg->nav_state == last_mc_nav_state_ && msg->result == last_mc_result_;
+            const bool repeat = same && msg->timestamp >= last_mc_px4_us_ &&
+                                msg->timestamp - last_mc_px4_us_ < 500000ULL;
+            last_mc_nav_state_ = msg->nav_state;
+            last_mc_result_ = msg->result;
+            last_mc_px4_us_ = msg->timestamp;
+            if (repeat) {
+                return;
+            }
+            drone_interfaces::msg::ModeCompleted ev;
+            ev.stamp = node_->get_clock()->now();
+            ev.drone = name_;
+            ev.nav_state = msg->nav_state;
+            ev.mode = nav_state_name(msg->nav_state);
+            ev.result_code = msg->result;
+            ev.result = msg->result == 0 ? "SUCCESS" : (msg->result == 100 ? "FAILURE_OTHER" : "RESULT_" + std::to_string(msg->result));
+            RCLCPP_INFO(node_->get_logger(), "[%s][State] PX4 mode completed: %s -> %s", name_.c_str(), ev.mode.c_str(), ev.result.c_str());
+            mode_completed_pub_->publish(ev);
+        });
+    RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscribed to %s", name_.c_str(), mc_topic.c_str());
 
     // Initialize telemetry data
     battery_data_.valid = false;
@@ -116,14 +188,13 @@ DroneState::DroneState(rclcpp::Node* node, const std::string& ns, const std::str
 DroneState::~DroneState() {
     RCLCPP_INFO(node_->get_logger(), "[%s][State] Destructor called. Releasing subscriptions...", name_.c_str());
     status_sub_.reset();
-    land_detected_sub_.reset();
     global_pos_sub_.reset();
     local_pos_sub_.reset();
     battery_sub_.reset();
     gps_sub_.reset();
     failsafe_sub_.reset();
-    telemetry_sub_.reset();
-    wind_sub_.reset();
+    triplet_sub_.reset();
+    mode_completed_sub_.reset();
     RCLCPP_INFO(node_->get_logger(), "[%s][State] Subscriptions released.", name_.c_str());
 }
 
@@ -131,6 +202,8 @@ DroneState::~DroneState() {
 
 void DroneState::vehicle_status_callback(const px4_msgs::msg::VehicleStatus::SharedPtr msg) {
     // --- Navigation State --- 
+    raw_nav_state_.store(msg->nav_state);
+    raw_user_intention_.store(msg->nav_state_user_intention);
     NavState new_nav_state = uint8_t_to_nav_state(msg->nav_state);
     NavState previous_nav_state = current_nav_state_.exchange(new_nav_state, std::memory_order_relaxed);
 
@@ -154,11 +227,20 @@ void DroneState::vehicle_status_callback(const px4_msgs::msg::VehicleStatus::Sha
                     arming_state_enum_to_string(new_arming_state).c_str());
     }
 
-    // Could track other status changes here too: msg->failsafe, etc.
-}
+    {
+        std::lock_guard<std::mutex> lock(health_mutex_);
+        health_.status_valid = true;
+        health_.failsafe = msg->failsafe;                              // VehicleStatus.msg:100
+        health_.pre_flight_checks_pass = msg->pre_flight_checks_pass;  // VehicleStatus.msg:138
+        health_.nav_state_user_intention = nav_state_name(msg->nav_state_user_intention);
+    }
 
-void DroneState::vehicle_land_detected_callback(const px4_msgs::msg::VehicleLandDetected::SharedPtr msg) {
-    LandingState new_landing_state = vehicle_land_detected_to_landing_state(*msg);
+    // Landing state from vehicle_status: takeoff_time is set on "Takeoff detected" and reset on disarm
+    // (Commander.cpp:2093-2098, 656).
+    LandingState new_landing_state = LandingState::LANDED;
+    if (msg->arming_state == px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED) {
+        new_landing_state = (msg->takeoff_time == 0) ? LandingState::ON_GROUND : LandingState::AIRBORNE;
+    }
     LandingState previous_state = current_landing_state_.exchange(new_landing_state, std::memory_order_relaxed);
 
     if (new_landing_state != previous_state) {
@@ -172,6 +254,8 @@ void DroneState::vehicle_land_detected_callback(const px4_msgs::msg::VehicleLand
 
 void DroneState::vehicle_global_position_callback(const px4_msgs::msg::VehicleGlobalPosition::SharedPtr msg) {
     static constexpr auto relaxed = std::memory_order_relaxed;
+    last_global_pos_ns_.store(std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count(), relaxed);
 
     // --- TEMPORARILY COMMENTED OUT FOR TESTING --- 
     // --- DO NOT FLY WITH THESE CHECKS REMOVED --- 
@@ -179,12 +263,17 @@ void DroneState::vehicle_global_position_callback(const px4_msgs::msg::VehicleGl
     // alt_valid_.store(msg->epv < VERTICAL_ACCURACY_THRESHOLD, relaxed); // Requires definition of VERTICAL_ACCURACY_THRESHOLD
     // --- END TEMPORARY MODIFICATION ---
     
-    // TEMPORARY FIX: Set GPS as valid if we receive reasonable coordinates
-    // TODO: Implement proper accuracy threshold checks
-    if (msg->lat != 0.0 && msg->lon != 0.0 && std::abs(msg->lat) <= 90.0 && std::abs(msg->lon) <= 180.0) {
-        lat_lon_valid_.store(true, relaxed);
-        alt_valid_.store(true, relaxed);
-    }
+    // Global position is only valid when PX4's accuracy estimate is good enough and it is not dead-reckoning.
+    // (px4_msgs for PX4 v1.15 has no lat_lon_valid/alt_valid fields; those arrive in v1.16.)
+    lat_lon_valid_.store(!msg->dead_reckoning && msg->eph < HORIZONTAL_ACCURACY_THRESHOLD, relaxed);
+    alt_valid_.store(!msg->dead_reckoning && msg->epv < VERTICAL_ACCURACY_THRESHOLD, relaxed);
+    latest_lat_ = msg->lat;
+    latest_lon_ = msg->lon;
+    latest_alt_ = msg->alt;
+    latest_eph_.store(msg->eph, relaxed);
+    latest_epv_.store(msg->epv, relaxed);
+    latest_dead_reckoning_.store(msg->dead_reckoning, relaxed);
+    update_home();
 
     // Update latitude if valid and changed significantly
     // --- TEMPORARILY COMMENTED OUT FOR TESTING --- 
@@ -216,22 +305,19 @@ void DroneState::vehicle_global_position_callback(const px4_msgs::msg::VehicleGl
         RCLCPP_DEBUG(node_->get_logger(), "Updated altitude to: %.1f", msg->alt);
      }
 
-    // Update position fix state based on the message
-    // --- TEMPORARILY MODIFIED FOR TESTING --- 
-    // PositionFixState current_fix = msg_to_position_fix_state(*msg); 
-    // --- FIX: Use correct enum member --- 
-    PositionFixState current_fix = PositionFixState::BOTH_VALID; // Assume 3D fix for testing
-    // --- END TEMPORARY MODIFICATION ---
-    // --- FIX: Use correct variable name --- 
-    if (current_pos_fix_state_.load(relaxed) != current_fix) {
-        // --- FIX: Use correct variable name --- 
-        current_pos_fix_state_.store(current_fix, relaxed);
-        RCLCPP_INFO(node_->get_logger(), 
-                    "[%s][State] Position Fix State changed: %s -> %s", 
-                    name_.c_str(), 
-                    // --- FIX: Use correct variable name --- 
-                    position_fix_state_enum_to_string(current_pos_fix_state_.load(relaxed)).c_str(),
-                    position_fix_state_enum_to_string(current_fix).c_str());
+    // Update position fix state; log PX4's raw accuracy values with every change so a
+    // flapping estimate can be diagnosed from the drone_core log alone.
+    const PositionFixState current_fix = msg_to_position_fix_state(*msg);
+    const PositionFixState previous_fix = current_pos_fix_state_.exchange(current_fix, relaxed);
+    if (previous_fix != current_fix) {
+        RCLCPP_INFO(node_->get_logger(),
+                    "[%s][State] Position Fix State changed: %s -> %s (eph=%.2f m, epv=%.2f m, dead_reckoning=%s; "
+                    "valid needs eph<%.1f, epv<%.1f, no dead reckoning)",
+                    name_.c_str(),
+                    position_fix_state_enum_to_string(previous_fix).c_str(),
+                    position_fix_state_enum_to_string(current_fix).c_str(),
+                    msg->eph, msg->epv, msg->dead_reckoning ? "true" : "false",
+                    HORIZONTAL_ACCURACY_THRESHOLD, VERTICAL_ACCURACY_THRESHOLD);
     }
     
     // Update latest data if valid
@@ -271,11 +357,19 @@ void DroneState::vehicle_global_position_callback(const px4_msgs::msg::VehicleGl
 
 void DroneState::vehicle_local_position_callback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg) {
     auto relaxed = std::memory_order_relaxed;
+    last_local_pos_ns_.store(std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count(), relaxed);
     // Update validity flags
     xy_valid_.store(msg->xy_valid, relaxed);
     z_valid_.store(msg->z_valid, relaxed);
     v_xy_valid_.store(msg->v_xy_valid, relaxed);
     v_z_valid_.store(msg->v_z_valid, relaxed);
+    if (msg->xy_global) {
+        std::lock_guard<std::mutex> lock(home_mutex_);
+        ref_valid_ = true;
+        ref_lat_ = msg->ref_lat;
+        ref_lon_ = msg->ref_lon;
+    }
 
     // Update latest data if valid
     // std::lock_guard<std::mutex> lock(data_mutex_); // Protect write access to data // DEBUG: Removed mutex
@@ -362,13 +456,55 @@ ArmingState DroneState::get_arming_state() const {
     return current_arming_state_.load(std::memory_order_relaxed);
 }
 
+std::string DroneState::global_position_problem() const {
+    double lat, lon; float alt;
+    if (get_latest_global_position(lat, lon, alt)) return "";
+    const int64_t last = last_global_pos_ns_.load(std::memory_order_relaxed);
+    const int64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    char buf[160];
+    if (last == 0) return "no vehicle_global_position received";
+    if (now - last > GLOBAL_POS_STALE_NS) {
+        std::snprintf(buf, sizeof(buf), "vehicle_global_position stale (%.1f s old)", (now - last) / 1e9);
+        return buf;
+    }
+    {
+        std::lock_guard<std::mutex> lock(health_mutex_);
+        if (health_.flags_valid && health_.global_position_invalid)
+            return "PX4 reports global position invalid (failsafe_flags.global_position_invalid)";
+    }
+    std::snprintf(buf, sizeof(buf), "PX4 accuracy too low: eph=%.2f m (max %.1f), epv=%.2f m (max %.1f), dead_reckoning=%s",
+                  latest_eph_.load(std::memory_order_relaxed), HORIZONTAL_ACCURACY_THRESHOLD,
+                  latest_epv_.load(std::memory_order_relaxed), VERTICAL_ACCURACY_THRESHOLD,
+                  latest_dead_reckoning_.load(std::memory_order_relaxed) ? "true" : "false");
+    return buf;
+}
+
 bool DroneState::get_latest_global_position(double& lat, double& lon, float& alt) const {
     // std::lock_guard<std::mutex> lock(data_mutex_); // Protect read access // DEBUG: Removed mutex
     lat = latest_lat_;
     lon = latest_lon_;
     alt = latest_alt_;
-    // Return combined validity from atomic flags
+    // Stale data is invalid: PX4 stops publishing vehicle_global_position when it loses the estimate.
+    const int64_t last = last_global_pos_ns_.load(std::memory_order_relaxed);
+    const int64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    if (last == 0 || now - last > GLOBAL_POS_STALE_NS) {
+        return false;
+    }
+    // PX4's own verdict (FailsafeFlags.msg:31) when available, plus our accuracy gate
+    {
+        std::lock_guard<std::mutex> lock(health_mutex_);
+        if (health_.flags_valid && health_.global_position_invalid) return false;
+    }
     return lat_lon_valid_.load(std::memory_order_relaxed) && alt_valid_.load(std::memory_order_relaxed);
+}
+
+bool DroneState::is_local_position_stale() const {
+    const int64_t last = last_local_pos_ns_.load(std::memory_order_relaxed);
+    const int64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    return last == 0 || now - last > LOCAL_POS_STALE_NS;
 }
 
 bool DroneState::get_latest_local_position(float& x, float& y, float& z) const {
@@ -376,7 +512,18 @@ bool DroneState::get_latest_local_position(float& x, float& y, float& z) const {
     x = latest_local_x_;
     y = latest_local_y_;
     z = latest_local_z_;
-    // Return combined validity from atomic flags
+    // Stale data is invalid (no VehicleLocalPosition for more than LOCAL_POS_STALE_NS).
+    const int64_t last = last_local_pos_ns_.load(std::memory_order_relaxed);
+    const int64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    if (last == 0 || now - last > LOCAL_POS_STALE_NS) {
+        return false;
+    }
+    // Valid = fresh, EKF xy/z valid, and PX4 does not flag local position invalid (FailsafeFlags.msg:28)
+    {
+        std::lock_guard<std::mutex> lock(health_mutex_);
+        if (health_.flags_valid && health_.local_position_invalid) return false;
+    }
     return xy_valid_.load(std::memory_order_relaxed) && z_valid_.load(std::memory_order_relaxed);
 }
 
@@ -423,7 +570,7 @@ float DroneState::get_latest_compass_heading() const {
 // --- Private Helper Functions (State Conversion) ---
 // (Implementations copied from drone_controller.cpp)
 
-NavState DroneState::uint8_t_to_nav_state(uint8_t px4_state) {
+NavState DroneState::uint8_t_to_nav_state(uint8_t px4_state) const {
     switch (px4_state) {
         case px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_MANUAL: return NavState::MANUAL;
         case px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_ALTCTL: return NavState::ALTCTL;
@@ -440,38 +587,27 @@ NavState DroneState::uint8_t_to_nav_state(uint8_t px4_state) {
         case px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_AUTO_PRECLAND: return NavState::AUTO_PRECLAND;
         case px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_ORBIT: return NavState::ORBIT;
         case px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF: return NavState::AUTO_VTOL_TAKEOFF;
-        default: return NavState::UNKNOWN;
+        default:
+            return is_external_nav_state(px4_state) ? NavState::EXTERNAL : NavState::UNKNOWN;
     }
 }
 
-LandingState DroneState::vehicle_land_detected_to_landing_state(const px4_msgs::msg::VehicleLandDetected& msg) {
-    if (msg.freefall) return LandingState::FREEFALL;
-    if (msg.landed) return LandingState::LANDED;
-    if (msg.maybe_landed) return LandingState::MAYBE_LANDED;
-    if (msg.ground_contact) return LandingState::GROUND_CONTACT;
-    return LandingState::AIRBORNE; 
+std::string DroneState::nav_state_name(uint8_t raw) const {
+    if (is_external_nav_state(raw)) {
+        const uint8_t patrol = patrol_nav_state_.load();
+        return (patrol != 0 && raw == patrol) ? "PATROL" : "EXTERNAL" + std::to_string(raw - 22);
+    }
+    return nav_state_enum_to_string(uint8_t_to_nav_state(raw));
 }
+
 
 PositionFixState DroneState::msg_to_position_fix_state(const px4_msgs::msg::VehicleGlobalPosition& msg) {
-    // --- TEMPORARILY MODIFIED FOR TESTING --- 
-    // --- DO NOT FLY WITH THIS LOGIC --- 
-    // This function should determine fix state based on msg.eph/epv thresholds
-    // For now, returning BOTH_VALID to bypass the check during testing.
-    // --- FIX: Use correct enum member --- 
-        return PositionFixState::BOTH_VALID;
-
-    /* --- ORIGINAL LOGIC (Needs adapting for eph/epv) ---
-    if (msg.eph < HORIZONTAL_ACCURACY_THRESHOLD && msg.epv < VERTICAL_ACCURACY_THRESHOLD) { // Placeholder thresholds
-        return PositionFixState::FIX_3D;
-    } else if (msg.eph < HORIZONTAL_ACCURACY_THRESHOLD) { // Placeholder threshold
-        return PositionFixState::FIX_2D;
-    } else if (msg.epv < VERTICAL_ACCURACY_THRESHOLD) { // Placeholder threshold
-        return PositionFixState::FIX_ALT_ONLY;
-    } else {
-        return PositionFixState::NO_FIX;
-    }
-    */
-    // --- END TEMPORARY MODIFICATION ---
+    const bool lat_lon_ok = !msg.dead_reckoning && msg.eph < HORIZONTAL_ACCURACY_THRESHOLD;
+    const bool alt_ok = !msg.dead_reckoning && msg.epv < VERTICAL_ACCURACY_THRESHOLD;
+    if (lat_lon_ok && alt_ok) return PositionFixState::BOTH_VALID;
+    if (lat_lon_ok) return PositionFixState::LAT_LON_VALID;
+    if (alt_ok) return PositionFixState::ALT_VALID;
+    return PositionFixState::NO_FIX;
 }
 
 ArmingState DroneState::uint8_t_to_arming_state(uint8_t px4_arming_state) {
@@ -542,79 +678,167 @@ void DroneState::sensor_gps_callback(const px4_msgs::msg::SensorGps::SharedPtr m
 }
 
 void DroneState::failsafe_flags_callback(const px4_msgs::msg::FailsafeFlags::SharedPtr msg) {
+    const bool rc_disabled = rc_input_disabled();
+    const bool manual_lost = msg->manual_control_signal_lost && !rc_disabled;
+
+    // Active PX4 failsafe conditions, named after FailsafeFlags.msg fields (px4_msgs release/1.15 lines 25-57).
+    // Filtered: manual_control_signal_lost when stick input is disabled (COM_RC_IN_MODE=4, always set then);
+    // auto_mission_missing (we do not use PX4 Mission mode); offboard_control_signal_lost outside OFFBOARD.
+    std::vector<std::string> reasons;
+    auto add = [&reasons](bool on, const char* name) { if (on) reasons.emplace_back(name); };
+    add(msg->angular_velocity_invalid, "angular_velocity_invalid");
+    add(msg->attitude_invalid, "attitude_invalid");
+    add(msg->local_altitude_invalid, "local_altitude_invalid");
+    add(msg->local_position_invalid, "local_position_invalid");
+    add(msg->local_position_invalid_relaxed, "local_position_invalid_relaxed");
+    add(msg->local_velocity_invalid, "local_velocity_invalid");
+    add(msg->global_position_invalid, "global_position_invalid");
+    add(msg->offboard_control_signal_lost && get_nav_state() == NavState::OFFBOARD, "offboard_control_signal_lost");
+    add(msg->home_position_invalid, "home_position_invalid");
+    add(manual_lost, "manual_control_signal_lost");
+    add(msg->gcs_connection_lost, "gcs_connection_lost");
+    add(msg->battery_warning != 0, "battery_warning");
+    add(msg->battery_low_remaining_time, "battery_low_remaining_time");
+    add(msg->battery_unhealthy, "battery_unhealthy");
+    add(msg->geofence_breached, "geofence_breached");
+    add(msg->mission_failure, "mission_failure");
+    add(msg->wind_limit_exceeded, "wind_limit_exceeded");
+    add(msg->flight_time_limit_exceeded, "flight_time_limit_exceeded");
+    add(msg->local_position_accuracy_low, "local_position_accuracy_low");
+    add(msg->fd_critical_failure, "fd_critical_failure");
+    add(msg->fd_esc_arming_failure, "fd_esc_arming_failure");
+    add(msg->fd_imbalanced_prop, "fd_imbalanced_prop");
+    add(msg->fd_motor_failure, "fd_motor_failure");
+    {
+        std::lock_guard<std::mutex> lock(health_mutex_);
+        health_.flags_valid = true;
+        health_.failsafe_reasons = reasons;
+        health_.local_position_invalid = msg->local_position_invalid;
+        health_.global_position_invalid = msg->global_position_invalid;
+        health_.home_position_invalid = msg->home_position_invalid;
+        health_.battery_low_remaining_time = msg->battery_low_remaining_time;
+        health_.battery_warning = msg->battery_warning;
+    }
+
     std::lock_guard<std::mutex> lock(failsafe_mutex_);
-    
-    failsafe_data_.manual_control_lost = msg->manual_control_signal_lost;
+    failsafe_data_.manual_control_lost = manual_lost;
     failsafe_data_.gcs_connection_lost = msg->gcs_connection_lost;
     failsafe_data_.geofence_breached = msg->geofence_breached;
     failsafe_data_.battery_warning = msg->battery_warning;
     failsafe_data_.battery_unhealthy = msg->battery_unhealthy;
     failsafe_data_.wind_limit_exceeded = msg->wind_limit_exceeded;
     failsafe_data_.flight_time_limit_exceeded = msg->flight_time_limit_exceeded;
-    
-    // Calculate system health score (0-100)
+
+    // Health score (0-100) over the checks below
     int issues = 0;
-    int total_checks = 7;
-    
-    if (msg->manual_control_signal_lost) issues++;
+    const int total_checks = 7;
+    if (manual_lost) issues++;
     if (msg->gcs_connection_lost) issues++;
     if (msg->geofence_breached) issues++;
     if (msg->battery_warning) issues++;
     if (msg->battery_unhealthy) issues++;
     if (msg->wind_limit_exceeded) issues++;
     if (msg->flight_time_limit_exceeded) issues++;
-    
     failsafe_data_.system_health_score = ((total_checks - issues) * 100) / total_checks;
-    
-    // Generate warning and failure lists
+
     failsafe_data_.active_warnings.clear();
     failsafe_data_.critical_failures.clear();
-    
     if (msg->battery_warning) failsafe_data_.active_warnings.push_back("Battery warning");
+    if (msg->battery_low_remaining_time) failsafe_data_.active_warnings.push_back("Battery low remaining flight time");
     if (msg->wind_limit_exceeded) failsafe_data_.active_warnings.push_back("Wind limit exceeded");
     if (msg->flight_time_limit_exceeded) failsafe_data_.active_warnings.push_back("Flight time limit exceeded");
-    
-    if (msg->manual_control_signal_lost) failsafe_data_.critical_failures.push_back("Manual control signal lost");
+
+    if (manual_lost) failsafe_data_.critical_failures.push_back("Manual control signal lost");
     if (msg->gcs_connection_lost) failsafe_data_.critical_failures.push_back("GCS connection lost");
     if (msg->geofence_breached) failsafe_data_.critical_failures.push_back("Geofence breached");
     if (msg->battery_unhealthy) failsafe_data_.critical_failures.push_back("Battery unhealthy");
-    
+    if (msg->local_position_invalid) failsafe_data_.critical_failures.push_back("Local position invalid");
+    if (msg->global_position_invalid) failsafe_data_.critical_failures.push_back("Global position invalid");
+    if (msg->fd_critical_failure) failsafe_data_.critical_failures.push_back("Critical failure (attitude/altitude limit)");
+    if (msg->fd_motor_failure) failsafe_data_.critical_failures.push_back("Motor failure");
+
     failsafe_data_.valid = true;
     failsafe_data_.timestamp = node_->get_clock()->now();
 }
 
-void DroneState::telemetry_status_callback(const px4_msgs::msg::TelemetryStatus::SharedPtr msg) {
-    std::lock_guard<std::mutex> lock(telemetry_mutex_);
-    
-    // Use available fields from TelemetryStatus
-    // Link quality based on data rates and GCS connection
-    telemetry_data_.telemetry_link_quality = std::min(100.0f, std::max(0.0f, msg->data_rate / 100.0f * 100.0f));
-    telemetry_data_.rc_signal_valid = msg->heartbeat_type_gcs; // GCS connection indicates valid telemetry
-    telemetry_data_.rc_signal_strength = msg->heartbeat_type_gcs ? 75.0f : 0.0f; // Simplified signal strength
-    
-    // Calculate packet loss rate from rx_message_lost_rate
-    telemetry_data_.packet_loss_rate = std::min(1.0f, std::max(0.0f, msg->rx_message_lost_rate));
-    
-    telemetry_data_.valid = true;
-    telemetry_data_.timestamp = node_->get_clock()->now();
+DroneState::HealthData DroneState::get_health() const {
+    std::lock_guard<std::mutex> lock(health_mutex_);
+    return health_;
 }
 
-void DroneState::wind_callback(const px4_msgs::msg::Wind::SharedPtr msg) {
-    std::lock_guard<std::mutex> lock(wind_mutex_);
-    
-    wind_data_.speed = std::sqrt(msg->windspeed_north * msg->windspeed_north + 
-                                 msg->windspeed_east * msg->windspeed_east);
-    wind_data_.direction = std::atan2(msg->windspeed_east, msg->windspeed_north) * 180.0 / M_PI;
-    if (wind_data_.direction < 0) wind_data_.direction += 360.0;
-    
-    wind_data_.valid = true;
-    wind_data_.timestamp = node_->get_clock()->now();
+bool DroneState::rc_input_disabled() const {
+    int mode = 4;
+    node_->get_parameter("rc_input_mode", mode);
+    return mode == 4;
+}
+
+void DroneState::update_home() {
+    // Same rule as PX4 (Commander.cpp:1801): home follows the vehicle while disarmed and landed.
+    if (get_arming_state() != ArmingState::DISARMED) return;
+    if (!lat_lon_valid_.load(std::memory_order_relaxed) || !alt_valid_.load(std::memory_order_relaxed)) return;
+    std::lock_guard<std::mutex> lock(home_mutex_);
+    home_valid_ = true;
+    home_lat_ = latest_lat_;
+    home_lon_ = latest_lon_;
+    home_alt_ = latest_alt_;
+}
+
+bool DroneState::get_home(double& lat, double& lon, float& alt_amsl) const {
+    std::lock_guard<std::mutex> lock(home_mutex_);
+    lat = home_lat_;
+    lon = home_lon_;
+    alt_amsl = home_alt_;
+    return home_valid_;
+}
+
+bool DroneState::local_to_global(float north, float east, double& lat, double& lon) const {
+    double ref_lat, ref_lon;
+    {
+        std::lock_guard<std::mutex> lock(home_mutex_);
+        if (!ref_valid_) return false;
+        ref_lat = ref_lat_ * M_PI / 180.0;
+        ref_lon = ref_lon_ * M_PI / 180.0;
+    }
+    // PX4 MapProjection::reproject (src/lib/geo/geo.cpp:90-110), CONSTANTS_RADIUS_OF_EARTH = 6371000 (geo.h:57)
+    constexpr double R = 6371000.0;
+    const double x_rad = static_cast<double>(north) / R;
+    const double y_rad = static_cast<double>(east) / R;
+    const double c = std::sqrt(x_rad * x_rad + y_rad * y_rad);
+    if (std::fabs(c) > 0) {
+        const double sin_c = std::sin(c), cos_c = std::cos(c);
+        const double sin_ref = std::sin(ref_lat), cos_ref = std::cos(ref_lat);
+        lat = std::asin(cos_c * sin_ref + (x_rad * sin_c * cos_ref) / c) * 180.0 / M_PI;
+        lon = (ref_lon + std::atan2(y_rad * sin_c, c * cos_ref * cos_c - x_rad * sin_ref * sin_c)) * 180.0 / M_PI;
+    } else {
+        lat = ref_lat * 180.0 / M_PI;
+        lon = ref_lon * 180.0 / M_PI;
+    }
+    return true;
+}
+
+DroneState::TargetData DroneState::get_target() const {
+    std::lock_guard<std::mutex> lock(home_mutex_);
+    return target_;
+}
+
+bool DroneState::get_triplet_current(double& lat, double& lon, int64_t& rx_ns) const {
+    std::lock_guard<std::mutex> lock(home_mutex_);
+    lat = triplet_lat_;
+    lon = triplet_lon_;
+    rx_ns = triplet_rx_ns_;
+    return triplet_rx_ns_ != 0;
 }
 
 // Telemetry getters
 bool DroneState::get_battery_data(BatteryData& data) const {
+    uint8_t flags_level = 0;
+    {
+        std::lock_guard<std::mutex> lock(health_mutex_);
+        flags_level = health_.flags_valid ? health_.battery_warning : 0;
+    }
     std::lock_guard<std::mutex> lock(battery_mutex_);
     data = battery_data_;
+    data.warning = worst_battery_warning(data.warning, flags_level);
     return battery_data_.valid;
 }
 
@@ -672,7 +896,7 @@ void DroneState::publish_state() {
     msg.velocity_z = vz;
 
     // State
-    msg.nav_state = nav_state_enum_to_string(get_nav_state());
+    msg.nav_state = raw_nav_state_.load() == 255 ? nav_state_enum_to_string(get_nav_state()) : nav_state_name(raw_nav_state_.load());
     msg.arming_state = arming_state_enum_to_string(get_arming_state());
     msg.landing_state = landing_state_enum_to_string(get_landing_state());
 
@@ -718,7 +942,7 @@ void DroneState::publish_state() {
         msg.system_health_score = failsafe.system_health_score;
         msg.active_warnings = failsafe.active_warnings;
         msg.critical_failures = failsafe.critical_failures;
-        msg.can_arm = !failsafe.battery_unhealthy && !failsafe.manual_control_lost;
+        msg.can_arm = false;  // set from vehicle_status.pre_flight_checks_pass below
         msg.manual_control_lost = failsafe.manual_control_lost;
         msg.gcs_connection_lost = failsafe.gcs_connection_lost;
         msg.geofence_breached = failsafe.geofence_breached;
@@ -729,26 +953,103 @@ void DroneState::publish_state() {
         msg.geofence_status = "UNKNOWN";
     }
 
-    // Telemetry
-    TelemetryData telemetry;
-    if (get_telemetry_data(telemetry)) {
-        msg.rc_signal_strength = telemetry.rc_signal_strength;
-        msg.rc_signal_valid = telemetry.rc_signal_valid;
-        msg.telemetry_link_quality = telemetry.telemetry_link_quality;
-        msg.packet_loss_rate = telemetry.packet_loss_rate;
-    }
-
-    // Wind
-    WindData wind;
-    if (get_wind_data(wind)) {
-        msg.wind_speed = wind.speed;
-        msg.wind_direction = wind.direction;
-    }
+    // PX4-native health
+    const HealthData h = get_health();
+    msg.can_arm = h.status_valid && h.pre_flight_checks_pass;  // VehicleStatus.msg:138
+    msg.failsafe = h.failsafe;
+    msg.failsafe_reasons = h.failsafe_reasons;
+    msg.nav_state_user_intention = h.nav_state_user_intention;
+    msg.battery_low_remaining_time = h.battery_low_remaining_time;
+    msg.home_position_valid = h.flags_valid && !h.home_position_invalid;
+    const AttitudeHealth ah = get_attitude_health();
+    msg.roll_deg = ah.roll_deg;
+    msg.pitch_deg = ah.pitch_deg;
+    msg.position_trusted = ah.position_trusted;
+    msg.estimator_warnings = ah.estimator_warnings;
+    // rc_signal_*, telemetry_link_quality, packet_loss_rate, wind_*: not bridged on PX4 v1.15.4, left 0 (deprecated)
 
     // Flight time
     msg.altitude_rate = vz;
     msg.flight_time_elapsed = get_flight_time_elapsed();
     msg.flight_time_limit = 1800;
 
+    const TargetData tg = get_target();
+    msg.target_valid = tg.target_valid;
+    msg.target_lat = tg.target_lat;
+    msg.target_lon = tg.target_lon;
+    msg.target_alt = tg.target_alt;
+    msg.target_type = tg.target_type;
+    msg.target_loiter_radius = tg.target_loiter_radius;
+    msg.next_valid = tg.next_valid;
+    msg.next_lat = tg.next_lat;
+    msg.next_lon = tg.next_lon;
     state_pub_->publish(msg);
-} 
+}
+
+
+// ---------------------------------------------------------------------------------------------------------------
+// attitude + EKF position health
+// ---------------------------------------------------------------------------------------------------------------
+void DroneState::vehicle_attitude_callback(const px4_msgs::msg::VehicleAttitude::SharedPtr msg) {
+    // VehicleAttitude.msg: q = rotation FRD body -> NED, Hamilton [w, x, y, z]. ZYX Euler (as matrix::Eulerf).
+    const float w = msg->q[0], x = msg->q[1], y = msg->q[2], z = msg->q[3];
+    if (!std::isfinite(w) || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) {
+        return;
+    }
+    constexpr float kRadToDeg = 57.29577951f;
+    const float roll = std::atan2(2.0f * (w * x + y * z), 1.0f - 2.0f * (x * x + y * y));
+    const float pitch = std::asin(std::clamp(2.0f * (w * y - z * x), -1.0f, 1.0f));
+    std::lock_guard<std::mutex> lock(att_mutex_);
+    roll_deg_ = roll * kRadToDeg;
+    pitch_deg_ = pitch * kRadToDeg;
+}
+
+void DroneState::estimator_flags_callback(const px4_msgs::msg::EstimatorStatusFlags::SharedPtr m) {
+    // Field lines: px4_msgs release/1.15 msg/EstimatorStatusFlags.msg
+    std::vector<std::string> w;
+    const bool dead_reckoning = m->cs_inertial_dead_reckoning || m->cs_wind_dead_reckoning;           // :36, :37
+    const bool aiding = m->cs_gps || m->cs_ev_pos || m->cs_opt_flow || m->cs_aux_gpos;              // :9, :19, :10, :45
+    const bool gps_rejected = m->cs_gps && (m->reject_hor_pos || m->reject_hor_vel);               // :67, :65
+    if (dead_reckoning) w.push_back("dead_reckoning");
+    if (!aiding && !m->cs_fake_pos) w.push_back("no_position_aiding");
+    if (gps_rejected) w.push_back("gps_glitch");
+    if (m->reject_ver_pos) w.push_back("height_rejected");                                           // :68
+    if (!m->cs_tilt_align) w.push_back("tilt_not_aligned");                                          // :7
+    if (!m->cs_yaw_align) w.push_back("yaw_not_aligned");                                            // :8
+    if (m->reject_yaw) w.push_back("heading_rejected");                                              // :69
+    if (m->cs_mag_fault) w.push_back("mag_fault");                                                   // :25
+    if (m->cs_mag_field_disturbed) w.push_back("mag_interference");                                  // :23
+    if (m->fs_bad_mag_x || m->fs_bad_mag_y || m->fs_bad_mag_z || m->fs_bad_hdg || m->fs_bad_mag_decl)
+        w.push_back("mag_fusion_error");                                                             // :49-53
+    if (m->fs_bad_acc_clipping) w.push_back("accel_clipping");                                       // :60
+    if (m->fs_bad_acc_bias) w.push_back("accel_bias");                                               // :58
+    if (m->fs_bad_acc_vertical) w.push_back("accel_vertical_bad");                                   // :59
+    if (m->cs_gps_yaw_fault) w.push_back("gps_yaw_fault");                                           // :34
+    if (m->cs_rng_fault) w.push_back("rangefinder_fault");                                           // :35
+    const bool ok = m->cs_tilt_align && m->cs_yaw_align && aiding && !m->cs_fake_pos && !dead_reckoning &&
+                    !m->reject_hor_pos;
+    std::lock_guard<std::mutex> lock(att_mutex_);
+    est_flags_valid_ = true;
+    est_position_ok_ = ok;
+    est_warnings_ = std::move(w);
+    est_rx_ = std::chrono::steady_clock::now();
+}
+
+DroneState::AttitudeHealth DroneState::get_attitude_health() const {
+    AttitudeHealth a;
+    const HealthData h = get_health();   // health_mutex_ taken and released before att_mutex_
+    std::lock_guard<std::mutex> lock(att_mutex_);
+    a.roll_deg = roll_deg_;
+    a.pitch_deg = pitch_deg_;
+    // EKF2 publishes the flags at >= 1 Hz (EKF2.cpp:1851-1852); 3 s without them = stale
+    const bool fresh = est_flags_valid_ &&
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - est_rx_).count() < 3.0;
+    a.estimator_warnings = est_warnings_;
+    if (!fresh) {
+        a.estimator_warnings.push_back("estimator_stale");
+    }
+    // Commander's own verdict (failsafe_flags.global/local_position_invalid) also vetoes trust
+    const bool commander_ok = !h.flags_valid || (!h.local_position_invalid && !h.global_position_invalid);
+    a.position_trusted = fresh && est_position_ok_ && commander_ok;
+    return a;
+}

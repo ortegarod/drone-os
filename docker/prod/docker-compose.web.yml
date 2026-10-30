@@ -1,6 +1,7 @@
-# === Production Web Interface Services ===
+# === Production drone-side bridges ===
 #
-# This configuration provides the web interface for production deployment
+# rosbridge (the fleet API on the command center reaches drone_core through it)
+# and the camera stream. The UI itself runs in the command center, not on the drone.
 # Intended for use with existing drone_core and micro_agent services
 #
 # Usage:
@@ -31,39 +32,6 @@ services:
         apt-get install -y ros-humble-rosbridge-suite &&
         echo 'Starting rosbridge on port 9090 with DroneOS interfaces...' &&
         ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090
-      "
-
-  # --- Web Interface Service ---
-  # Serves the React frontend and provides REST API
-  web_interface:
-    build:
-      context: ../..
-      dockerfile: docker/prod/web_interface.Dockerfile
-    container_name: web_interface_prod
-    network_mode: "host"
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "8000:8000"
-    environment:
-      - ROS_DOMAIN_ID=0
-      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
-      - FASTRTPS_WHITELIST_INTERFACES=tailscale0
-      - NODE_ENV=production
-    volumes:
-      - ../fastdds_config_drone.xml:/root/ws_droneOS/fastdds_config.xml
-      - ./logs:/root/ws_droneOS/logs
-    depends_on:
-      - rosbridge_server
-    command: >
-      bash -c "
-        source /opt/ros/humble/setup.bash &&
-        source /root/ws_droneOS/install/setup.bash &&
-        echo 'Starting production web interface...' &&
-        nginx &&
-        cd /root/ws_droneOS/web_interface/backend &&
-        python3 ros2_web_bridge.py
       "
 
   # --- Video Streaming Service ---

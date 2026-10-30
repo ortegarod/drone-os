@@ -8,6 +8,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
+#include <px4_msgs/msg/goto_setpoint.hpp>
 #include <memory>
 #include <atomic>
 #include <mutex>
@@ -27,7 +28,8 @@ public:
      */
     enum class OffboardSetpointType {
         POSITION,
-        VELOCITY
+        VELOCITY,
+        GOTO   // PX4-smoothed goto: publish GotoSetpoint instead of TrajectorySetpoint
     };
 
     /**
@@ -53,6 +55,9 @@ public:
      */
     void stop();
 
+    /** @brief True while the 10 Hz setpoint publisher is running */
+    bool is_active() const { return static_cast<bool>(offboard_control_loop_timer_); }
+
     /**
      * @brief Publish a trajectory setpoint
      * @param x Target x position in meters
@@ -61,6 +66,14 @@ public:
      * @param yaw Target yaw angle in radians
      */
     void set_target_position(float x, float y, float z, float yaw);
+
+    /**
+     * Fly to a position with PX4's jerk-limited GotoControl (PX4 v1.15.4 src/modules/mc_pos_control/GotoControl).
+     * While active, the 10 Hz loop publishes OffboardControlMode(position=true) + GotoSetpoint and no
+     * TrajectorySetpoint (GotoControl publishes trajectory_setpoint itself; two writers would conflict).
+     * PX4 clamps max_horizontal_speed to MPC_XY_CRUISE and max_vertical_speed to MPC_Z_V_AUTO_UP/DN.
+     */
+    void set_goto_target(float x, float y, float z, float yaw, float max_horizontal_speed, float max_vertical_speed);
 
     /**
      * @brief Publish a velocity setpoint
@@ -89,7 +102,8 @@ private:
     std::string ns_;                        ///< PX4 namespace
     rclcpp::TimerBase::SharedPtr offboard_control_loop_timer_;    ///< Timer for periodic publishing (renamed from timer_)
     rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr offboard_control_mode_pub_;    ///< Publisher for offboard control mode
-    rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr trajectory_setpoint_pub_;       ///< Publisher for trajectory setpoints
+    rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr trajectory_setpoint_pub_;
+    rclcpp::Publisher<px4_msgs::msg::GotoSetpoint>::SharedPtr goto_setpoint_pub_;       ///< Publisher for trajectory setpoints
 
     // Store latest setpoint
     float target_x_{0.0f};
@@ -100,6 +114,8 @@ private:
     float target_vy_{0.0f};
     float target_vz_{0.0f};
     float target_yaw_rate_{NAN};
+    float goto_max_h_speed_{NAN};
+    float goto_max_v_speed_{NAN};
 
     // Added atomic variable for current setpoint type
     std::atomic<OffboardSetpointType> current_setpoint_type_{OffboardSetpointType::POSITION};

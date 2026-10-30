@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
 Camera MJPEG Stream Proxy
-Relays camera stream from srv01 to VPS
+Relays camera stream from the sim host to the VPS
 """
 
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote
 import requests
+import urllib3
 import logging
+import os
+import time
 import sys
 
 logging.basicConfig(
@@ -17,12 +20,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger('camera_proxy')
 
-LISTEN_HOST = '0.0.0.0'
-LISTEN_PORT = 8080
-UPSTREAM_HOST = '<tailscale-ip>'  # srv01 Tailscale IP
-UPSTREAM_PORT = 8080
+# Localhost by default: browsers reach it through the frontend server (/camera).
+LISTEN_HOST = os.environ.get('CAMERA_PROXY_BIND', '127.0.0.1')
+LISTEN_PORT = int(os.environ.get('CAMERA_PROXY_PORT', '8080'))
+# Where web_video_server runs (the sim host or the drone). Set in docker/vps/.env.
+UPSTREAM_HOST = os.environ['CAMERA_UPSTREAM_HOST']
+UPSTREAM_PORT = int(os.environ.get('CAMERA_UPSTREAM_PORT', '8080'))
 CONNECT_TIMEOUT_S = 5
 READ_TIMEOUT_S = 15
+RESUME_DELAY_S = 1
+MAX_RESUMES = 10  # consecutive failed resumes before giving up (client may be gone)
 
 class CameraProxyHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -35,40 +42,56 @@ class CameraProxyHandler(BaseHTTPRequestHandler):
         upstream_url = f"http://{UPSTREAM_HOST}:{UPSTREAM_PORT}{decoded_path}"
         logger.info(f"Proxying request to {upstream_url}")
         
-        response = None
-        try:
-            # Stream response from upstream with finite read timeout to prevent hung sockets
-            response = requests.get(
-                upstream_url,
-                stream=True,
-                timeout=(CONNECT_TIMEOUT_S, READ_TIMEOUT_S),
-            )
+        headers_sent = False
+        failures = 0
+        while failures <= MAX_RESUMES:
+            response = None
+            try:
+                # Finite read timeout so a stalled upstream can't hang the socket forever
+                response = requests.get(
+                    upstream_url,
+                    stream=True,
+                    timeout=(CONNECT_TIMEOUT_S, READ_TIMEOUT_S),
+                )
 
-            # Forward status and headers
-            self.send_response(response.status_code)
-            for header, value in response.headers.items():
-                if header.lower() not in ['transfer-encoding', 'connection']:
-                    self.send_header(header, value)
-            self.end_headers()
+                if not headers_sent:
+                    self.send_response(response.status_code)
+                    for header, value in response.headers.items():
+                        if header.lower() not in ['transfer-encoding', 'connection']:
+                            self.send_header(header, value)
+                    self.end_headers()
+                    headers_sent = True
 
-            # Stream body chunks — flush after each to push MJPEG frames immediately
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
+                # read1 returns whatever has arrived instead of waiting for a full buffer,
+                # so each MJPEG frame goes out as soon as it lands
+                while True:
+                    chunk = response.raw.read1(65536)
+                    if not chunk:
+                        return  # upstream ended cleanly
                     self.wfile.write(chunk)
                     self.wfile.flush()
+                    failures = 0
 
-        except (BrokenPipeError, ConnectionResetError):
-            # Client disconnected mid-stream — normal for browser camera tab switches
-            logger.debug(f"Client disconnected from {decoded_path}")
-            return
+            except (BrokenPipeError, ConnectionResetError):
+                # Client disconnected (tab switch, closed page)
+                logger.debug(f"Client disconnected from {decoded_path}")
+                return
 
-        except requests.RequestException as e:
-            logger.error(f"Error proxying request: {e}")
-            self.send_error(502, f"Bad Gateway: {e}")
+            except (requests.RequestException, urllib3.exceptions.HTTPError) as e:
+                if not headers_sent:
+                    logger.error(f"Error proxying request: {e}")
+                    self.send_error(502, f"Bad Gateway: {e}")
+                    return
+                # Upstream stalled mid-stream (sim under load). Resume on a new upstream
+                # connection inside the same response; the MJPEG boundary is unchanged,
+                # so the browser keeps playing.
+                logger.warning(f"Upstream stalled, resuming {decoded_path}: {e}")
+                failures += 1
+                time.sleep(RESUME_DELAY_S)
 
-        finally:
-            if response is not None:
-                response.close()
+            finally:
+                if response is not None:
+                    response.close()
 
 if __name__ == '__main__':
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), CameraProxyHandler)

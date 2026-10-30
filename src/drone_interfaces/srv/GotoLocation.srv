@@ -1,0 +1,19 @@
+# PX4-native single go-to (VEHICLE_CMD_DO_REPOSITION; PX4 Hold mode flies to the point and holds there).
+# Requires: armed and airborne. Stops any running drone_core mission / offboard stream first.
+uint8 FRAME_GLOBAL=0
+uint8 FRAME_LOCAL=1
+uint8 frame
+float64 latitude          # FRAME_GLOBAL, degrees
+float64 longitude
+float32 north             # FRAME_LOCAL, metres, same frame as local_x / local_y
+float32 east
+float32 altitude          # metres above home; <= 0 keeps current altitude
+float32 speed             # m/s; 0 = PX4 default (MPC_XY_CRUISE); clamped 1-10
+float32 heading_deg       # 0 = north, clockwise; -1 keeps current heading
+---
+bool success
+string message
+float64 target_latitude
+float64 target_longitude
+float32 target_altitude_amsl
+float32 distance_m

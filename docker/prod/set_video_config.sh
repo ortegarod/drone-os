@@ -3,7 +3,7 @@
 # === Drone Video Configuration Script ===
 # Quick script to switch between video quality presets
 
-ENV_FILE="/home/rodrigo/ws_droneOS/docker/prod/.env"
+ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
 
 show_usage() {
     echo "Usage: $0 [ultra-low|low|medium|high|custom]"
@@ -71,7 +71,7 @@ set_config() {
     if [ "$preset" != "custom" ]; then
         echo ""
         echo "🔄 Restart docker-compose to apply changes:"
-        echo "   cd /home/rodrigo/ws_droneOS/docker/prod"
+        echo "   cd $(dirname "$ENV_FILE")"
         echo "   docker-compose down && docker-compose up -d"
     fi
 }

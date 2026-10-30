@@ -1,0 +1,21 @@
+# PX4-native orbit (VEHICLE_CMD_DO_ORBIT; PX4 Orbit mode). Stop it with hold, return_to_launch or land.
+# Requires: armed and airborne. Stops any running drone_core mission / offboard stream first.
+uint8 FRAME_GLOBAL=0
+uint8 FRAME_LOCAL=1
+uint8 frame
+float64 latitude          # centre, FRAME_GLOBAL
+float64 longitude
+float32 north             # centre, FRAME_LOCAL (metres)
+float32 east
+float32 radius            # metres; clamped 2-300
+float32 speed             # m/s tangential; 0 -> 3; max 10 and at most sqrt(2*radius) (PX4 limit)
+bool clockwise
+float32 altitude          # metres above home; <= 0 keeps current altitude
+bool face_center          # true: nose to centre; false: nose along track
+---
+bool success
+string message
+float64 center_latitude
+float64 center_longitude
+float32 altitude_amsl
+float32 speed_used

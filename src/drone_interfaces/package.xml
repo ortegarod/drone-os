@@ -4,13 +4,14 @@
   <name>drone_interfaces</name>
   <version>0.0.0</version>
   <description>Custom message and service interfaces for DroneOS</description>
-  <maintainer email="ortegarod000@gmail.com">Rodrigo Ortega</maintainer>
+  <maintainer email="contact@aerisrobotics.com">DroneOS</maintainer>
   <license>Proprietary</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <build_depend>rosidl_default_generators</build_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
+  <depend>builtin_interfaces</depend>
   <member_of_group>rosidl_interface_packages</member_of_group>
 
   <export>

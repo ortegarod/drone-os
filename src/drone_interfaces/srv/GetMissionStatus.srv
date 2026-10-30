@@ -11,3 +11,6 @@ uint16 current_item     # Current mission item index (0-based)
 uint16 total_items      # Total number of mission items  
 uint32 mission_id       # ID of currently loaded mission
 float32 mission_progress # Progress percentage (0.0-1.0)
+bool mission_failed      # True if the mission was aborted (waypoint timeout, PX4 left/refused OFFBOARD, stale position). mission_finished stays false.
+string failure_reason    # Why it failed (empty otherwise)
+bool mission_paused      # True after PAUSE or a Hold while running: current_item kept, RESUME continues from it. Cleared by RESUME/START/STOP/upload/RTL/land.

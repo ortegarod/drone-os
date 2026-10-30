@@ -35,7 +35,7 @@ services:
       # DDS Domain ID (must match across all containers)
       - ROS_DOMAIN_ID=0
       # DDS Discovery settings - Use ROS_DISCOVERY_SERVER for discovery server
-      - ROS_DISCOVERY_SERVER=<tailscale-ip>:11811
+      - ROS_DISCOVERY_SERVER=${DISCOVERY_SERVER:?set DISCOVERY_SERVER=host:11811 in .env}
       # Whitelist specific interface for Fast-RTPS
       - FASTRTPS_WHITELIST_INTERFACES=tailscale0
     depends_on:
@@ -92,13 +92,13 @@ services:
       # Whitelist specific interface for Fast-RTPS
       - FASTRTPS_WHITELIST_INTERFACES=tailscale0
       # DDS Discovery settings - Use ROS_DISCOVERY_SERVER for discovery server
-      - ROS_DISCOVERY_SERVER=<tailscale-ip>:11811
+      - ROS_DISCOVERY_SERVER=${DISCOVERY_SERVER:?set DISCOVERY_SERVER=host:11811 in .env}
     # --- Command for serial communication ---
     command: > # Use multi-line format for clarity
       bash -c "sleep 2 && \
                MicroXRCEAgent serial --dev /dev/ttyUSB0 -b 921600"
-    # Note: Ensure the user running Docker on the host (e.g., 'rodrigo') has permission for /dev/ttyUSB0 (belongs to 'dialout' group).
-    # If not, run: sudo usermod -a -G dialout rodrigo (or relevant user) and then REBOOT or log out/in.
+    # Note: Ensure the user running Docker on the host (e.g., 'ubuntu') has permission for /dev/ttyUSB0 (belongs to 'dialout' group).
+    # If not, run: sudo usermod -a -G dialout $USER (or relevant user) and then REBOOT or log out/in.
 
 # --- Camera Service ---
   # Builds libcamera and rpicam-apps from source for camera support
@@ -124,7 +124,7 @@ services:
       # DDS Domain ID (must match across all containers)
       - ROS_DOMAIN_ID=0
       # DDS Discovery settings - Use ROS_DISCOVERY_SERVER for discovery server
-      - ROS_DISCOVERY_SERVER=<tailscale-ip>:11811
+      - ROS_DISCOVERY_SERVER=${DISCOVERY_SERVER:?set DISCOVERY_SERVER=host:11811 in .env}
       # Let netplan manage network interface priority (wlan0 preferred over wwan0)
       - FASTRTPS_WHITELIST_INTERFACES=${NETWORK_INTERFACE:-all}
       - DRONE_NAME=drone1 # Set a default drone name

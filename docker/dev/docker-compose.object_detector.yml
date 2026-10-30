@@ -1,27 +1,109 @@
-version: '3.8'
-
+# camera object detector (SSD MobileNet v2 COCO, tflite-runtime). One instance per drone.
+# CPU by default; uses a Coral USB Edge TPU automatically once libedgetpu is in the image and the Coral is plugged in.
+#   docker build -t dev-object_detector:humble -f docker/dev/object_detector.dev.Dockerfile docker/dev
+#   docker compose -f docker/dev/docker-compose.object_detector.yml up -d
+# drone1 on the Coral (Edge TPU), drone2/drone3 on CPU (one Coral, tflite_runtime 2.17.1). All three
+# drones have the 1280x960 sim camera (x500_mono_cam_hd). drone1: 200 px tiles at 25-80 % + whole frame (22 passes);
+# drone2/3: lighter, 1 CPU thread, one row of 200 px tiles + whole frame (8 passes). See src/object_detector/README.md.
 services:
   object_detector:
-    build:
-      context: ../..
-      dockerfile: docker/dev/object_detector_ros2.dev.Dockerfile
+    image: dev-object_detector:humble-coral
     container_name: object_detector_node
-    stdin_open: true
-    tty: true
-    privileged: true  # Required for Edge TPU USB access
-    network_mode: "host"  # Required for ROS 2 communication
+    network_mode: "host"
+    restart: unless-stopped
     volumes:
-      # Mount source code for development
-      - ../../src/object_detector:/workspace/src
-      # Mount models directory  
-      - ../../models:/workspace/models
-      # Mount logs for debugging
-      - ../../logs:/workspace/logs
-    devices:
-      # Pass through USB devices for Edge TPU
-      - /dev/bus/usb:/dev/bus/usb
+      - ../../src/object_detector:/workspace/object_detector:ro
+      - ../../models:/workspace/models:ro
+      - ../../install:/root/ws_droneOS/install:ro    # drone_interfaces (DroneState) for the pose at frame time
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/workspace/fastdds_config.xml:ro
+      - /dev/bus/usb:/dev/bus/usb     # Coral USB: it changes USB id on first use, so pass the whole bus
+    device_cgroup_rules:
+      - 'c 189:* rmw'                 # USB devices (major 189)
     environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - ROS_DOMAIN_ID=0
       - FASTRTPS_DEFAULT_PROFILES_FILE=/workspace/fastdds_config.xml
-    # Auto-restart unless manually stopped
+      - PYTHONUNBUFFERED=1
+      - DET_ARGS=${DET_ARGS:-}       # extra ROS args for experiments, e.g. DET_ARGS="-p tiles:=false"
+    command:
+      - bash
+      - -c
+      - |
+        . /opt/ros/humble/setup.bash
+        . /root/ws_droneOS/install/setup.bash || true
+        exec python3 /workspace/object_detector/camera_object_detector.py --ros-args \
+          -r __node:=drone1_object_detector \
+          -p drone_name:=drone1 \
+          -p threads:=4 \
+          -p tile_size:=200 \
+          -p tile_top:=0.25 \
+          -p tile_bottom:=0.8 $${DET_ARGS:-}
+
+  # drone2: CPU only (the single Coral serves drone1). use_edgetpu:=false so it never competes for the USB device.
+  # Lighter than drone1 so the shared sim box keeps RTF >= 0.85: 1 thread, whole frame + one row of 7 tiles
+  # (y 400-600 px of 960) = 8 passes. Proves the pipeline per drone; real drones each carry their own Coral.
+  object_detector2:
+    image: dev-object_detector:humble-coral
+    container_name: object_detector_node2
+    network_mode: "host"
     restart: unless-stopped
+    volumes:
+      - ../../src/object_detector:/workspace/object_detector:ro
+      - ../../models:/workspace/models:ro
+      - ../../install:/root/ws_droneOS/install:ro
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/workspace/fastdds_config.xml:ro
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/workspace/fastdds_config.xml
+      - PYTHONUNBUFFERED=1
+      - DET2_ARGS=${DET2_ARGS:-}
+    command:
+      - bash
+      - -c
+      - |
+        . /opt/ros/humble/setup.bash
+        . /root/ws_droneOS/install/setup.bash || true
+        exec python3 /workspace/object_detector/camera_object_detector.py --ros-args \
+          -r __node:=drone2_object_detector \
+          -p drone_name:=drone2 \
+          -p use_edgetpu:=false \
+          -p threads:=1 \
+          -p max_infer_hz:=2.5 \
+          -p tile_size:=200 \
+          -p tile_top:=0.42 \
+          -p tile_bottom:=0.625 $${DET2_ARGS:-}
+
+  # drone3: same as drone2. All three running: RTF 0.837 (120 s, on the ground); without this one (drone3 640x480): 0.912.
+  object_detector3:
+    image: dev-object_detector:humble-coral
+    container_name: object_detector_node3
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../../src/object_detector:/workspace/object_detector:ro
+      - ../../models:/workspace/models:ro
+      - ../../install:/root/ws_droneOS/install:ro
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/workspace/fastdds_config.xml:ro
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/workspace/fastdds_config.xml
+      - PYTHONUNBUFFERED=1
+      - DET3_ARGS=${DET3_ARGS:-}
+    command:
+      - bash
+      - -c
+      - |
+        . /opt/ros/humble/setup.bash
+        . /root/ws_droneOS/install/setup.bash || true
+        exec python3 /workspace/object_detector/camera_object_detector.py --ros-args \
+          -r __node:=drone3_object_detector \
+          -p drone_name:=drone3 \
+          -p use_edgetpu:=false \
+          -p threads:=1 \
+          -p max_infer_hz:=2.5 \
+          -p tile_size:=200 \
+          -p tile_top:=0.42 \
+          -p tile_bottom:=0.625 $${DET3_ARGS:-}
+

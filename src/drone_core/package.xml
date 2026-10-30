@@ -3,7 +3,7 @@
   <version>0.0.1</version>
   <description>Multi-drone PX4 control SDK with mission management</description>
 
-  <maintainer email="ortegarod000@gmail.com">Rodrigo Ortega</maintainer>
+  <maintainer email="contact@aerisrobotics.com">DroneOS</maintainer>
   <license>Proprietary</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -13,6 +13,7 @@
   <depend>yaml-cpp</depend>
   <depend>std_srvs</depend>
   <depend>drone_interfaces</depend>
+  <depend>std_msgs</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

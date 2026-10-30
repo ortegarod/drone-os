@@ -23,6 +23,13 @@
 #include <drone_interfaces/srv/upload_mission.hpp> // Used for mission services
 #include <drone_interfaces/srv/mission_control.hpp>
 #include <drone_interfaces/srv/get_mission_status.hpp>
+#include <drone_interfaces/srv/takeoff.hpp>
+#include <drone_interfaces/srv/goto_location.hpp>
+#include <drone_interfaces/srv/orbit.hpp>
+#include <drone_interfaces/msg/patrol_plan.hpp>
+#include <drone_interfaces/msg/patrol_status.hpp>
+#include <std_msgs/msg/string.hpp>
+#include <mutex>
 
 /**
  * @class DroneController
@@ -198,6 +205,19 @@ private:
      */
     void set_mode(Px4CustomMode mode);
 
+    // After an RTL/LAND, PX4 restores the previous mode (OFFBOARD) on disarm even though no
+    // setpoints are streaming. This 1 Hz check puts a disarmed vehicle in that state back into Hold.
+    void post_flight_check();
+    rclcpp::TimerBase::SharedPtr post_flight_timer_;
+    int offboard_idle_ticks_{0};
+    int offboard_disarmed_ticks_{0};  // seconds the setpoint stream has run while disarmed
+
+    // Hard rule: once PX4 leaves OFFBOARD (failsafe, RC, GCS, anything), stop publishing
+    // offboard setpoints and abort any running mission, so PX4's own mode (e.g. RTL) is never fought.
+    void offboard_guard_check();
+    rclcpp::TimerBase::SharedPtr offboard_guard_timer_;
+    NavState last_nav_state_{NavState::UNKNOWN};
+
     /**
      * @brief Internal helper to send VEHICLE_CMD_DO_SET_MODE and wait for acknowledgement.
      * @param mode The target Px4CustomMode.
@@ -262,5 +282,59 @@ private:
                                     const std::shared_ptr<drone_interfaces::srv::GetMissionStatus::Request> request,
                                     std::shared_ptr<drone_interfaces::srv::GetMissionStatus::Response> response);
 
-    // TODO: Add callbacks for other services later
+    // --- PX4-native actions (drone_controller_px4.cpp). Deferred-response services: the reply is sent
+    // when PX4 acknowledges, so callers get PX4's verdict without blocking the executor. ---
+    rclcpp::Service<drone_interfaces::srv::Takeoff>::SharedPtr takeoff_to_service_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr hold_service_;
+    rclcpp::Service<drone_interfaces::srv::GotoLocation>::SharedPtr goto_location_service_;
+    rclcpp::Service<drone_interfaces::srv::Orbit>::SharedPtr orbit_service_;
+    std::vector<rclcpp::TimerBase::SharedPtr> oneshot_timers_;
+    void create_px4_action_services();
+    void create_ack_trigger_services();
+    void release_control_to_px4(const char* why);  // stop mission + offboard stream before a PX4 mode takes over
+    void run_after(std::chrono::milliseconds delay, std::function<void()> fn);
+
+    // --- PX4 external mode PATROL (drone_patrol) ---
+    rclcpp::Publisher<drone_interfaces::msg::PatrolPlan>::SharedPtr patrol_plan_pub_;
+    rclcpp::Subscription<drone_interfaces::msg::PatrolStatus>::SharedPtr patrol_status_sub_;
+    mutable std::mutex patrol_mutex_;
+    drone_interfaces::msg::PatrolStatus patrol_status_;
+    std::chrono::steady_clock::time_point patrol_rx_{};
+    int external_stuck_ticks_{0};
+    static constexpr double PATROL_HEARTBEAT_TIMEOUT_S = 1.0;
+    void setup_patrol_link();
+    bool patrol_fresh(drone_interfaces::msg::PatrolStatus* out = nullptr) const;  // heartbeat < 1 s old
+    bool patrol_available(uint8_t& nav_state) const;  // fresh + registered with PX4
+
+    // --- /<drone>/capabilities (std_msgs/String, JSON, transient_local) ---
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr capabilities_pub_;
+    rclcpp::TimerBase::SharedPtr capabilities_timer_;
+    std::string capabilities_last_;                       // last published content (without stamp)
+    std::chrono::steady_clock::time_point capabilities_sent_{};
+    void setup_capabilities();
+    std::string capabilities_json(bool with_stamp) const;
+    void publish_capabilities(bool force);
+    // one job per drone; empty when a new mission (upload/START) may replace the current one
+    std::string busy_reason(const char* what) const;
+    bool patrol_start(bool is_start, std::string& message);
+    void send_hold(const std::string& why);
+    void external_mode_recovery();
+    int command_effect_seen(const px4_msgs::msg::VehicleCommand& cmd) const;  // see DroneAgent::EffectChecker
+    static std::string ack_to_string(uint8_t result);
+
+    void takeoff_to_callback(rclcpp::Service<drone_interfaces::srv::Takeoff>::SharedPtr service,
+                             const std::shared_ptr<rmw_request_id_t> header,
+                             const std::shared_ptr<drone_interfaces::srv::Takeoff::Request> request);
+    void takeoff_to_send(const std::function<void(bool, const std::string&)>& reply,
+                         const std::shared_ptr<drone_interfaces::srv::Takeoff::Response>& resp,
+                         float requested_altitude, float alt);
+    void hold_callback(rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr service,
+                       const std::shared_ptr<rmw_request_id_t> header,
+                       const std::shared_ptr<std_srvs::srv::Trigger::Request> request);
+    void goto_location_callback(rclcpp::Service<drone_interfaces::srv::GotoLocation>::SharedPtr service,
+                                const std::shared_ptr<rmw_request_id_t> header,
+                                const std::shared_ptr<drone_interfaces::srv::GotoLocation::Request> request);
+    void orbit_callback(rclcpp::Service<drone_interfaces::srv::Orbit>::SharedPtr service,
+                        const std::shared_ptr<rmw_request_id_t> header,
+                        const std::shared_ptr<drone_interfaces::srv::Orbit::Request> request);
 };

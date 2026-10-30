@@ -1,0 +1,82 @@
+# PX4 external mode "PATROL" (drone_patrol, px4-ros2-interface-lib 1.4.0), one process per drone.
+# Runs the binary already built into ../../install (build: colcon build --packages-select drone_interfaces
+# px4_ros2_cpp drone_patrol). No colcon here so the three containers never build the shared workspace concurrently.
+#   docker compose -f docker-compose.patrol.yml up -d
+services:
+  patrol:
+    image: dev-drone_core:latest
+    container_name: patrol_node
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../../src:/root/ws_droneOS/src
+      - ../../build:/root/ws_droneOS/build
+      - ../../install:/root/ws_droneOS/install
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+    command:
+      - bash
+      - -c
+      - |
+        . /opt/ros/humble/setup.bash
+        cd /root/ws_droneOS
+        . install/setup.bash
+        exec ros2 run drone_patrol patrol_node --ros-args \
+          -r __node:=drone1_patrol \
+          -p drone_name:=drone1 \
+          -p px4_namespace:=/fmu/
+
+  patrol2:
+    image: dev-drone_core:latest
+    container_name: patrol_node2
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../../src:/root/ws_droneOS/src
+      - ../../build:/root/ws_droneOS/build
+      - ../../install:/root/ws_droneOS/install
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+    command:
+      - bash
+      - -c
+      - |
+        . /opt/ros/humble/setup.bash
+        cd /root/ws_droneOS
+        . install/setup.bash
+        exec ros2 run drone_patrol patrol_node --ros-args \
+          -r __node:=drone2_patrol \
+          -p drone_name:=drone2 \
+          -p px4_namespace:=/px4_1/fmu/
+
+  patrol3:
+    image: dev-drone_core:latest
+    container_name: patrol_node3
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../../src:/root/ws_droneOS/src
+      - ../../build:/root/ws_droneOS/build
+      - ../../install:/root/ws_droneOS/install
+      - ../../config/fastdds/fastdds_config_dev_simple.xml:/root/ws_droneOS/fastdds_config.xml
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/root/ws_droneOS/fastdds_config.xml
+    command:
+      - bash
+      - -c
+      - |
+        . /opt/ros/humble/setup.bash
+        cd /root/ws_droneOS
+        . install/setup.bash
+        exec ros2 run drone_patrol patrol_node --ros-args \
+          -r __node:=drone3_patrol \
+          -p drone_name:=drone3 \
+          -p px4_namespace:=/px4_2/fmu/

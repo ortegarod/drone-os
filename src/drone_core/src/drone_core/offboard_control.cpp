@@ -9,6 +9,7 @@
 
 #include "drone_core/offboard_control.hpp"
 #include <rmw/qos_profiles.h>
+#include <cmath>
 using namespace std::chrono_literals;
 
 /**
@@ -31,6 +32,8 @@ OffboardControl::OffboardControl(rclcpp::Node* node, const std::string& px4_name
 
     offboard_control_mode_pub_ = node_->create_publisher<px4_msgs::msg::OffboardControlMode>(ns_ + "in/offboard_control_mode", qos);
     trajectory_setpoint_pub_ = node_->create_publisher<px4_msgs::msg::TrajectorySetpoint>(ns_ + "in/trajectory_setpoint", qos);
+    // /fmu/in/goto_setpoint is a v1.15.4 DDS subscription (src/modules/uxrce_dds_client/dds_topics.yaml:115)
+    goto_setpoint_pub_ = node_->create_publisher<px4_msgs::msg::GotoSetpoint>(ns_ + "in/goto_setpoint", qos);
     RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Initialized publishers for OffboardControlMode and TrajectorySetpoint (QoS: BEST_EFFORT).");
 }
 
@@ -105,8 +108,8 @@ void OffboardControl::offboard_control_loop_timer_callback() {
     call_count++;
     if (call_count % 50 == 1) {  // Log on first call and then every 5 seconds
         RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Timer callback #%d - Publishing %s setpoints", 
-                   call_count, (current_type == OffboardSetpointType::POSITION) ? "POSITION" : "VELOCITY");
-        if (current_type == OffboardSetpointType::POSITION) {
+                   call_count, (current_type == OffboardSetpointType::POSITION) ? "POSITION" : (current_type == OffboardSetpointType::GOTO) ? "GOTO" : "VELOCITY");
+        if (current_type != OffboardSetpointType::VELOCITY) {
             RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Current target: X=%.2f, Y=%.2f, Z=%.2f, Yaw=%.2f", 
                        target_x_, target_y_, target_z_, target_yaw_);
         }
@@ -114,13 +117,32 @@ void OffboardControl::offboard_control_loop_timer_callback() {
 
     // Publish offboard control mode, setting appropriate flags
     px4_msgs::msg::OffboardControlMode mode_msg{};
-    mode_msg.position = (current_type == OffboardSetpointType::POSITION);
+    mode_msg.position = (current_type == OffboardSetpointType::POSITION || current_type == OffboardSetpointType::GOTO);
     mode_msg.velocity = (current_type == OffboardSetpointType::VELOCITY);
     mode_msg.acceleration = false;
     mode_msg.attitude = false;
     mode_msg.body_rate = false;
     mode_msg.timestamp = node_->get_clock()->now().nanoseconds() / 1000;
     offboard_control_mode_pub_->publish(mode_msg);
+
+    if (current_type == OffboardSetpointType::GOTO) {
+        // GotoControl runs while position control is enabled and the last goto_setpoint is < 500 ms old
+        // (GotoControl.cpp:46-58, MulticopterPositionControl.cpp:385-389); 10 Hz keeps it fresh.
+        px4_msgs::msg::GotoSetpoint g{};
+        g.timestamp = node_->get_clock()->now().nanoseconds() / 1000;
+        g.position = {target_x_, target_y_, target_z_};
+        g.flag_control_heading = std::isfinite(target_yaw_);
+        g.heading = std::isfinite(target_yaw_) ? target_yaw_ : 0.0f;
+        g.flag_set_max_horizontal_speed = std::isfinite(goto_max_h_speed_);
+        g.max_horizontal_speed = std::isfinite(goto_max_h_speed_) ? goto_max_h_speed_ : 0.0f;
+        g.flag_set_max_vertical_speed = std::isfinite(goto_max_v_speed_);
+        g.max_vertical_speed = std::isfinite(goto_max_v_speed_) ? goto_max_v_speed_ : 0.0f;
+        // Rate-limit the turn to a new course (45 deg/s), same as drone_patrol (GotoSetpoint.msg:23-24)
+        g.flag_set_max_heading_rate = std::isfinite(target_yaw_);
+        g.max_heading_rate = 0.785f;
+        goto_setpoint_pub_->publish(g);
+        return;  // no TrajectorySetpoint while GotoControl owns trajectory_setpoint
+    }
 
     // Publish the latest trajectory setpoint based on type
     px4_msgs::msg::TrajectorySetpoint sp_msg{};
@@ -188,6 +210,16 @@ void OffboardControl::set_target_position(float x, float y, float z, float yaw) 
  * @param vz Z velocity in m/s (NED frame, positive down)
  * @param yaw_rate Target yaw rate in rad/s (positive clockwise looking down)
  */
+void OffboardControl::set_goto_target(float x, float y, float z, float yaw, float max_horizontal_speed, float max_vertical_speed) {
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    target_x_ = x; target_y_ = y; target_z_ = z; target_yaw_ = yaw;
+    goto_max_h_speed_ = max_horizontal_speed;
+    goto_max_v_speed_ = max_vertical_speed;
+    current_setpoint_type_.store(OffboardSetpointType::GOTO, std::memory_order_relaxed);
+    RCLCPP_INFO(node_->get_logger(), "[OffboardControl] Goto target X=%.2f Y=%.2f Z=%.2f Yaw=%.2f, max h %.1f m/s, max v %.1f m/s",
+                x, y, z, yaw, max_horizontal_speed, max_vertical_speed);
+}
+
 void OffboardControl::set_target_velocity(float vx, float vy, float vz, float yaw_rate) {
     std::lock_guard<std::mutex> lock(data_mutex_); // Lock for writing targets
     // Store the latest velocity setpoint locally for the timer loop

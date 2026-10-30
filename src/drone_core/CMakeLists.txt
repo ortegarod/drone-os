@@ -13,12 +13,14 @@ find_package(px4_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(drone_interfaces REQUIRED)
+find_package(std_msgs REQUIRED)
 
 include_directories(include)
 
 # Core library (drone_core)
 add_library(drone_core_lib
   src/drone_core/drone_controller.cpp
+  src/drone_core/drone_controller_px4.cpp
   src/drone_core/drone_agent.cpp
   src/drone_core/offboard_control.cpp
   src/drone_core/drone_state.cpp
@@ -27,7 +29,7 @@ add_library(drone_core_lib
   src/utils/state_enums.cpp
 )
 target_include_directories(drone_core_lib PUBLIC include)
-ament_target_dependencies(drone_core_lib rclcpp px4_msgs yaml-cpp std_srvs drone_interfaces)
+ament_target_dependencies(drone_core_lib rclcpp px4_msgs yaml-cpp std_srvs drone_interfaces std_msgs)
 
 # --- New Executable: Drone Core Node (Decentralized Single Drone Runtime) ---
 add_executable(drone_core

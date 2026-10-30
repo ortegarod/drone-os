@@ -22,7 +22,8 @@ enum class NavState {
     AUTO_PRECLAND,
     ORBIT,
     AUTO_VTOL_TAKEOFF,
-    FREEFALL
+    FREEFALL,
+    EXTERNAL   // PX4 external (ROS 2) mode, nav_state EXTERNAL1..8 = 23..30 (VehicleStatus.msg); name via DroneState::nav_state_name
 };
 std::string nav_state_enum_to_string(NavState state);
 
@@ -33,7 +34,8 @@ enum class LandingState {
     GROUND_CONTACT, // Ground contact detected, but not landed
     MAYBE_LANDED,   // Higher confidence landing detection
     LANDED,         // Confirmed landed
-    FREEFALL        // Freefall detected
+    FREEFALL,       // Freefall detected
+    ON_GROUND       // Armed, PX4 has not detected takeoff yet (vehicle_status.takeoff_time == 0)
 };
 std::string landing_state_enum_to_string(LandingState state);
 

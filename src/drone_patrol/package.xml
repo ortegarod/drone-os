@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>drone_patrol</name>
+  <version>0.1.0</version>
+  <description>DroneOS Patrol: PX4 external mode + mode executor (px4-ros2-interface-lib 1.4.0) flying drone_core missions</description>
+  <maintainer email="contact@aerisrobotics.com">DroneOS</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>px4_msgs</depend>
+  <depend>px4_ros2_cpp</depend>
+  <depend>drone_interfaces</depend>
+  <depend>eigen</depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

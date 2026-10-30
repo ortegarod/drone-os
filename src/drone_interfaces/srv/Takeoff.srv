@@ -1,0 +1,7 @@
+# PX4-native takeoff (VEHICLE_CMD_NAV_TAKEOFF, then arm). PX4 climbs in place and holds at altitude.
+# Requires: disarmed, landed, can_arm.
+float32 altitude          # metres above home (the ground the drone sits on); 0 -> 10; clamped 2-120
+---
+bool success
+string message
+float32 target_altitude_amsl

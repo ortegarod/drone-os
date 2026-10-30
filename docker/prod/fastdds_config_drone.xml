@@ -21,7 +21,7 @@
           <initialPeersList>
             <locator>
               <udpv4>
-                <address><tailscale-ip></address> <!-- DEV -->
+                <address>DISCOVERY_SERVER_IP</address> <!-- set: discovery server (ground station) address -->
                 <port>7400</port>
               </udpv4>
             </locator>
@@ -29,7 +29,7 @@
           <metatrafficUnicastLocatorList>
             <locator>
               <udpv4>
-                <address><tailscale-ip></address> <!-- Self (drone) -->
+                <address>DRONE_IP</address> <!-- set: this drone address -->
                 <port>7400</port>
               </udpv4>
             </locator>

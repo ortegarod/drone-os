@@ -15,7 +15,7 @@
 - **`SetPosition.srv`**: Service for setting target position and yaw in offboard mode
   - Request: `float32 x, float32 y, float32 z, float32 yaw`
   - Response: `bool success, string message`
-  - Usage: Used by `drone_core` for position control and `drone_gcs_cli` for command interface
+  - Usage: served by `drone_core` for position control; the fleet API calls it through rosbridge
 
 ## 🔗 Dependencies
 
@@ -32,9 +32,9 @@
 This package is primarily used as a dependency by other packages in the workspace:
 
 - `drone_core`: Implements the service servers
-- `drone_gcs_cli`: Implements the service clients
+- the fleet API (`fleet_api/`, over rosbridge): the client the command center, CLI and plugins go through
 
-Example service call from `drone_gcs_cli`:
+Example service call from a ROS 2 Python node:
 ```python
 # Create request
 request = SetPosition.Request()

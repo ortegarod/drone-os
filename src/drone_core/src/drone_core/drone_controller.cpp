@@ -9,6 +9,11 @@
 #include <thread> // Required for std::this_thread::sleep_for
 #include <cmath> // For std::sqrt, std::isnan
 
+// Reported in /<drone>/capabilities. Package version + compile time of this file (UTC in the container).
+#ifndef DRONE_CORE_BUILD
+#define DRONE_CORE_BUILD "drone_core 0.0.1, compiled " __DATE__ " " __TIME__
+#endif
+
 using namespace px4_msgs::msg;
 using namespace std::chrono_literals;
 using std::placeholders::_1;
@@ -38,6 +43,13 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] DroneState created.", name_.c_str());
     
     mission_manager_ = std::make_unique<drone_core::MissionManager>(node_, name_);
+    mission_manager_->subscribe_px4_topics(ns_);
+    mission_manager_->set_command_sender([this](uint16_t command, float p1, float p2, float p3) {
+        drone_agent_->sendVehicleCommand(command, p1, p2,
+            [this, command](uint8_t result) {
+                RCLCPP_INFO(node_->get_logger(), "[%s][Mission] Vehicle command %u ack result %u", name_.c_str(), command, result);
+            }, NAN, p3);
+    });
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] MissionManager created.", name_.c_str());
     
     failsafe_monitor_ = std::make_unique<drone_core::FailsafeMonitor>(node_, ns_);
@@ -45,47 +57,10 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
     
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Drone components initialized. Creating services...", name_.c_str());
 
-    // --- Create Services (Added) ---
-    arm_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "/" + name_ + "/arm",
-        std::bind(&DroneController::arm_callback, this, _1, _2, _3));
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), arm_service_->get_service_name());
-
     takeoff_service_ = node_->create_service<std_srvs::srv::Trigger>(
         "/" + name_ + "/takeoff",
         std::bind(&DroneController::takeoff_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), takeoff_service_->get_service_name());
-
-    land_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "/" + name_ + "/land",
-        std::bind(&DroneController::land_callback, this, _1, _2, _3));
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), land_service_->get_service_name());
-
-    disarm_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "/" + name_ + "/disarm",
-        std::bind(&DroneController::disarm_callback, this, _1, _2, _3));
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), disarm_service_->get_service_name());
-
-    // Added mode setting services
-    set_offboard_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "/" + name_ + "/set_offboard",
-        std::bind(&DroneController::set_offboard_callback, this, _1, _2, _3));
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_offboard_service_->get_service_name());
-
-    set_position_mode_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "/" + name_ + "/set_position_mode",
-        std::bind(&DroneController::set_position_mode_callback, this, _1, _2, _3));
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), set_position_mode_service_->get_service_name());
-
-    return_to_launch_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "/" + name_ + "/return_to_launch",
-        std::bind(&DroneController::return_to_launch_callback, this, _1, _2, _3));
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), return_to_launch_service_->get_service_name());
-
-    flight_termination_service_ = node_->create_service<std_srvs::srv::Trigger>(
-        "/" + name_ + "/flight_termination",
-        std::bind(&DroneController::flight_termination_callback, this, _1, _2, _3));
-    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), flight_termination_service_->get_service_name());
 
     // Create SetPosition service
     set_position_service_ = node_->create_service<drone_interfaces::srv::SetPosition>(
@@ -115,6 +90,9 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
         std::bind(&DroneController::get_mission_status_callback, this, _1, _2, _3));
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Offering service: %s", name_.c_str(), get_mission_status_service_->get_service_name());
 
+    create_px4_action_services();
+    create_ack_trigger_services();
+
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] All services created.", name_.c_str());
 
     // Set offboard control reference in mission manager for waypoint execution
@@ -124,6 +102,107 @@ DroneController::DroneController(rclcpp::Node* node, const std::string& name, co
     // Set drone state reference in mission manager for position-based waypoint completion
     mission_manager_->set_drone_state(drone_state_.get());
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Mission manager configured with drone state feedback.", name_.c_str());
+
+    // Final RTL/LAND mission items hand control back to PX4
+    mission_manager_->set_mode_command_handler([this](uint16_t command) {
+        if (command == VehicleCommand::VEHICLE_CMD_NAV_RETURN_TO_LAUNCH) {
+            return_to_launch();
+        } else {
+            land();
+        }
+    });
+
+    // Mission failure (timeout / OFFBOARD never engaged): hold where we are. Freeze the stream on the current
+    // pose, then hand over to PX4 Hold; the OFFBOARD guard stops the stream once PX4 has switched.
+    mission_manager_->set_failure_handler([this](const std::string& reason) {
+        float cx, cy, cz;
+        if (offboard_control_->is_active() && drone_state_->get_latest_local_position(cx, cy, cz)) {
+            const float yaw = drone_state_->get_latest_local_yaw();
+            offboard_control_->set_goto_target(cx, cy, cz, std::isnan(yaw) ? NAN : yaw, 1.0f, 1.0f);
+        }
+        if (get_nav_state() != NavState::OFFBOARD && offboard_control_->is_active()) {
+            offboard_control_->stop();
+        }
+        RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Mission failed (%s); switching to Hold.", name_.c_str(), reason.c_str());
+        drone_agent_->sendVehicleCommandFull(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1.0f, 4.0f, 3.0f, NAN, NAN, NAN, NAN,
+            [this](uint8_t result) {
+                if (result != 0) {
+                    RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Hold after mission failure rejected (%u)", name_.c_str(), result);
+                }
+            });
+    });
+
+    setup_patrol_link();
+    setup_capabilities();
+    drone_agent_->set_effect_checker([this](const px4_msgs::msg::VehicleCommand& cmd) { return command_effect_seen(cmd); });
+    post_flight_timer_ = node_->create_wall_timer(std::chrono::seconds(1), [this]() { post_flight_check(); });
+    offboard_guard_timer_ = node_->create_wall_timer(std::chrono::milliseconds(50), [this]() { offboard_guard_check(); });
+}
+
+void DroneController::offboard_guard_check() {
+    const NavState nav = get_nav_state();
+    // Only act on a real OFFBOARD -> other transition. Before PX4 first enters OFFBOARD (set_offboard
+    // pre-streams for ~1 s), the stream must keep running.
+    if (last_nav_state_ == NavState::OFFBOARD && nav != NavState::OFFBOARD && nav != NavState::UNKNOWN) {
+        if (offboard_control_->is_active()) {
+            RCLCPP_WARN(node_->get_logger(), "[%s][Controller] PX4 left OFFBOARD; stopping offboard setpoints.", name_.c_str());
+            offboard_control_->stop();
+        }
+        if (mission_manager_->get_mission_status().mission_running && !mission_manager_->is_delegated()) {
+            RCLCPP_WARN(node_->get_logger(), "[%s][Controller] PX4 left OFFBOARD; aborting running mission.", name_.c_str());
+            mission_manager_->fail_mission("PX4 left OFFBOARD (now " + nav_state_enum_to_string(nav) + ")", false);
+        }
+    }
+    // In flight, stale local position (no PX4 data > 1 s) means drone_core is steering blind: stop the stream and
+    // abort the mission so PX4's offboard-loss failsafe (COM_OBL_RC_ACT) takes over. On the ground, do nothing.
+    if (get_arming_state() == ArmingState::ARMED && drone_state_->is_local_position_stale()) {
+        if (offboard_control_->is_active()) {
+            RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Local position stale (>1 s) in flight; stopping offboard setpoints.", name_.c_str());
+            offboard_control_->stop();
+        }
+        if (mission_manager_->get_mission_status().mission_running && !mission_manager_->is_delegated()) {
+            RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Local position stale (>1 s) in flight; aborting running mission.", name_.c_str());
+            mission_manager_->fail_mission("local position stale (>1 s) in flight", false);
+        }
+    }
+    if (nav != NavState::UNKNOWN) {
+        last_nav_state_ = nav;
+    }
+}
+
+void DroneController::post_flight_check() {
+    mission_manager_->check_delegated(patrol_fresh());
+    external_mode_recovery();
+    // A setpoint stream that has run for 5 s without the vehicle arming (e.g. set_offboard followed by a
+    // rejected arm) is stopped, so a later arm can never fly off toward a stale target.
+    if (get_arming_state() == ArmingState::DISARMED && offboard_control_->is_active()) {
+        if (++offboard_disarmed_ticks_ >= 5) {
+            RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Offboard stream running 5 s while disarmed; stopping it.", name_.c_str());
+            offboard_control_->stop();
+            offboard_disarmed_ticks_ = 0;
+        }
+    } else {
+        offboard_disarmed_ticks_ = 0;
+    }
+    if (get_arming_state() != ArmingState::DISARMED || get_nav_state() != NavState::OFFBOARD ||
+        offboard_control_->is_active()) {
+        offboard_idle_ticks_ = 0;
+        return;
+    }
+    // Require two consecutive ticks so we never race a set_offboard in progress
+    if (++offboard_idle_ticks_ < 2 || !drone_agent_->is_service_ready()) {
+        return;
+    }
+    offboard_idle_ticks_ = 0;
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Disarmed in OFFBOARD with no setpoint stream; switching to Hold.", name_.c_str());
+    // DO_SET_MODE: param1=custom mode enabled, param2=AUTO main mode, param3=LOITER sub mode
+    drone_agent_->sendVehicleCommand(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1.0f,
+        static_cast<float>(static_cast<uint8_t>(Px4CustomMode::AUTO)),
+        [this](uint8_t result) {
+            if (result != 0) {
+                RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Post-flight switch to Hold rejected (Result: %d)", name_.c_str(), result);
+            }
+        }, NAN, 3.0f);
 }
 
 DroneController::~DroneController()
@@ -558,12 +637,7 @@ void DroneController::disarm_callback(
     std::shared_ptr<std_srvs::srv::Trigger::Response> response)
 {
     RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Disarm service called", name_.c_str());
-    if (drone_state_->get_landing_state() != LandingState::LANDED && 
-        drone_state_->get_landing_state() != LandingState::MAYBE_LANDED) {
-         RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Disarm rejected: Drone is not landed.", name_.c_str());
-         response->success = false;
-         response->message = "Disarm rejected: Drone is not landed.";
-    }
+    // PX4 itself denies a non-forced disarm unless it detects the vehicle has landed.
 
     try {
         this->disarm(); // Call the existing internal method
@@ -611,12 +685,18 @@ void DroneController::set_offboard_callback(
         offboard_control_->start(); 
         
         // 4. Add a delay to allow PX4 to register the stream before switching mode
-        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Waiting for 1.1 seconds for offboard stream...", name_.c_str());
-        std::this_thread::sleep_for(std::chrono::milliseconds(1100)); // Wait 1.1 seconds
+        // Not a blocking sleep: blocking the (single-threaded) executor starves the position subscription, and in
+        // flight the 1 s staleness guard then stops the stream before PX4 ever switches (found in batch 1 test).
 
-        // 5. Send Offboard mode command.
-        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Sending Offboard mode command.", name_.c_str());
-        this->set_mode(Px4CustomMode::OFFBOARD); // Use the corrected enum value via the helper
+        // 5. Send Offboard mode command 1.1 s later (PX4 needs the stream first), unless the stream was stopped meanwhile.
+        run_after(std::chrono::milliseconds(1100), [this]() {
+            if (!offboard_control_->is_active()) {
+                RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Offboard stream stopped before mode switch; not switching.", name_.c_str());
+                return;
+            }
+            RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Sending Offboard mode command.", name_.c_str());
+            this->set_mode(Px4CustomMode::OFFBOARD);
+        });
         response->success = true;
         response->message = "Set Offboard command initiated, target set to current pose";
         // Note: Success means the command was sent. Confirmation comes via state updates.
@@ -709,7 +789,9 @@ void DroneController::set_position_callback(
 
     // Basic check: Is the drone in offboard mode? 
     // You might want more sophisticated checks (e.g., is it armed? is it stable?)
-    if (get_nav_state() != NavState::OFFBOARD) {
+    // Also accept while our offboard stream is running: set_offboard returns before PX4 reports
+    // the OFFBOARD switch, and this only updates the target the stream publishes.
+    if (get_nav_state() != NavState::OFFBOARD && !offboard_control_->is_active()) {
         RCLCPP_WARN(node_->get_logger(), "[%s][Controller] Set Position rejected: Drone is not in OFFBOARD mode.", name_.c_str());
         response->success = false;
         response->message = "Set Position rejected: Drone must be in OFFBOARD mode.";
@@ -760,7 +842,8 @@ void DroneController::get_state_callback(
         response->velocity_valid = velocity_valid;
 
         // Get state information
-        response->nav_state = nav_state_enum_to_string(drone_state_->get_nav_state());
+        response->nav_state = drone_state_->get_raw_nav_state() == 255 ? nav_state_enum_to_string(drone_state_->get_nav_state())
+                                                                       : drone_state_->nav_state_name(drone_state_->get_raw_nav_state());
         response->arming_state = arming_state_enum_to_string(drone_state_->get_arming_state());
         response->landing_state = landing_state_enum_to_string(drone_state_->get_landing_state());
 
@@ -803,24 +886,34 @@ void DroneController::get_state_callback(
         response->system_health_score = failsafe_data.system_health_score;
         response->active_warnings = failsafe_data.active_warnings;
         response->critical_failures = failsafe_data.critical_failures;
-        response->can_arm = !failsafe_data.battery_unhealthy && !failsafe_data.manual_control_lost;
+        // PX4-native health (vehicle_status / failsafe_flags)
+        const DroneState::HealthData health = drone_state_->get_health();
+        response->can_arm = health.status_valid && health.pre_flight_checks_pass;  // VehicleStatus.msg:138
+        response->failsafe = health.failsafe;
+        response->failsafe_reasons = health.failsafe_reasons;
+        response->nav_state_user_intention = health.nav_state_user_intention;
+        response->battery_low_remaining_time = health.battery_low_remaining_time;
+        response->home_position_valid = health.flags_valid && !health.home_position_invalid;
+        const DroneState::AttitudeHealth ah = drone_state_->get_attitude_health();
+        response->roll_deg = ah.roll_deg;
+        response->pitch_deg = ah.pitch_deg;
+        response->position_trusted = ah.position_trusted;
+        response->estimator_warnings = ah.estimator_warnings;
+        const DroneState::TargetData tg = drone_state_->get_target();
+        response->target_valid = tg.target_valid;
+        response->target_lat = tg.target_lat;
+        response->target_lon = tg.target_lon;
+        response->target_alt = tg.target_alt;
+        response->target_type = tg.target_type;
+        response->target_loiter_radius = tg.target_loiter_radius;
+        response->next_valid = tg.next_valid;
+        response->next_lat = tg.next_lat;
+        response->next_lon = tg.next_lon;
         response->manual_control_lost = failsafe_data.manual_control_lost;
         response->gcs_connection_lost = failsafe_data.gcs_connection_lost;
         response->geofence_breached = failsafe_data.geofence_breached;
 
-        // Get telemetry data
-        DroneState::TelemetryData telemetry_data;
-        bool telemetry_valid = drone_state_->get_telemetry_data(telemetry_data);
-        response->rc_signal_strength = telemetry_data.rc_signal_strength;
-        response->rc_signal_valid = telemetry_data.rc_signal_valid;
-        response->telemetry_link_quality = telemetry_data.telemetry_link_quality;
-        response->packet_loss_rate = telemetry_data.packet_loss_rate;
-
-        // Get wind data
-        DroneState::WindData wind_data;
-        bool wind_valid = drone_state_->get_wind_data(wind_data);
-        response->wind_speed = wind_data.speed;
-        response->wind_direction = wind_data.direction;
+        // rc_signal_*, telemetry_link_quality, packet_loss_rate, wind_*: not bridged on PX4 v1.15.4; left 0 (deprecated)
 
         // Get flight performance data
         response->altitude_rate = velocity_z; // Use velocity_z as altitude rate
@@ -855,11 +948,21 @@ void DroneController::upload_mission_callback(const std::shared_ptr<rmw_request_
         RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Upload mission request: %zu waypoints", 
                     name_.c_str(), request->waypoints.size());
 
+        const std::string busy = busy_reason("upload_mission");
+        if (!busy.empty()) {
+            response->success = false;
+            response->mission_id = mission_manager_->get_mission_status().mission_id;
+            response->cruise_speed_used = mission_manager_->get_cruise_speed();
+            response->message = busy;
+            RCLCPP_WARN(node_->get_logger(), "[%s][Controller] %s", name_.c_str(), busy.c_str());
+            return;
+        }
         uint32_t mission_id;
-        bool success = mission_manager_->upload_mission(request->waypoints, mission_id);
+        bool success = mission_manager_->upload_mission(request->waypoints, mission_id, request->cruise_speed);
         
         response->success = success;
         response->mission_id = mission_id;
+        response->cruise_speed_used = mission_manager_->get_cruise_speed();
         response->message = success ? "Mission uploaded successfully" : "Failed to upload mission";
         
         RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Mission upload %s (ID: %u)", 
@@ -884,15 +987,69 @@ void DroneController::mission_control_callback(const std::shared_ptr<rmw_request
         bool success = false;
         std::string message;
 
-        if (request->command == "START") {
-            success = mission_manager_->start_mission();
-            message = success ? "Mission started" : "Failed to start mission";
+        const std::string busy = request->command == "START" ? busy_reason("START") : std::string();
+        if (!busy.empty()) {
+            success = false;
+            message = busy;
+            RCLCPP_WARN(node_->get_logger(), "[%s][Controller] %s", name_.c_str(), busy.c_str());
+        } else if (request->command == "START" || request->command == "RESUME") {
+            const bool is_start = request->command == "START";
+            const NavState nav = get_nav_state();
+            const bool in_offboard = nav == NavState::OFFBOARD;
+            const bool airborne = get_arming_state() == ArmingState::ARMED &&
+                                  drone_state_->get_landing_state() == LandingState::AIRBORNE;
+            float cx, cy, cz;
+            uint8_t patrol_id = 0;
+            if (patrol_available(patrol_id)) {
+                // fly the mission in the PX4 external mode PATROL (from the air or from the ground)
+                success = patrol_start(is_start, message);
+            } else if (!in_offboard && !airborne) {
+                success = false;
+                message = std::string(is_start ? "START" : "RESUME") + " refused: PX4 is in " + nav_state_enum_to_string(nav) +
+                          " and the vehicle is not airborne. Take off first (takeoff_to) or switch to OFFBOARD (set_offboard).";
+            } else if (!in_offboard && !drone_state_->get_latest_local_position(cx, cy, cz)) {
+                success = false;
+                message = "Mission refused: no valid local position to engage OFFBOARD";
+            } else {
+                success = is_start ? mission_manager_->start_mission() : mission_manager_->resume_mission();
+                if (!success) {
+                    message = is_start ? "Failed to start mission (no valid mission uploaded?)" : "Failed to resume mission";
+                } else if (in_offboard) {
+                    message = is_start ? "Mission started" : "Mission resumed";
+                } else {
+                    // Airborne in a PX4 mode (e.g. Hold after takeoff_to): engage OFFBOARD ourselves. PX4 only accepts
+                    // OFFBOARD with a live setpoint stream (offboardCheck.cpp:47-65, mode_requirements.cpp:132;
+                    // user guide flight_modes/offboard.md:8,26), so stream first and switch 1.1 s later. The mission
+                    // leg clock only starts once PX4 is in OFFBOARD; if PX4 never switches, the mission fails in 5 s.
+                    offboard_control_->start();
+                    run_after(std::chrono::milliseconds(1100), [this]() {
+                        if (!offboard_control_->is_active() || !mission_manager_->get_mission_status().mission_running) {
+                            return;
+                        }
+                        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] Mission: switching PX4 to OFFBOARD.", name_.c_str());
+                        this->set_mode(Px4CustomMode::OFFBOARD);
+                    });
+                    message = std::string(is_start ? "Mission started" : "Mission resumed") + "; switching PX4 from " +
+                              nav_state_enum_to_string(nav) + " to OFFBOARD";
+                }
+            }
+        } else if ((request->command == "PAUSE" || request->command == "STOP") &&
+                   (mission_manager_->is_delegated() ||
+                    (drone_state_->get_patrol_nav_state() != 0 &&
+                     drone_state_->get_raw_nav_state() == drone_state_->get_patrol_nav_state()))) {
+            // mission flown by PATROL -> stop tracking it here, then PX4 Hold (PATROL deactivates)
+            const bool pause = request->command == "PAUSE";
+            success = pause ? mission_manager_->pause_mission() : mission_manager_->stop_mission();
+            if (drone_state_->get_patrol_nav_state() != 0 &&
+                drone_state_->get_raw_nav_state() == drone_state_->get_patrol_nav_state()) {
+                send_hold(pause ? "mission PAUSE" : "mission STOP");
+                success = true;
+            }
+            message = success ? (pause ? "Mission paused (PX4 Hold)" : "Mission stopped (PX4 Hold)")
+                              : (pause ? "Failed to pause mission" : "Failed to stop mission");
         } else if (request->command == "PAUSE") {
             success = mission_manager_->pause_mission();
             message = success ? "Mission paused" : "Failed to pause mission";
-        } else if (request->command == "RESUME") {
-            success = mission_manager_->resume_mission();
-            message = success ? "Mission resumed" : "Failed to resume mission";
         } else if (request->command == "STOP") {
             success = mission_manager_->stop_mission();
             message = success ? "Mission stopped" : "Failed to stop mission";
@@ -942,6 +1099,9 @@ void DroneController::get_mission_status_callback(const std::shared_ptr<rmw_requ
         response->total_items = status.total_items;
         response->mission_id = status.mission_id;
         response->mission_progress = status.mission_progress;
+        response->mission_failed = status.mission_failed;
+        response->failure_reason = status.failure_reason;
+        response->mission_paused = status.mission_paused;
 
         RCLCPP_DEBUG(node_->get_logger(), "[%s][Controller] Mission status: Valid:%d Running:%d Progress:%.1f%% (%u/%u)", 
                      name_.c_str(), status.mission_valid, status.mission_running, 
@@ -972,4 +1132,296 @@ bool DroneController::isSafeForMission() const {
 
 std::string DroneController::getFailsafeDescription() const {
     return failsafe_monitor_->getFailsafeDescription();
+}
+
+
+// =====================================================================================================================
+// PATROL external mode link (drone_patrol, px4-ros2-interface-lib 1.4.0)
+// =====================================================================================================================
+void DroneController::setup_patrol_link() {
+    patrol_plan_pub_ = node_->create_publisher<drone_interfaces::msg::PatrolPlan>(
+        "/" + name_ + "/patrol/plan", rclcpp::QoS(1).reliable().transient_local());
+    patrol_status_sub_ = node_->create_subscription<drone_interfaces::msg::PatrolStatus>(
+        "/" + name_ + "/patrol/status", rclcpp::QoS(10).reliable(),
+        [this](const drone_interfaces::msg::PatrolStatus::SharedPtr msg) {
+            bool was_registered = false;
+            {
+                std::lock_guard<std::mutex> lock(patrol_mutex_);
+                was_registered = patrol_status_.registered;
+                patrol_status_ = *msg;
+                patrol_rx_ = std::chrono::steady_clock::now();
+            }
+            if (msg->registered && !was_registered) {
+                RCLCPP_INFO(node_->get_logger(), "[%s][Controller] PATROL registered with PX4 as nav_state %u",
+                            name_.c_str(), msg->nav_state);
+            }
+            if (msg->registered) {
+                drone_state_->set_patrol_nav_state(msg->nav_state);
+            }
+            mission_manager_->apply_patrol_status(*msg);
+        });
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] PATROL link: %s / %s", name_.c_str(),
+                patrol_plan_pub_->get_topic_name(), patrol_status_sub_->get_topic_name());
+}
+
+// =====================================================================================================================
+// one job per drone (onboard check) + capabilities topic
+// =====================================================================================================================
+std::string DroneController::busy_reason(const char* what) const {
+    const auto s = mission_manager_->get_mission_status();
+    if (!s.mission_running && !s.mission_paused) {
+        return "";
+    }
+    char buf[240];
+    std::snprintf(buf, sizeof(buf),
+                  "%s refused: mission %u is %s (item %u of %u). One job per drone: STOP it first%s.",
+                  what, s.mission_id, s.mission_running ? "running" : "paused", s.current_item, s.total_items,
+                  s.mission_paused ? ", or RESUME it" : "");
+    return buf;
+}
+
+namespace {
+std::string json_escape(const std::string& in) {
+    std::string out;
+    for (char c : in) {
+        if (c == '"' || c == '\\') { out += '\\'; out += c; }
+        else if (static_cast<unsigned char>(c) < 0x20) { out += ' '; }
+        else { out += c; }
+    }
+    return out;
+}
+}  // namespace
+
+std::string DroneController::capabilities_json(bool with_stamp) const {
+    // Small and NaN-free (rosbridge). Modes: onboard PX4 external modes drone_core can start (PATROL).
+    std::string j = "{\"drone\":\"" + json_escape(name_) + "\",\"drone_core_build\":\"" DRONE_CORE_BUILD "\",\"modes\":[";
+    drone_interfaces::msg::PatrolStatus s;
+    const bool fresh = patrol_fresh(&s);
+    bool seen;
+    {
+        std::lock_guard<std::mutex> lock(patrol_mutex_);
+        seen = patrol_rx_ != std::chrono::steady_clock::time_point{};
+    }
+    if (seen) {
+        const bool reg = s.registered && DroneState::is_external_nav_state(s.nav_state);
+        j += "{\"name\":\"" + json_escape(s.mode_name.empty() ? std::string("PATROL") : s.mode_name) + "\"";
+        j += ",\"nav_state\":" + (reg ? std::to_string(s.nav_state) : std::string("null"));
+        j += ",\"registered\":" + std::string(reg ? "true" : "false");
+        j += ",\"heartbeat_fresh\":" + std::string(fresh ? "true" : "false");
+        j += ",\"version\":null}";   // drone_patrol does not report a version (PatrolStatus has no field)
+    }
+    j += "]";
+    if (with_stamp) {
+        j += ",\"stamp\":" + std::to_string(node_->get_clock()->now().seconds());
+    }
+    return j + "}";
+}
+
+void DroneController::publish_capabilities(bool force) {
+    const std::string content = capabilities_json(false);
+    const auto now = std::chrono::steady_clock::now();
+    if (!force && content == capabilities_last_ && now - capabilities_sent_ < std::chrono::seconds(5)) {
+        return;
+    }
+    if (content != capabilities_last_) {
+        RCLCPP_INFO(node_->get_logger(), "[%s][Controller] capabilities: %s", name_.c_str(), content.c_str());
+    }
+    capabilities_last_ = content;
+    capabilities_sent_ = now;
+    std_msgs::msg::String m;
+    m.data = capabilities_json(true);
+    capabilities_pub_->publish(m);
+}
+
+void DroneController::setup_capabilities() {
+    capabilities_pub_ = node_->create_publisher<std_msgs::msg::String>(
+        "/" + name_ + "/capabilities", rclcpp::QoS(1).reliable().transient_local());
+    // Checked every 1 s: published at once on change, otherwise every 5 s.
+    capabilities_timer_ = node_->create_wall_timer(std::chrono::seconds(1), [this]() { publish_capabilities(false); });
+    publish_capabilities(true);
+}
+
+bool DroneController::patrol_fresh(drone_interfaces::msg::PatrolStatus* out) const {
+    std::lock_guard<std::mutex> lock(patrol_mutex_);
+    if (patrol_rx_ == std::chrono::steady_clock::time_point{}) {
+        return false;
+    }
+    if (out) {
+        *out = patrol_status_;
+    }
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - patrol_rx_).count() < PATROL_HEARTBEAT_TIMEOUT_S;
+}
+
+bool DroneController::patrol_available(uint8_t& nav_state) const {
+    drone_interfaces::msg::PatrolStatus s;
+    if (!patrol_fresh(&s) || !s.registered || !DroneState::is_external_nav_state(s.nav_state)) {
+        return false;
+    }
+    nav_state = s.nav_state;
+    return true;
+}
+
+void DroneController::send_hold(const std::string& why) {
+    RCLCPP_INFO(node_->get_logger(), "[%s][Controller] %s: switching to Hold.", name_.c_str(), why.c_str());
+    // DO_SET_MODE: param1=custom mode enabled, param2=AUTO (4), param3=LOITER (3)
+    drone_agent_->sendVehicleCommandFull(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1.0f, 4.0f, 3.0f, NAN, NAN, NAN, NAN,
+        [this, why](uint8_t result) {
+            if (result != 0) {
+                RCLCPP_ERROR(node_->get_logger(), "[%s][Controller] Hold (%s) rejected (%u)", name_.c_str(), why.c_str(), result);
+            }
+        });
+}
+
+// START/RESUME via PATROL. Airborne: select PATROL, the executor goes straight to the patrol legs. On the ground:
+// select PATROL, then arm; the executor takes off to the explicit altitude first (lib mode_executor.cpp:296-307).
+bool DroneController::patrol_start(bool is_start, std::string& message) {
+    uint8_t patrol_id = 0;
+    if (!patrol_available(patrol_id)) {
+        message = "PATROL not available";
+        return false;
+    }
+    const bool armed = get_arming_state() == ArmingState::ARMED;
+    const bool airborne = armed && drone_state_->get_landing_state() == LandingState::AIRBORNE;
+    float cx, cy, cz;
+    if (!drone_state_->get_latest_local_position(cx, cy, cz)) {
+        message = "Mission refused: no valid local position";
+        return false;
+    }
+    float home_alt = NAN;
+    if (!airborne) {
+        double hlat, hlon;
+        if (!drone_state_->get_home(hlat, hlon, home_alt) || !std::isfinite(home_alt)) {
+            message = "Mission refused: on the ground and no home position for the takeoff altitude";
+            return false;
+        }
+    }
+    drone_interfaces::msg::PatrolPlan plan;
+    std::string why;
+    if (!mission_manager_->start_delegated(!is_start, home_alt, plan, why)) {
+        message = std::string(is_start ? "Failed to start mission: " : "Failed to resume mission: ") + why;
+        return false;
+    }
+    if (offboard_control_->is_active()) {
+        offboard_control_->stop();   // PATROL flies; drone_core's OFFBOARD stream must not linger
+    }
+    patrol_plan_pub_->publish(plan);
+    // Give drone_patrol the plan before PX4 activates the mode (transient_local + 300 ms).
+    run_after(std::chrono::milliseconds(300), [this, patrol_id, armed]() {
+        if (!mission_manager_->get_mission_status().mission_running || !mission_manager_->is_delegated()) {
+            return;
+        }
+        // VEHICLE_CMD_SET_NAV_STATE: param1 = nav_state (Commander.cpp:911-921)
+        drone_agent_->sendVehicleCommand(VehicleCommand::VEHICLE_CMD_SET_NAV_STATE, static_cast<float>(patrol_id), 0.0f,
+            [this, armed](uint8_t result) {
+                if (result != 0) {
+                    mission_manager_->fail_mission("PX4 rejected PATROL (result " + std::to_string(result) + ")", false);
+                    return;
+                }
+                if (armed) {
+                    return;
+                }
+                drone_agent_->sendVehicleCommand(VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0f, 0.0f,
+                    [this](uint8_t arm_result) {
+                        if (arm_result != 0) {
+                            mission_manager_->fail_mission("arming for PATROL rejected (result " +
+                                                           std::to_string(arm_result) + ")", true);
+                        }
+                    });
+            });
+    });
+    char buf[200];
+    if (airborne) {
+        std::snprintf(buf, sizeof(buf), "Mission %s in PX4 PATROL mode from item %u",
+                      is_start ? "started" : "resumed", plan.start_item);
+    } else {
+        std::snprintf(buf, sizeof(buf), "Mission %s in PX4 PATROL mode from item %u: arming, takeoff to %.1f m AMSL",
+                      is_start ? "started" : "resumed", plan.start_item, plan.takeoff_altitude_amsl);
+    }
+    message = buf;
+    return true;
+}
+
+// PX4 keeps a dead external mode while it is the user's intention (ModeManagement.cpp:400-406), which blocks arming.
+// On the ground and disarmed with the user intention on an external mode whose heartbeat is gone (or can_arm false),
+// switch to Hold after 3 consecutive 1 Hz ticks so the vehicle can arm again.
+void DroneController::external_mode_recovery() {
+    const uint8_t ui = drone_state_->get_raw_user_intention();
+    const bool candidate = DroneState::is_external_nav_state(ui) && get_arming_state() == ArmingState::DISARMED &&
+                           drone_state_->get_landing_state() != LandingState::AIRBORNE;
+    if (!candidate) {
+        external_stuck_ticks_ = 0;
+        return;
+    }
+    uint8_t patrol_id = 0;
+    const bool live = patrol_available(patrol_id) && patrol_id == ui;
+    const auto health = drone_state_->get_health();
+    const bool can_arm = health.status_valid && health.pre_flight_checks_pass;
+    // After a PATROL mission's RTL lands and disarms, PX4 falls back to the user intention (PATROL) while disarmed.
+    // Leave it only while a START is in progress (mission running: PATROL selected, arm pending).
+    const bool idle_in_patrol = live && !mission_manager_->get_mission_status().mission_running;
+    if (live && can_arm && !idle_in_patrol) {
+        external_stuck_ticks_ = 0;
+        return;
+    }
+    if (++external_stuck_ticks_ < 3) {
+        return;
+    }
+    external_stuck_ticks_ = -5;   // retry at most every ~8 s
+    send_hold(std::string("Landed/disarmed with ") + drone_state_->nav_state_name(ui) + " selected (" +
+              (!live ? "mode not running" : (!can_arm ? "can_arm=false" : "no mission running")) + ")");
+}
+
+// what vehicle_status should show after a command PX4 did not ack. nav_state numbers:
+// px4_msgs release/1.15 VehicleStatus.msg:34-55; custom modes: commander/px4_custom_mode.h:44-69.
+int DroneController::command_effect_seen(const px4_msgs::msg::VehicleCommand& cmd) const {
+    using VC = px4_msgs::msg::VehicleCommand;
+    const uint8_t nav = drone_state_->get_raw_nav_state();
+    const uint8_t ui = drone_state_->get_raw_user_intention();
+    if (nav == 255) return 0;
+    auto mode_is = [&](int want) { return (nav == want || ui == want) ? 1 : 0; };
+    switch (cmd.command) {
+        case VC::VEHICLE_CMD_COMPONENT_ARM_DISARM: {
+            const bool want_armed = std::lround(cmd.param1) == 1;
+            return (get_arming_state() == ArmingState::ARMED) == want_armed ? 1 : 0;
+        }
+        case VC::VEHICLE_CMD_NAV_TAKEOFF:          return mode_is(17);
+        case VC::VEHICLE_CMD_NAV_LAND:             return mode_is(18);
+        case VC::VEHICLE_CMD_NAV_RETURN_TO_LAUNCH: return mode_is(5);
+        case VC::VEHICLE_CMD_DO_ORBIT:             return mode_is(21);
+        case VC::VEHICLE_CMD_SET_NAV_STATE:        return mode_is(static_cast<int>(std::lround(cmd.param1)));
+        case VC::VEHICLE_CMD_DO_REPOSITION: {
+            // Hold (AUTO_LOITER) with the triplet target on the requested point (Commander.cpp DO_REPOSITION -> Navigator)
+            if (!mode_is(4)) return 0;
+            if (!std::isfinite(cmd.param5) || !std::isfinite(cmd.param6)) return 1;
+            const DroneState::TargetData tg = drone_state_->get_target();
+            if (!tg.target_valid) return 0;
+            const double dn = (tg.target_lat - cmd.param5) * 111320.0;
+            const double de = (tg.target_lon - cmd.param6) * 111320.0 * std::cos(cmd.param5 * M_PI / 180.0);
+            return std::hypot(dn, de) < 1.0 ? 1 : 0;
+        }
+        case VC::VEHICLE_CMD_DO_SET_MODE: {
+            const int main = static_cast<int>(std::lround(cmd.param2));
+            const int sub = static_cast<int>(std::lround(cmd.param3));
+            switch (main) {
+                case 1: return mode_is(0);    // MANUAL
+                case 2: return mode_is(1);    // ALTCTL
+                case 3: return mode_is(2);    // POSCTL
+                case 6: return mode_is(14);   // OFFBOARD
+                case 4:                       // AUTO
+                    switch (sub) {
+                        case 2: return mode_is(17);   // TAKEOFF
+                        case 3: return mode_is(4);    // LOITER (Hold)
+                        case 4: return mode_is(3);    // MISSION
+                        case 5: return mode_is(5);    // RTL
+                        case 6: return mode_is(18);   // LAND
+                        case 9: return mode_is(20);   // PRECLAND
+                        default:
+                            if (sub >= 11 && sub <= 18) return mode_is(23 + (sub - 11));   // EXTERNAL1..8
+                            return -1;
+                    }
+                default: return -1;
+            }
+        }
+        default: return -1;   // e.g. DO_FLIGHTTERMINATION: nothing safe to infer
+    }
 }

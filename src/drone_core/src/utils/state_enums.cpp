@@ -19,6 +19,7 @@ std::string nav_state_enum_to_string(NavState state) {
         case NavState::ORBIT: return "ORBIT";
         case NavState::AUTO_VTOL_TAKEOFF: return "AUTO_VTOL_TAKEOFF";
         case NavState::FREEFALL: return "FREEFALL";
+        case NavState::EXTERNAL: return "EXTERNAL";
         case NavState::UNKNOWN: // Fall through
         default: return "UNKNOWN";
     }
@@ -29,6 +30,7 @@ std::string landing_state_enum_to_string(LandingState state) {
     switch (state) {
         case LandingState::AIRBORNE: return "AIRBORNE";
         case LandingState::GROUND_CONTACT: return "GROUND_CONTACT";
+        case LandingState::ON_GROUND: return "ON_GROUND";
         case LandingState::MAYBE_LANDED: return "MAYBE_LANDED";
         case LandingState::LANDED: return "LANDED";
         case LandingState::FREEFALL: return "FREEFALL";

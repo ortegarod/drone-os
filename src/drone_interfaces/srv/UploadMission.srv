@@ -1,8 +1,10 @@
 # Service to upload a complete mission to the drone
 # Request
 Waypoint[] waypoints     # Array of waypoints defining the mission
+float32 cruise_speed     # Cruise speed along each leg, m/s. 0 = default 5.0; clamped to 1.0-10.0 (MPC_XY_CRUISE=10)
 ---
 # Response
 bool success            # True if mission upload succeeded
 string message          # Status message or error description
 uint32 mission_id       # Unique identifier for this mission
+float32 cruise_speed_used # Cruise speed actually applied (after default/clamp), m/s
