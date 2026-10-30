@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "droneos"
+version = "0.2.0"
+description = "Fly DroneOS drones from Python or the command line, through the fleet API"
+requires-python = ">=3.8"
+dependencies = []
+
+[project.scripts]
+droneos = "droneos.cli:main"
