@@ -4,15 +4,15 @@ A plugin adds a **job**: something a drone does beyond being flown by hand. Patr
 Inspect, Search and Follow are the first five. A drone does at most one job at a time. Design and rules:
 [design/plugins.md](design/plugins.md).
 
-The smallest complete example is **plugins/inspect** (circle a point and take photos, ~250
-lines of Python and ~100 of JS). Copy it.
+The smallest complete example is **plugins/inspect** (circle a point and take photos: ~40
+lines of Python with the plugin SDK, ~100 of JS). Copy it.
 
 ## The pieces
 
 ```
 plugins/<id>/
   droneos-plugin.json   manifest: the fleet API finds the plugin by this
-  service.py            the plugin's service (any language; it's just HTTP)
+  service.py            the plugin's service (Python with droneos.plugin, or any language: it's just HTTP)
   ui/job.js             optional: the plugin's screens in the Command Center
   (onboard part)        optional: a ROS 2 node / PX4 external mode on the drone (see patrol)
 ```
@@ -41,7 +41,57 @@ Two ways in, both live (no restart of anything):
 
 ### 2. Service
 
-It answers three calls from the fleet API (they carry `X-DroneOS-Caller: fleet-api`):
+In Python, write the job as one function with the plugin SDK (`pip install './sdk/python[plugin]'`):
+
+```python
+from droneos.plugin import Plugin, arg
+
+plugin = Plugin("inspect")            # the manifest's id
+
+@plugin.job(text=lambda a: f"circle N{a['north']:g} E{a['east']:g}")
+def inspect(job, north: float, east: float,
+            radius: float = arg(20.0, min=5, max=100),
+            minutes: float = arg(2.0, min=0.2, max=30)):
+    job.climb(50)                                   # take off, wait until it's up there
+    job.drone.orbit(north, east, radius=radius)     # job.drone is a droneos.Drone
+    for _ in range(int(minutes * 6)):
+        job.photo()                                 # into the report, with where the drone was
+        job.sleep(10)
+    job.home()
+    return f"{len(job.report['photos'])} photos"    # the job's summary
+
+app = plugin.app                      # uvicorn service:app --host 127.0.0.1 --port 8092
+```
+
+What the SDK does for you:
+- **Arguments** come from the function's signature. The annotation converts the value (`float`, `int`, `bool`, `str`, `list`,
+  or your own function that raises ValueError, like search's `look_points`), `arg(default, min=, max=)` sets limits, no
+  default = required, unknown keys are refused. A bad start gets 422 with every problem and the argument list, so
+  `droneos start drone1 inspect north=30` tells you what's missing. `check=` takes rules across arguments
+  (raise ValueError). `GET /args` describes them.
+- **Ending the job:** return = completed (the return value is the summary); an exception = failed, and if the drone
+  is still flying the SDK **sends it home** (a failed job never leaves a drone hovering with nobody flying it).
+- **Operators stepping in** (land, return home, kill, take control): the job's next `job.*` call or command through
+  `job.drone` raises `Stopped`, so the function unwinds wherever it is; waits (`job.sleep`, `job.wait_until`,
+  `job.drone.goto(...)`) end at once. `Stopped` isn't an `Exception`, so `except Exception` doesn't swallow it. Use
+  `try/finally` to tidy up; never catch it to keep flying.
+- **The report:** `job.report` (a dict saved as `<reports>/<job id>/report.json`: id, drone, operator, started, ended,
+  status, summary, args, photos, events + whatever you add, then `job.save()`), served at `/reports[?drone=]`, `/reports/{id}`
+  and `/reports/{id}/photos/{n}.jpg`. Your `ui/job.js` (next to service.py) is served at `/ui/job.js`.
+- **The rest of `job`:** `state()` (the drone's state), `status(text)` (the short text operators see), `event(text)`,
+  `climb(alt)`, `home()`, `photo(**extra)`, `wait_until(pred, timeout)`, `clock()`, and what the drone sees: `detections()`
+  (right now), `on_sighting(fn)` (each object the detector confirms, while the job runs) and `sightings()` (all of them
+  since the job started). Docstrings in `sdk/python/droneos/plugin.py`.
+- **Config** from the environment: `<ID>_CONFIG` (json `{"api", "token"}`, default `~/.config/droneos/<id>_plugin.json`),
+  `<ID>_REPORTS` (default `~/.local/state/droneos/<id>`), `CAMERA_URL`. Tests call `plugin.configure(client=fake, ...)`
+  (see plugins/inspect/test_service.py).
+
+Each job runs in its own thread; several drones can run your job at once. Running jobs live in memory, so a
+restart of your service ends them (the fleet API sends those drones home, below).
+
+#### Without the SDK (any language)
+
+The service answers three calls from the fleet API (they carry `X-DroneOS-Caller: fleet-api`):
 
 | Call | When | Reply |
 |---|---|---|
@@ -110,7 +160,7 @@ Handlers: `onShape(shape, ev)` with `ev.kind` `'click'` or `'edit'` (`ev.points`
 `onClick({north, east})` + `clickHint` to listen for map clicks (e.g. "click to add points").
 Also export `status(ctx)` for the short text in the job header and tab badge.
 
-All three plugins are written this way: plugins/patrol/ui/job.js (editable route, live report, photo viewer),
+All the plugins' UIs are written this way: plugins/patrol/ui/job.js (editable route, live report, photo viewer),
 dispatch/ui/job.js (incident pins), plugins/inspect/ui/job.js (the smallest).
 Start your job from the Planner with
 `ctx.api('POST', '/drones/' + ctx.drone + '/job', {plugin: '<id>', args: {...}})`.

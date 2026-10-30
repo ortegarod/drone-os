@@ -31,3 +31,7 @@ with Drone("drone1") as d:      # releases control on exit
     d.land()
     d.patrol([(40, 0), (40, 30)], altitude=15, loops=2)   # onboard; survives script exit
 ```
+
+## Plugins
+`droneos.plugin` turns one function into a plugin (a job type operators can start from the Command Center, the CLI or
+Python): `pip install './sdk/python[plugin]'`. Guide: [docs/plugins.md](../../docs/plugins.md); example: `plugins/inspect/service.py`.

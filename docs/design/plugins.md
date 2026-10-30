@@ -1,6 +1,6 @@
 # DroneOS jobs: plugin design
 
-Status: built. Jobs, the plugin registry and the plugin proxy live in the fleet API; Patrol, Dispatch, Inspect, Search and Follow are plugins. Every job UI ships with its plugin (a plain ES module using window.DroneOS), plugins install live, and the fleet API checks that each running job's plugin still answers. Developer guide: [../plugins.md](../plugins.md).
+Status: built. Jobs, the plugin registry and the plugin proxy live in the fleet API; Patrol, Dispatch, Inspect, Search and Follow are plugins. Every job UI ships with its plugin (a plain ES module using window.DroneOS), plugins install live, and the fleet API checks that each running job's plugin still answers. Python plugins use the plugin SDK (`droneos.plugin`: the job is one function; Inspect, Search and Follow are written with it). Developer guide: [../plugins.md](../plugins.md).
 
 ## The idea
 A **job** is what a drone is doing beyond being flown by hand: patrol a route, respond to an incident, inspect a roof, follow a vehicle... We can't write them all, so job types are **plugins**. Patrol and dispatch are the first two.
@@ -40,7 +40,7 @@ The command center loads a plugin's UI bundle (an ES module from its manifest UR
 ## Migration
 1. **Patrol becomes plugin #1:** move the route store and the report recorder (patrols.py) out of the fleet API into a patrol service; the onboard PATROL mode stays as it is.
 2. **Dispatch:** already a separate service (dispatch_service + bridge). Make it use the job API; fold the useful bits of the /dispatch page (incident queue) into its UI part, then delete the old page.
-3. Write the plugin SDK docs + a tiny example plugin (e.g. "orbit a point for N minutes and take photos").
+3. Write the plugin SDK docs + a tiny example plugin (e.g. "orbit a point for N minutes and take photos"). Done: `droneos.plugin` + plugins/inspect.
 
 ## Onboard rules
 - **One container per plugin**, all from one image: a crash takes out only its own mode, and PX4 drops a dead mode by itself.

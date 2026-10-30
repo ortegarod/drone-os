@@ -9,5 +9,9 @@ description = "Fly DroneOS drones from Python or the command line, through the f
 requires-python = ">=3.8"
 dependencies = []
 
+[project.optional-dependencies]
+# droneos.plugin: write a plugin (a job type) as one function
+plugin = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "websockets>=12"]
+
 [project.scripts]
 droneos = "droneos.cli:main"
