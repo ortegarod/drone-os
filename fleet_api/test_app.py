@@ -351,6 +351,7 @@ def _bundled_env(monkeypatch, tmp_path):
     monkeypatch.setenv("FLEET_API_PLUGINS", str(tmp_path / "plugins"))
     monkeypatch.setenv("FLEET_API_OPERATORS", str(tmp_path / "operators.json"))       # never the real one
     monkeypatch.setenv("FLEET_API_INSTALLED_PLUGINS", str(tmp_path / "installed.json"))
+    monkeypatch.setenv("FLEET_API_GEOFENCE", str(tmp_path / "geofence.json"))          # never the real one
 
 
 SPOT = {"id": "spot", "name": "Spot", "version": "0.1", "service_url": "http://127.0.0.1:8199", "ui": "/ui/job.js"}
