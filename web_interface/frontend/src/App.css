@@ -175,3 +175,18 @@
   font-weight: 600;
   font-size: 0.875rem;
 }
+
+
+/* -- operator login (fleet API) -- */
+.login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #0b0f14; }
+.login-box { display: flex; flex-direction: column; gap: 10px; width: 300px; padding: 24px; border: 1px solid #243040; border-radius: 6px; background: #111821; color: #c9d4e0; font-family: inherit; }
+.login-title { font-weight: 700; letter-spacing: 2px; margin-bottom: 6px; }
+.login-box input { padding: 8px; background: #0b0f14; border: 1px solid #243040; color: inherit; border-radius: 4px; }
+.login-box button { padding: 8px; cursor: pointer; }
+.login-error { color: #ff6b6b; font-size: 13px; }
+.operator-badge { position: fixed; top: 11px; right: 12px; z-index: 2000; font-size: 12px; color: #8fa3b8; background: rgba(11,15,20,0.85); padding: 3px 8px; border-radius: 4px; }
+.operator-badge button { margin-left: 6px; font-size: 11px; cursor: pointer; background: none; border: 1px solid #243040; color: inherit; border-radius: 3px; }
+.operator-badge .role { margin-left: 6px; padding: 0 5px; border-radius: 3px; font-size: 11px; border: 1px solid #243040; }
+.operator-badge .role-admin { color: #d2a8ff; border-color: #6e40c9; }
+.operator-badge .role-pilot { color: #7ee787; border-color: #238636; }
+.operator-badge .role-viewer { color: #8b949e; }

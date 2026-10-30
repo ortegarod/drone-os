@@ -1,7 +1,5 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const webpack = require('webpack');
-require('dotenv').config({ path: '.env.local' });
 
 module.exports = {
   entry: './src/index.tsx',
@@ -34,9 +32,6 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: './public/index.html',
     }),
-    new webpack.DefinePlugin({
-      'process.env.REACT_APP_SERVER_HOST': JSON.stringify(process.env.REACT_APP_SERVER_HOST || 'localhost'),
-    }),
   ],
   devServer: {
     static: {
@@ -48,17 +43,15 @@ module.exports = {
     host: '0.0.0.0',
     allowedHosts: 'all',
     proxy: {
-      '/api/openclaw': {
-        target: 'http://127.0.0.1:3031',
+      '/api/v1': {
+        target: 'http://127.0.0.1:8090',
         changeOrigin: true,
+        ws: true,
       },
-      '/api/bridge': {
-        target: 'http://127.0.0.1:8082',
+      '/camera': {
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
-      },
-      '/api/incidents': {
-        target: 'http://127.0.0.1:8081',
-        changeOrigin: true,
+        pathRewrite: { '^/camera': '' },
       },
     },
   },
