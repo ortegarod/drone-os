@@ -1,0 +1,266 @@
+--- a/baylands_03.DAE
++++ b/baylands_03.DAE
+@@ -209,9 +209,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03541-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -252,9 +250,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03555-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -435,9 +431,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="Asphalt_ncl1_2-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -478,9 +472,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03560-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -521,9 +513,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03548-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -564,9 +554,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03545-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -607,9 +595,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03544-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -650,9 +636,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03563-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -693,9 +677,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03542-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -736,9 +718,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03561-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -779,9 +759,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03543-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -822,9 +800,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="ParkingMarkings_ncl1_2-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -865,9 +841,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03551-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -908,9 +882,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03562-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -951,9 +923,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03558-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -994,9 +964,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03547-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -1037,9 +1005,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03554-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -1080,9 +1046,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03557-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -1123,9 +1087,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03564-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -1166,9 +1128,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03550-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -1209,9 +1169,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03565-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -1252,9 +1210,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03553-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -1295,9 +1251,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03549-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>
+@@ -1338,9 +1292,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03552-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>

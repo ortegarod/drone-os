@@ -1,0 +1,11 @@
+# DroneOS sim (config/sim/README.md). Installed by config/sim/install.sh; instance = SIM_NAME-N (drone N).
+[Unit]
+Description=DroneOS sim geofence loader (%i)
+
+[Service]
+ExecStart=@SIM_DIR@/scripts/run.sh geofence %i
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

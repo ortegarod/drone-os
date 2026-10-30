@@ -1,0 +1,13 @@
+--- a/baylands_02.DAE
++++ b/baylands_02.DAE
+@@ -59,9 +59,7 @@
+             <reflectivity>
+               <float sid="reflectivity">1.000000</float>
+             </reflectivity>
+-            <transparent opaque="RGB_ZERO">
+-              <color sid="transparent">1.000000  1.000000 1.000000 1.000000</color>
+-            </transparent>
++            <transparent opaque="A_ONE"><texture texture="MapFBXASC032FBXASC03546-image" texcoord="CHANNEL0"/></transparent>
+             <transparency>
+               <float sid="transparency">0.000000</float>
+             </transparency>

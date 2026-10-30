@@ -1,0 +1,20 @@
+diff --git a/models/x500_mono_cam/model.sdf b/models/x500_mono_cam/model.sdf
+index 888714d..1379ae9 100644
+--- a/models/x500_mono_cam/model.sdf
++++ b/models/x500_mono_cam/model.sdf
+@@ -6,12 +6,13 @@
+     </include>
+     <include merge='true'>
+       <uri>model://mono_cam</uri>
+-      <pose>.12 .03 .242 0 0 0</pose>
++      <!-- DroneOS: camera pitched 45 deg down (SDF +pitch about +Y = nose down in FLU) -->
++      <pose>.12 .03 .242 0 0.785398 0</pose>
+     </include>
+     <joint name="CameraJoint" type="fixed">
+       <parent>base_link</parent>
+       <child>camera_link</child>
+-      <pose relative_to="base_link">.12 .03 .242 0 0 0</pose>
++      <pose relative_to="base_link">.12 .03 .242 0 0.785398 0</pose>
+     </joint>
+   </model>
+ </sdf>

@@ -1,0 +1,9 @@
+# DroneOS sim (config/sim/README.md). Installed by config/sim/install.sh; instance = SIM_NAME.
+[Unit]
+Description=DroneOS sim Gazebo server (%i)
+
+[Service]
+ExecStart=@SIM_DIR@/scripts/run.sh gz %i
+Restart=no
+KillSignal=SIGINT
+TimeoutStopSec=15

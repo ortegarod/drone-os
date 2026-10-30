@@ -1,0 +1,8 @@
+# DroneOS sim (config/sim/README.md). Installed by config/sim/install.sh; instance = SIM_NAME.
+[Unit]
+Description=DroneOS sim walker mover (%i)
+
+[Service]
+ExecStart=@SIM_DIR@/scripts/run.sh walker %i
+Restart=on-failure
+RestartSec=5

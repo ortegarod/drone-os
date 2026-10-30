@@ -1,0 +1,13 @@
+# DroneOS PX4 SITL parameter baseline, applied by sim_up.sh with "param set-default" after each PX4 start
+# (a value set and saved by a user or tool, e.g. GF_MAX_VER_DIST from the geofence loader, still wins).
+# Headless operation without RC/GCS (was a local edit of PX4's 4001_gz_x500 airframe):
+COM_RCL_EXCEPT 4
+COM_RC_IN_MODE 4
+NAV_RCL_ACT 0
+COM_OBL_RC_ACT 3
+COM_LOW_BAT_ACT 3
+# Geofence backstop (cylinder around home); polygon fences come from src/geofence_loader
+GF_ACTION 3
+GF_MAX_HOR_DIST 300
+GF_MAX_VER_DIST 120
+MPC_XY_CRUISE 10

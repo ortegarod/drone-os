@@ -1,0 +1,10 @@
+# DroneOS sim (config/sim/README.md). Installed by config/sim/install.sh; instance = SIM_NAME-N (drone N).
+[Unit]
+Description=DroneOS sim PX4 SITL (%i)
+
+[Service]
+ExecStart=@SIM_DIR@/scripts/run.sh px4 %i
+Restart=on-failure
+RestartSec=10
+StandardOutput=null
+TimeoutStopSec=15
