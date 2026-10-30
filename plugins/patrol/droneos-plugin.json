@@ -1,0 +1,10 @@
+{
+  "id": "patrol",
+  "name": "Patrol",
+  "version": "1.0.0",
+  "description": "Fly a route of points onboard (PX4 PATROL mode), with a photo and position at every point.",
+  "operator": "patrol",
+  "service_url": "http://127.0.0.1:8091",
+  "onboard_mode": "PATROL",
+  "ui": "/ui/job.js"
+}

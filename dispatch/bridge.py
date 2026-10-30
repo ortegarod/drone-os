@@ -36,10 +36,8 @@ def load_prompt_template():
 DISPATCH_API = os.environ.get("DISPATCH_API_URL", "http://localhost:8081")
 POLL_INTERVAL = int(os.environ.get("DISPATCH_POLL_INTERVAL", "2"))
 BRIDGE_PORT = int(os.environ.get("DISPATCH_BRIDGE_PORT", "8082"))
-DISPATCH_MODEL = os.environ.get("DISPATCH_MODEL", "anthropic/claude-sonnet-4-6")
-
-# --- Repo root (derived from script location) ---
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# The AI dispatcher is the operator's own OpenClaw agent, in its own session per incident.
+DISPATCH_AGENT = os.environ.get("DISPATCH_AGENT", "main")
 
 # --- Gateway config ---
 GATEWAY_WS = os.environ.get("OPENCLAW_GATEWAY_WS_URL", "ws://127.0.0.1:18789")
@@ -60,9 +58,8 @@ def _load_gateway_token():
 
 class DispatchBridge:
     def __init__(self):
-        self.paused = False  # Start active — toggle button controls pause/resume
+        self.paused = False  # start active; POST /api/bridge/pause|resume (localhost)
         self.running = False
-        self.model = DISPATCH_MODEL
         self.seen_incidents = set()
         self.activity_log = []
 
@@ -93,7 +90,7 @@ class DispatchBridge:
             headers["Authorization"] = f"Bearer {token}"
 
         body = {
-            "model": f"openclaw:dispatch",
+            "model": f"openclaw:{DISPATCH_AGENT}",
             "messages": [{"role": "user", "content": message}],
             "stream": bool(on_text),
         }
@@ -151,9 +148,9 @@ class DispatchBridge:
             return []
 
     def get_fleet_state_sync(self, target_x=0, target_y=0) -> str:
-        """Query all drones via droneos CLI. Returns fleet status sorted by distance to target."""
-        import subprocess
+        """All drones from the fleet API. Returns fleet status sorted by distance to target."""
         import math
+        from droneos import DroneError, fleet
 
         # Get active incidents for cross-referencing
         incident_by_drone = {}
@@ -167,58 +164,51 @@ class DispatchBridge:
         except Exception:
             pass
 
+        try:
+            all_drones = fleet()
+        except DroneError as e:
+            return f"  Fleet API unavailable: {e}"
+
         drones = []
-        for i in range(1, 6):
-            name = f"drone{i}"
-            try:
-                result = subprocess.run(
-                    ["droneos", "--drone", name, "--get-state"],
-                    capture_output=True, text=True, timeout=10
-                )
-                if result.returncode != 0:
-                    continue
-                s = json.loads(result.stdout)
-                if not s.get("nav_state") or s["nav_state"] == "UNKNOWN":
-                    continue
+        for d in all_drones:
+            if not d["online"]:
+                continue
+            name = d["name"]
+            armed = d["armed"]
+            nav = (d["mode"] or "").upper()
+            p = d["position"]
+            x, y, alt = p["north"], p["east"], p["altitude"]
+            bat_pct = d["battery"]["percent"]
+            dist_target = math.sqrt((x - target_x)**2 + (y - target_y)**2)
 
-                armed = s.get("arming_state") == "ARMED"
-                nav = (s.get("nav_state") or "").upper()
-                x, y, z = s.get("local_x", 0), s.get("local_y", 0), s.get("local_z", 0)
-                alt = -z
-                bat_pct = s.get("battery_remaining", 0) * 100
-                dist_target = math.sqrt((x - target_x)**2 + (y - target_y)**2)
+            if "LAND" in nav:
+                status, avail = "LANDING", "no"
+            elif "RTL" in nav or "RETURN" in nav:
+                status, avail = "RETURNING", "yes (reroutable)"
+            elif "TAKEOFF" in nav:
+                status, avail = "TAKEOFF", "no"
+            elif armed and alt > 1.0:
+                status, avail = "IN FLIGHT", "no"
+            elif armed:
+                status, avail = "ARMED", "no"
+            else:
+                status, avail = "READY", "yes"
 
-                if "LAND" in nav:
-                    status, avail = "LANDING", "no"
-                elif "RTL" in nav or "RETURN" in nav:
-                    status, avail = "RETURNING", "yes (reroutable)"
-                elif "TAKEOFF" in nav:
-                    status, avail = "TAKEOFF", "no"
-                elif armed and alt > 1.0:
-                    status, avail = "IN FLIGHT", "no"
-                elif armed:
-                    status, avail = "ARMED", "no"
-                else:
-                    status, avail = "READY", "yes"
+            if bat_pct < 30:
+                avail = "no (low battery)"
+            if d.get("controller") and avail.startswith("yes") and status == "READY":
+                avail = f"yes (controlled by {d['controller']})"
 
-                if bat_pct < 30:
-                    avail = "no (low battery)"
+            mission_ctx = ""
+            inc = incident_by_drone.get(name)
+            if inc:
+                loc = inc.get("location", {})
+                mission_ctx = f" | mission: INC-{inc['id']} ({inc['status']}) at {loc.get('name', '?')} ({loc.get('x', '?')},{loc.get('y', '?')})"
 
-                mission_ctx = ""
-                inc = incident_by_drone.get(name)
-                if inc:
-                    loc = inc.get("location", {})
-                    mission_ctx = f" | mission: INC-{inc['id']} ({inc['status']}) at {loc.get('name', '?')} ({loc.get('x', '?')},{loc.get('y', '?')})"
-
-                recommend = ""
-                if avail.startswith("yes"):
-                    recommend = " ★ AVAILABLE"
-
-                drones.append((dist_target, name,
-                    f"  {name}: {status} | pos=({x:.0f}, {y:.0f}) alt={alt:.0f}m | bat={bat_pct:.0f}% | dist_to_target={dist_target:.0f}m | available={avail}{mission_ctx}{recommend}"
-                ))
-            except Exception:
-                pass
+            recommend = " ★ AVAILABLE" if avail.startswith("yes") else ""
+            drones.append((dist_target, name,
+                f"  {name}: {status} | pos=({x:.0f}, {y:.0f}) alt={alt:.0f}m | bat={bat_pct:.0f}% | dist_to_target={dist_target:.0f}m | available={avail}{mission_ctx}{recommend}"
+            ))
 
         drones.sort(key=lambda d: d[0])
 
@@ -359,73 +349,32 @@ class DispatchBridge:
         self.running = False
 
 
-# --- Control API on :8082 ---
+# --- Control API on :8082 (localhost: stop/start AI dispatch, see what it did) ---
 def create_control_api(bridge: DispatchBridge) -> web.Application:
 
-    def cors(resp):
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        return resp
-
     async def get_status(request):
-        return cors(web.json_response({
+        return web.json_response({
             "paused": bridge.paused,
             "running": bridge.running,
-            "model": bridge.model,
+            "agent": f"openclaw:{DISPATCH_AGENT}",
             "seen_count": len(bridge.seen_incidents),
             "activity_log": bridge.activity_log[-20:],
-        }))
+        })
 
     async def post_pause(request):
         bridge.paused = True
         bridge.log("AI DISPATCH PAUSED")
-        return cors(web.json_response({"paused": True}))
+        return web.json_response({"paused": True})
 
     async def post_resume(request):
         bridge.paused = False
         bridge.log("AI DISPATCH RESUMED")
-        return cors(web.json_response({"paused": False}))
-
-    async def post_toggle(request):
-        bridge.paused = not bridge.paused
-        state = "PAUSED" if bridge.paused else "RESUMED"
-        bridge.log(f"AI DISPATCH {state}")
-        # Also toggle dispatch service
-        try:
-            import aiohttp as _aiohttp
-            async with _aiohttp.ClientSession() as s:
-                endpoint = "pause" if bridge.paused else "resume"
-                await s.post(f"http://127.0.0.1:8081/api/dispatch/{endpoint}")
-        except Exception:
-            pass
-        return cors(web.json_response({"paused": bridge.paused}))
-
-
-
-    async def get_model(request):
-        return cors(web.json_response({"model": bridge.model}))
-
-    async def post_model(request):
-        data = await request.json()
-        model = data.get("model", "")
-        if not model:
-            return cors(web.json_response({"error": "model is required"}, status=400))
-        bridge.model = model
-        bridge.log(f"MODEL → {model}")
-        return cors(web.json_response({"model": bridge.model}))
-
-    async def handle_options(request):
-        return cors(web.json_response({}))
+        return web.json_response({"paused": False})
 
     app = web.Application()
     app.router.add_get("/api/bridge/status", get_status)
     app.router.add_post("/api/bridge/pause", post_pause)
     app.router.add_post("/api/bridge/resume", post_resume)
-    app.router.add_post("/api/bridge/toggle", post_toggle)
-    app.router.add_get("/api/bridge/model", get_model)
-    app.router.add_post("/api/bridge/model", post_model)
-    app.router.add_options("/api/bridge/{path:.*}", handle_options)
     return app
 
 
@@ -435,7 +384,8 @@ async def main():
     app = create_control_api(bridge)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8082)
+    # Localhost only.
+    site = web.TCPSite(runner, os.environ.get("DISPATCH_BRIDGE_BIND", "127.0.0.1"), BRIDGE_PORT)
     await site.start()
     print("[bridge] Control API running on :8082")
 

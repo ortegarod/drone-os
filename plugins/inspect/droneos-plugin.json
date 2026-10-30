@@ -1,0 +1,9 @@
+{
+  "id": "inspect",
+  "name": "Inspect",
+  "version": "0.1.0",
+  "description": "Example plugin: circle a point (PX4 orbit) for a few minutes and take a photo every few seconds.",
+  "operator": "inspect",
+  "service_url": "http://127.0.0.1:8092",
+  "ui": "/ui/job.js"
+}

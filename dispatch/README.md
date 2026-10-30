@@ -1,39 +1,37 @@
-# Dispatch Service
+# Dispatch (demo plugin)
 
-A minimal 911 CAD (Computer-Aided Dispatch) system.
+A small simulated 911 dispatch, kept as a demo of DroneOS jobs. It is the **Dispatch plugin**
+(manifest `plugins/dispatch`): send a drone to an incident, it climbs to 50 m, flies there, and goes
+home when the incident is resolved. Its UI (incident pins, Resolve) ships in `ui/job.js`.
 
-Generates simulated emergency incidents and exposes them via:
-- **REST API** on `:8081` — for consumers (AI agent, other services)
-- **rosbridge** — publishes to `/dispatch/incidents` for the frontend
+- `dispatch_service.py` (:8081, localhost): makes up incidents and runs Dispatch jobs. Flies only
+  through the fleet API, as operator `dispatch`.
+- `bridge.py` (:8082, localhost): hands each new incident to an AI dispatcher (the operator's
+  OpenClaw agent, `DISPATCH_AGENT`, one session per incident) with `dispatch-prompt.md`. The agent
+  sends a drone with `droneos dispatch <drone> <incident>`.
 
-**Service starts PAUSED by default.** Click RESUME in the frontend or call `/api/dispatch/resume` to begin incident generation.
+Operators reach the service through the fleet API: `/api/v1/plugins/dispatch/<path>`.
 
-## This service does NOT know about drones or AI.
+## Incidents
 
-It just manages incidents. Consumers decide what to do with them.
+Starts **paused, manual**: nothing happens until you ask.
 
-## API
+| Method | Path (on the service) | |
+|---|---|---|
+| GET | `/api/incidents`, `/api/incidents/active` | all / not resolved |
+| POST | `/api/dispatch/trigger` | make one incident now |
+| POST | `/api/dispatch/mode` `{"mode": "auto"}` | auto: a new incident every so often (with `resume`) |
+| POST | `/api/dispatch/pause`, `/api/dispatch/resume` | stop / start auto incidents |
+| POST | `/api/dispatch/resolve/{id}` | resolve: the drone goes home, the job completes |
+| POST | `/api/dispatch/clear` | drop all incidents |
+| GET | `/api/dispatch/status` | paused, mode, counts |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/incidents` | All incidents |
-| GET | `/api/incidents/active` | Non-resolved incidents |
-| PATCH | `/api/incidents/{id}` | Update status: `{"status": "dispatched", "assigned_to": "drone1"}` |
-| GET | `/api/dispatch/status` | Service status (paused, running, incident counts) |
-| POST | `/api/dispatch/pause` | Pause incident generation |
-| POST | `/api/dispatch/resume` | Resume incident generation |
+Statuses: `new` → `dispatched` → `on_scene` → `resolved`.
 
-## Incident Statuses
+Example: `curl -X POST -H "Authorization: Bearer <token>" http://127.0.0.1:8090/api/v1/plugins/dispatch/api/dispatch/trigger`
 
-`new` → `dispatched` → `on_scene` → `resolved`
+Bridge control (localhost): `GET /api/bridge/status`, `POST /api/bridge/pause|resume`.
 
-## Quick Start
+## Run
 
-```bash
-pip install -r requirements.txt
-python dispatch_service.py
-```
-
-## rosbridge Topic
-
-`/dispatch/incidents` — JSON string array of all incidents, published on every state change.
+On the VPS: the `dispatch` and `bridge` services in `docker/vps/docker-compose.vps.yml`.

@@ -2,29 +2,35 @@
 """
 Dispatch Service — a minimal 911 CAD (Computer-Aided Dispatch) system.
 
-Generates simulated emergency incidents and exposes them via:
-  1. REST API (for AI agent / consumers to poll)
-  2. rosbridge (publishes to /dispatch/incidents for the frontend)
+Generates simulated emergency incidents and exposes them via a REST API
+(the command center UI and the AI bridge poll it).
 
-This service does NOT know about drones or AI. It just manages incidents.
-Consumers decide what to do with them.
+It only touches drones through the fleet API (droneos SDK): it watches the
+assigned drone's position to mark incidents on scene, and sends it home when
+the incident resolves.
+
+It is also the Dispatch plugin (plugins/dispatch/droneos-plugin.json): sending a drone
+to an incident is a job, started through the fleet API (POST /api/v1/drones/{name}/job
+{"plugin": "dispatch", "args": {"incident_id": "001"}}). The fleet API hands the drone's
+control to operator "dispatch" and calls POST /jobs here; we fly it there (climb to 50 m,
+then go), and end the job when the incident is resolved and the drone is sent home.
 """
 
 import asyncio
 import json
+import os
 import random
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
 
-import roslibpy
+from droneos import Client, Drone, DroneError
 
 from incident_types import INCIDENT_TYPES
 from locations import LANDMARKS, ROADS, INTERSECTIONS
 
 # --- Config ---
-ROSBRIDGE_HOST = "localhost"
-ROSBRIDGE_PORT = 9090
 INCIDENT_INTERVAL_MIN = 120  # seconds between incidents (min)
 INCIDENT_INTERVAL_MAX = 180  # seconds between incidents (max)
 MAX_ACTIVE_INCIDENTS = 4     # cap to keep things manageable
@@ -45,6 +51,7 @@ class Incident:
         self.created_at = datetime.now(timezone.utc).isoformat()
         self.updated_at = self.created_at
         self.assigned_to = None  # consumer sets this
+        self.job = None          # fleet API job id when sent as a Dispatch job
 
     def to_dict(self) -> dict:
         return {
@@ -57,6 +64,7 @@ class Incident:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "assigned_to": self.assigned_to,
+            "job": self.job,
         }
 
     # Status progression order — can only move forward
@@ -77,8 +85,7 @@ class DispatchService:
 
     def __init__(self):
         self.incidents: dict[str, Incident] = {}
-        self.ros_client = None
-        self.incident_topic = None
+        self.fleet = Client()  # fleet API; config from DRONEOS_API/DRONEOS_TOKEN or ~/.config/droneos/client.json
         self._running = False
         self._paused = False  # Start active — toggle button controls pause/resume
         self._mode = "manual"  # "auto" or "manual" — manual requires trigger button
@@ -127,28 +134,93 @@ class DispatchService:
         return True
 
     def _publish_state(self):
-        """Publish current incident state to rosbridge."""
-        if not self.incident_topic or not self.ros_client or not self.ros_client.is_connected:
-            return
-        msg = roslibpy.Message({
-            "data": json.dumps(self.get_all_incidents())
-        })
-        self.incident_topic.publish(msg)
+        """Hook for pushing incident updates; consumers poll the REST API instead."""
+        return
 
-    async def _connect_rosbridge(self):
-        """Connect to rosbridge and set up topics."""
+    # -- drones (through the fleet API) -------------------------------------
+
+    def _drone_position(self, drone_name):
+        """(north, east) of a drone in meters from home, or None."""
         try:
-            self.ros_client = roslibpy.Ros(host=ROSBRIDGE_HOST, port=ROSBRIDGE_PORT)
-            self.ros_client.run()
-            self.incident_topic = roslibpy.Topic(
-                self.ros_client,
-                "/dispatch/incidents",
-                "std_msgs/msg/String",
-            )
-            print(f"[dispatch] Connected to rosbridge at {ROSBRIDGE_HOST}:{ROSBRIDGE_PORT}")
-        except Exception as e:
-            print(f"[dispatch] Failed to connect to rosbridge: {e}")
-            print("[dispatch] Running without rosbridge (API-only mode)")
+            d = self.fleet.request("GET", f"/api/v1/drones/{drone_name}")
+        except DroneError:
+            return None
+        if not d.get("online"):
+            return None
+        return d["position"]["north"], d["position"]["east"]
+
+    # -- Dispatch jobs (the fleet API starts them) ----------------------------
+
+    def start_job(self, job: dict, args: dict) -> dict:
+        """Fleet API asks us to run a Dispatch job: send job['drone'] to args['incident_id']."""
+        inc = self.incidents.get(str(args.get("incident_id", "")))
+        if inc is None:
+            raise ValueError(f"no incident {args.get('incident_id')}")
+        if inc.status == "resolved":
+            raise ValueError(f"incident {inc.id} is already resolved")
+        if inc.job:
+            raise ValueError(f"incident {inc.id} already has a drone ({inc.assigned_to})")
+        drone, alt = job["drone"], float(args.get("altitude", 50.0))
+        inc.job = job["id"]
+        inc.status, inc.assigned_to = "new", drone   # forward from here
+        self.update_incident(inc.id, "dispatched", drone)
+        threading.Thread(target=self._fly_to, args=(inc, job, alt), daemon=True).start()
+        where = inc.location.get("name", "")
+        return {"text": f"P{inc.priority} {inc.type.replace('_', ' ')} at {where}", "links": {"incident": inc.id}}
+
+    def _fly_to(self, inc, job, alt):
+        d = Drone(job["drone"], self.fleet)
+        try:
+            s = d.state()
+            if not s["armed"] or (s["position"]["altitude"] or 0) < alt - 5:
+                d.takeoff(alt)   # trees reach ~40 m: climb first (waits until there)
+            d.goto(inc.location.get("x", 0), inc.location.get("y", 0), wait=False)
+            print(f"[dispatch] JOB {job['id']}: {job['drone']} on its way to {inc.id}")
+        except DroneError as e:
+            print(f"[dispatch] JOB {job['id']} failed: {e}")
+            self._reopen(inc, f"{job['drone']} could not fly there: {e}")
+            self.end_job(job["drone"], job["id"], "failed", str(e))
+
+    def end_job(self, drone, job_id, result, reason):
+        try:
+            self.fleet.request("DELETE", f"/api/v1/drones/{drone}/job", {"id": job_id, "result": result, "reason": reason})
+        except DroneError as e:
+            print(f"[dispatch] ending job {job_id}: {e}")   # already ended (stopped by an operator)
+
+    def _reopen(self, inc, why):
+        """The drone was taken off the incident: it needs a drone again."""
+        if inc.status != "resolved":
+            inc.status, inc.assigned_to = "new", None
+            inc.updated_at = datetime.now(timezone.utc).isoformat()
+        inc.job = None
+        print(f"[dispatch] REOPENED {inc.id}: {why}")
+        self._publish_state()
+
+    def job_stopped(self, job_id, reason):
+        for inc in self.incidents.values():
+            if inc.job == job_id:
+                self._reopen(inc, f"job stopped: {reason}")
+                return True
+        return False
+
+    def resolve(self, inc, why):
+        """Incident done: resolve it, send the drone home, end its job."""
+        drone, job = inc.assigned_to, inc.job
+        self.update_incident(inc.id, "resolved", drone)
+        if drone:
+            self.send_home(drone)
+        if job:
+            inc.job = None
+            self.end_job(drone, job, "completed", f"incident {inc.id} resolved ({why}); returning home")
+
+    def send_home(self, drone_name):
+        """Return-home is a safety command: the API accepts it whoever holds the drone."""
+        try:
+            self.fleet.request("POST", f"/api/v1/drones/{drone_name}/return_home", {})
+            return True
+        except DroneError as e:
+            print(f"[dispatch] return_home failed for {drone_name}: {e}")
+            return False
 
     async def _incident_loop(self):
         """Main loop: generate incidents on a timer (auto mode only)."""
@@ -168,10 +240,9 @@ class DispatchService:
     async def _monitor_on_scene(self):
         """Auto-resolve incidents when the assigned drone arrives at the target.
         
-        Uses droneos CLI to check drone position. When a dispatched drone
-        is within 15m of the target, marks on_scene. After 30s, sends RTL and resolves.
+        Watches the assigned drone through the fleet API. When it is within 15 m of
+        the target, marks on_scene. After 30 s, sends it home and resolves.
         """
-        import subprocess
         import math
         
         arrival_times: dict[str, float] = {}
@@ -185,19 +256,10 @@ class DispatchService:
                 target_x = inc.location.get("x", 0)
                 target_y = inc.location.get("y", 0)
                 
-                try:
-                    result = subprocess.run(
-                        ["droneos", "--drone", drone_name, "--get-state"],
-                        capture_output=True, text=True, timeout=10
-                    )
-                    if result.returncode != 0:
-                        continue
-                    state = json.loads(result.stdout)
-                    dx = state.get("local_x", 0) - target_x
-                    dy = state.get("local_y", 0) - target_y
-                    dist = math.sqrt(dx*dx + dy*dy)
-                except Exception:
+                pos = await asyncio.to_thread(self._drone_position, drone_name)
+                if pos is None:
                     continue
+                dist = math.hypot(pos[0] - target_x, pos[1] - target_y)
                 
                 if dist < 15:
                     if inc.id not in arrival_times:
@@ -209,17 +271,8 @@ class DispatchService:
                     elapsed = time.time() - arrival_times[inc.id]
                     if elapsed >= 30:
                         print(f"[dispatch] AUTO-RESOLVE: {inc.id} ({drone_name}, {elapsed:.0f}s on scene) — sending RTL")
-                        self.update_incident(inc.id, "resolved", drone_name)
                         arrival_times.pop(inc.id, None)
-                        
-                        try:
-                            subprocess.run(
-                                ["droneos", "--drone", drone_name, "--rtl"],
-                                capture_output=True, text=True, timeout=10
-                            )
-                            print(f"[dispatch] RTL sent to {drone_name}")
-                        except Exception as e:
-                            print(f"[dispatch] Auto-RTL error for {inc.id}: {e}")
+                        await asyncio.to_thread(self.resolve, inc, f"{elapsed:.0f} s on scene")
                 else:
                     if inc.id in arrival_times:
                         arrival_times.pop(inc.id, None)
@@ -229,7 +282,6 @@ class DispatchService:
     async def run(self):
         """Start the dispatch service."""
         print("[dispatch] Starting dispatch service (PAUSED by default)...")
-        await self._connect_rosbridge()
         self._running = True
         await asyncio.gather(
             self._incident_loop(),
@@ -281,8 +333,6 @@ class DispatchService:
     def stop(self):
         """Stop the dispatch service."""
         self._running = False
-        if self.ros_client:
-            self.ros_client.terminate()
         print("[dispatch] Stopped.")
 
 
@@ -293,18 +343,15 @@ from aiohttp import web
 def create_api(dispatch: DispatchService) -> web.Application:
     """Create a simple REST API for the dispatch service."""
 
-    def cors_response(data, status=200):
-        resp = web.json_response(data, status=status)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, PATCH, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        return resp
+    # Localhost only: operators reach it through the fleet API (/api/v1/plugins/dispatch/...).
+    def reply(data, status=200):
+        return web.json_response(data, status=status)
 
     async def get_incidents(request):
-        return cors_response(dispatch.get_all_incidents())
+        return reply(dispatch.get_all_incidents())
 
     async def get_active_incidents(request):
-        return cors_response(dispatch.get_active_incidents())
+        return reply(dispatch.get_active_incidents())
 
     async def update_incident(request):
         data = await request.json()
@@ -315,37 +362,37 @@ def create_api(dispatch: DispatchService) -> web.Application:
             data.get("assigned_to"),
         )
         if success:
-            return cors_response({"ok": True})
-        return cors_response({"ok": False, "error": "not found"}, status=404)
+            return reply({"ok": True})
+        return reply({"ok": False, "error": "not found"}, status=404)
 
     async def get_status(request):
-        return cors_response(dispatch.get_status())
+        return reply(dispatch.get_status())
 
     async def pause_dispatch(request):
         dispatch.pause()
-        return cors_response(dispatch.get_status())
+        return reply(dispatch.get_status())
 
     async def resume_dispatch(request):
         dispatch.resume()
-        return cors_response(dispatch.get_status())
+        return reply(dispatch.get_status())
 
     async def clear_incidents(request):
         dispatch.clear_incidents()
-        return cors_response(dispatch.get_status())
+        return reply(dispatch.get_status())
 
     async def trigger_incident(request):
         incident = dispatch.trigger_incident()
-        return cors_response(incident)
+        return reply(incident)
 
     async def get_mode(request):
-        return cors_response({"mode": dispatch._mode})
+        return reply({"mode": dispatch._mode})
 
     async def set_mode(request):
         data = await request.json()
         mode = data.get("mode", "")
         if dispatch.set_mode(mode):
-            return cors_response(dispatch.get_status())
-        return cors_response({"error": "mode must be 'auto' or 'manual'"}, status=400)
+            return reply(dispatch.get_status())
+        return reply({"error": "mode must be 'auto' or 'manual'"}, status=400)
 
     async def resolve_incident(request):
         """Resolve an incident immediately and send the drone home (RTL).
@@ -357,37 +404,58 @@ def create_api(dispatch: DispatchService) -> web.Application:
         incident_id = request.match_info["incident_id"]
         
         if incident_id not in dispatch.incidents:
-            return cors_response({"ok": False, "error": "incident not found"}, status=404)
+            return reply({"ok": False, "error": "incident not found"}, status=404)
         
         incident = dispatch.incidents[incident_id]
         
         if incident.status in ("resolved",):
-            return cors_response({"ok": False, "error": "incident already resolved"}, status=400)
+            return reply({"ok": False, "error": "incident already resolved"}, status=400)
         
         drone_name = incident.assigned_to
-        
-        # Incident is resolved immediately
-        dispatch.update_incident(incident_id, "resolved", drone_name)
+        # Resolved now; the drone goes home (it can be rerouted later) and its job ends.
+        await asyncio.to_thread(dispatch.resolve, incident, "by an operator")
         print(f"[dispatch] RESOLVED: {incident_id} (operator)")
         
-        # Send drone home (best effort — it can be rerouted by AI later)
-        if drone_name:
-            import subprocess
-            try:
-                subprocess.run(
-                    ["droneos", "--drone", drone_name, "--rtl"],
-                    capture_output=True, text=True, timeout=10
-                )
-                print(f"[dispatch] RTL sent to {drone_name} (post-resolve)")
-            except Exception as e:
-                print(f"[dispatch] RTL failed for {drone_name}: {e}")
-        
-        return cors_response({"ok": True, "drone": drone_name, "status": "resolved"})
+        return reply({"ok": True, "drone": drone_name, "status": "resolved"})
 
-    async def handle_options(request):
-        return cors_response({})
+    # -- plugin endpoints, called by the fleet API only ------------------------
+
+    def from_fleet_api(request):
+        return request.headers.get("X-DroneOS-Caller") == "fleet-api"
+
+    async def post_job(request):
+        if not from_fleet_api(request):
+            return reply({"detail": "jobs are started through the fleet API"}, status=403)
+        data = await request.json()
+        try:
+            out = await asyncio.to_thread(dispatch.start_job, data["job"], data.get("args") or {})
+        except (KeyError, ValueError) as e:
+            return reply({"detail": str(e)}, status=422)
+        return reply(out)
+
+    async def get_job(request):
+        """The fleet API checks running jobs here: 200 while an incident has this job, 404 if not."""
+        jid = request.match_info["jid"]
+        inc = next((i for i in dispatch.incidents.values() if i.job == jid), None)
+        if inc is None:
+            return reply({"detail": f"no job {jid}"}, status=404)
+        return reply({"id": jid, "running": True, "incident": inc.id})
+
+    async def post_job_stopped(request):
+        if not from_fleet_api(request):
+            return reply({"detail": "fleet API only"}, status=403)
+        data = await request.json()
+        return reply({"ok": dispatch.job_stopped(request.match_info["jid"], data.get("reason", ""))})
 
     app = web.Application()
+    async def get_ui(request):
+        return web.FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "job.js"),
+                                headers={"Content-Type": "text/javascript"})
+
+    app.router.add_get("/ui/job.js", get_ui)
+    app.router.add_post("/jobs", post_job)
+    app.router.add_get("/jobs/{jid}", get_job)
+    app.router.add_post("/jobs/{jid}/stopped", post_job_stopped)
     app.router.add_get("/api/incidents", get_incidents)
     app.router.add_get("/api/incidents/active", get_active_incidents)
     app.router.add_patch("/api/incidents/{id}", update_incident)
@@ -399,13 +467,6 @@ def create_api(dispatch: DispatchService) -> web.Application:
     app.router.add_post("/api/dispatch/resolve/{incident_id}", resolve_incident)
     app.router.add_get("/api/dispatch/mode", get_mode)
     app.router.add_post("/api/dispatch/mode", set_mode)
-    app.router.add_options("/api/incidents/{id}", handle_options)
-    app.router.add_options("/api/dispatch/pause", handle_options)
-    app.router.add_options("/api/dispatch/resume", handle_options)
-    app.router.add_options("/api/dispatch/clear", handle_options)
-    app.router.add_options("/api/dispatch/trigger", handle_options)
-    app.router.add_options("/api/dispatch/resolve/{incident_id}", handle_options)
-    app.router.add_options("/api/dispatch/mode", handle_options)
     return app
 
 
@@ -416,7 +477,8 @@ async def main():
     app = create_api(dispatch)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8081)
+    # Localhost only: the web UI reaches it through the frontend server's proxy.
+    site = web.TCPSite(runner, os.environ.get("DISPATCH_BIND", "127.0.0.1"), 8081)
     await site.start()
     print("[dispatch] REST API running on :8081")
 

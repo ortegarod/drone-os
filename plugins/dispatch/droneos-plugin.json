@@ -1,0 +1,10 @@
+{
+  "id": "dispatch",
+  "name": "Dispatch",
+  "version": "1.0.0",
+  "description": "Send a drone to an incident from the dispatch service: climb to 50 m, fly there, go home when it's resolved.",
+  "operator": "dispatch",
+  "service_url": "http://127.0.0.1:8081",
+  "ui": "/ui/job.js",
+  "code": "dispatch/ (dispatch_service.py is the plugin service; bridge.py hands new incidents to the AI dispatcher)"
+}

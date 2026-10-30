@@ -1,0 +1,9 @@
+{
+  "id": "search",
+  "name": "Search",
+  "version": "0.1.0",
+  "description": "Fly to look points, scan around each one from low height, and report every person or vehicle the object detector confirms, with a photo and where it is.",
+  "operator": "search",
+  "service_url": "http://127.0.0.1:8093",
+  "ui": "/ui/job.js"
+}

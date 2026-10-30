@@ -1,0 +1,9 @@
+{
+  "id": "follow",
+  "name": "Follow",
+  "version": "0.1.0",
+  "description": "Keep a person in view from above: lock on to the person the drone sees near a point, then stay a set distance away with the camera on them as they walk.",
+  "operator": "follow",
+  "service_url": "http://127.0.0.1:8094",
+  "ui": "/ui/job.js"
+}
