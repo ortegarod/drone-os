@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 import service  # noqa: E402
 
 FLEET = {"X-DroneOS-Caller": "fleet-api"}
-LAT, LON = 30.0, -97.0
+LAT, LON = 45.0, 10.0
 M = 111320.0
 K = math.cos(math.radians(LAT))
 

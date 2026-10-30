@@ -254,7 +254,7 @@ def test_event_stream_reconnects_and_passes_detections():
 
 
 def test_fence_in_the_drones_own_north_east(tmp_path):
-    lat, lon, m = 30.0, -97.0, 111320.0
+    lat, lon, m = 45.0, 10.0, 111320.0
     k = __import__("math").cos(__import__("math").radians(lat))
 
     class F(Fleet):
