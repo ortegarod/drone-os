@@ -3,7 +3,6 @@ import os
 import sys
 import time
 
-os.environ["FOLLOW_NO_AUTOSTART"] = "1"
 sys.path.insert(0, os.path.dirname(__file__))
 
 from fastapi.testclient import TestClient  # noqa: E402
@@ -27,6 +26,7 @@ class Clock:
 class World:
     """A drone that is wherever it was last sent, and a person walking east at 1.2 m/s from
     N-30 E-30 (seen by the drone while within 70 m, unless `hidden` says otherwise)."""
+    api, _token = "http://fleet", "t"
 
     def __init__(self, clock, hidden=lambda t: False):
         self.clock, self.hidden = clock, hidden
@@ -51,7 +51,8 @@ class World:
                          "ground": {"north": round(pn + 0.4, 1), "east": round(pe - 0.3, 1)}}]
             if self.t0 is not None:
                 self.dist.append(math.hypot(pn - self.pos["north"], pe - self.pos["east"]))
-            return {"armed": self.armed, "position": dict(self.pos), "detections": {"objects": objs}}
+            return {"armed": self.armed, "landed_state": "AIRBORNE" if self.pos["altitude"] > 0 else "ON_GROUND",
+                    "position": dict(self.pos), "detections": {"objects": objs}}
         cmd = path.rsplit("/", 1)[-1]
         if cmd == "takeoff":
             self.armed, self.pos["altitude"] = True, body["altitude"]
@@ -67,12 +68,12 @@ class World:
 
 
 def run_job(tmp_path, world, clock, args):
-    app = service.create_app(client=world, reports_dir=tmp_path, fetch_photo=lambda d: b"\xff\xd8x",
-                             sleep=clock.sleep, clock=clock)
-    c = TestClient(app)
+    service.plugin.configure(client=world, reports=tmp_path, fetch_photo=lambda d: b"\xff\xd8x",
+                             sleep=lambda job, s: clock.sleep(s), clock=clock)
+    c = TestClient(service.app)
     r = c.post("/jobs", json={"job": {"id": "f1", "drone": "drone1", "operator": "alice"}, "args": args}, headers=FLEET)
     assert r.status_code == 200, r.text
-    app.state.running["f1"].join(10)
+    service.plugin.running["f1"][1].join(10)
     return c, [b for m, p, b in world.calls if m == "DELETE"][0]
 
 
@@ -166,11 +167,14 @@ def test_nobody_there_fails(tmp_path):
 
 
 def test_bad_args_refused(tmp_path):
-    app = service.create_app(client=World(Clock()), reports_dir=tmp_path, fetch_photo=lambda d: b"", sleep=lambda s: None)
-    c = TestClient(app)
+    service.plugin.configure(client=World(Clock()), reports=tmp_path, fetch_photo=lambda d: b"", sleep=lambda job, s: None)
+    c = TestClient(service.app)
     job = {"job": {"id": "x", "drone": "drone1"}}
     assert c.post("/jobs", json={**job, "args": {"north": 0}}, headers=FLEET).status_code == 422
-    assert c.post("/jobs", json={**job, "args": {"north": 500, "east": 0}}, headers=FLEET).status_code == 422
+    r = c.post("/jobs", json={**job, "args": {"north": 500, "east": 0}}, headers=FLEET)
+    assert r.status_code == 422 and "within 280 m" in r.json()["detail"]
+    assert "distance must be 10-80" in c.post("/jobs", json={**job, "args": {"north": 0, "east": 0, "distance": 5}},
+                                             headers=FLEET).json()["detail"]
     assert c.post("/jobs", json={**job, "args": {"north": 0, "east": 0}}).status_code == 403
 
 

@@ -94,7 +94,8 @@ function Thumb({ rid, f, big, onClick }) {
   const [src, setSrc] = useState('');
   useEffect(() => {
     let on = true;
-    if (f.photo) blobUrl(P + '/reports/' + rid + '/photos/' + f.n + '.jpg').then(u => on && setSrc(u)).catch(() => {});
+    // f.photo: the photo's number (older reports: true = same number as the find)
+    if (f.photo) blobUrl(P + '/reports/' + rid + '/photos/' + (f.photo === true ? f.n : f.photo) + '.jpg').then(u => on && setSrc(u)).catch(() => {});
     return () => { on = false; };
   }, [rid, f.n, f.photo]);
   const b = f.box || [];
