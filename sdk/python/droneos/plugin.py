@@ -52,6 +52,7 @@ from .drone import Drone
 __all__ = ["Plugin", "Job", "Stopped", "arg", "DroneError"]
 log = logging.getLogger("droneos.plugin")
 _REQUIRED = object()
+_M_PER_DEG = 111320.0
 
 
 def _now():
@@ -280,6 +281,29 @@ class Job:
     def home(self):
         """Send the drone home (it lands there). Doesn't wait."""
         self.event(self.drone._cmd("return_home"))
+
+    def fence(self):
+        """Where this drone may fly, in meters north/east of its home: {"inclusion": [[n, e], ...],
+        "exclusions": [[[n, e], ...], ...], "max_altitude": m, "radius": m}. inclusion is the
+        property fence (None if no fence applies to this drone); radius is PX4's own limit around
+        home. Goto/orbit/takeoff outside these are refused, so plan inside them."""
+        s = self.state()
+        g = self._c.request("GET", "/api/v1/geofence", timeout=5)
+        px4 = (self._c.request("GET", "/api/v1/config", timeout=5) or {}).get("geofence") or {}
+        out = {"inclusion": None, "exclusions": [], "max_altitude": px4.get("max_altitude_m"), "radius": px4.get("radius_m")}
+        f = g.get("fence")
+        if not f or not (g.get("drones") or {}).get(self.drone.name, {}).get("applies"):
+            return out
+        gps, p = s["gps"], s["position"]
+        k = math.cos(math.radians(gps["lat"]))
+        home = (gps["lat"] - (p["north"] or 0) / _M_PER_DEG, gps["lon"] - (p["east"] or 0) / (_M_PER_DEG * k))
+
+        def ne(poly):
+            return [[round((a - home[0]) * _M_PER_DEG, 1), round((b - home[1]) * _M_PER_DEG * k, 1)] for a, b in poly]
+        out.update(inclusion=ne(f["inclusion"]), exclusions=[ne(x) for x in f.get("exclusions") or []])
+        if f.get("max_altitude_m") is not None:
+            out["max_altitude"] = min(out["max_altitude"] or 1e9, f["max_altitude_m"])
+        return out
 
     def detections(self):
         """What the drone's object detector sees right now (~2 Hz): objects with `label`, `score`,

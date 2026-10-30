@@ -251,3 +251,32 @@ def test_event_stream_reconnects_and_passes_detections():
     lis.stop.set()
     lis.join(2)
     assert got == ["d-1", "d-2"] and urls[0] == "ws://127.0.0.1:8090/api/v1/events?token=tok&drone=drone1"
+
+
+def test_fence_in_the_drones_own_north_east(tmp_path):
+    lat, lon, m = 30.0, -97.0, 111320.0
+    k = __import__("math").cos(__import__("math").radians(lat))
+
+    class F(Fleet):
+        def request(self, method, path, body=None, timeout=30, raw=False):
+            if path == "/api/v1/geofence":
+                return {"fence": {"inclusion": [[lat + 100 / m, lon], [lat, lon + 50 / (m * k)], [lat - 20 / m, lon]],
+                                  "exclusions": [], "max_altitude_m": 60},
+                        "drones": {"drone1": {"applies": True}}}
+            if path == "/api/v1/config":
+                return {"geofence": {"radius_m": 300.0, "max_altitude_m": 120.0}}
+            s = super().request(method, path, body, timeout, raw)
+            if method == "GET":   # the drone is 3 m N, 4 m E of home
+                s["gps"] = {"lat": lat + 3 / m, "lon": lon + 4 / (m * k)}
+            return s
+
+    p, c = make(tmp_path, F())
+    got = []
+
+    @p.job
+    def demo(job):
+        got.append(job.fence())
+
+    run(c, p, {})
+    assert got == [{"inclusion": [[100.0, 0.0], [0.0, 50.0], [-20.0, 0.0]], "exclusions": [], "max_altitude": 60,
+                    "radius": 300.0}]

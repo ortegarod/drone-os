@@ -1,7 +1,8 @@
 # Writing a DroneOS plugin
 
 A plugin adds a **job**: something a drone does beyond being flown by hand. Patrol, Dispatch,
-Inspect, Search and Follow are the first five. A drone does at most one job at a time. Design and rules:
+Inspect, Search, Follow and Fence check are the first six (Fence check, plugins/perimeter, is the one
+written from scratch with the plugin SDK: ~150 lines of Python). A drone does at most one job at a time. Design and rules:
 [design/plugins.md](design/plugins.md).
 
 The smallest complete example is **plugins/inspect** (circle a point and take photos: ~40
@@ -79,7 +80,7 @@ What the SDK does for you:
   status, summary, args, photos, events + whatever you add, then `job.save()`), served at `/reports[?drone=]`, `/reports/{id}`
   and `/reports/{id}/photos/{n}.jpg`. Your `ui/job.js` (next to service.py) is served at `/ui/job.js`.
 - **The rest of `job`:** `state()` (the drone's state), `status(text)` (the short text operators see), `event(text)`,
-  `climb(alt)`, `home()`, `photo(**extra)`, `wait_until(pred, timeout)`, `clock()`, and what the drone sees: `detections()`
+  `climb(alt)`, `home()`, `photo(**extra)`, `wait_until(pred, timeout)`, `clock()`, `fence()` (where it may fly, in its own north/east), and what the drone sees: `detections()`
   (right now), `on_sighting(fn)` (each object the detector confirms, while the job runs) and `sightings()` (all of them
   since the job started). Docstrings in `sdk/python/droneos/plugin.py`.
 - **Config** from the environment: `<ID>_CONFIG` (json `{"api", "token"}`, default `~/.config/droneos/<id>_plugin.json`),
