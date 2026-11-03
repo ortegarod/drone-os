@@ -2,7 +2,7 @@
 // (manifest "ui": "/ui/job.js"). No build step: React comes from window.DroneOS.
 // Default export: { Planner, Live, Report, overlay }: components get { ctx };
 // overlay(ctx) returns what to draw on the map while the drone is on this job.
-const { React, h } = window.DroneOS;
+const { React, h, api, blobUrl } = window.DroneOS;
 const { useState, useEffect } = React;
 
 const num = (v, set, min, max, step) => h('input', {
@@ -23,7 +23,7 @@ function Planner({ ctx }) {
     ctx.map.draw(pt ? [{ type: 'circle', north: pt.north, east: pt.east, radius, color: '#d29922', label: 'inspect here' }] : []);
   }, [pt && pt.north, pt && pt.east, radius]);
   const pick = async () => { const p = await ctx.map.pick('Click the point to inspect: the drone circles it with the camera on it'); if (p) setPt(p); };
-  const start = () => ctx.run('Inspect', () => ctx.api('POST', '/drones/' + ctx.drone + '/job', {
+  const start = () => ctx.run('Inspect', () => api('POST', '/drones/' + ctx.drone + '/job', {
     plugin: 'inspect', args: { north: pt.north, east: pt.east, radius, speed, altitude: alt, minutes, photo_every: every },
   }).then(j => ({ message: j.text || 'started' })));
   return h('div', { className: 'mn-block' },
@@ -41,7 +41,7 @@ function useReports(ctx, limit) {
   const [list, setList] = useState([]);
   useEffect(() => {
     let alive = true;
-    const load = () => ctx.api('GET', '/plugins/inspect/reports?drone=' + ctx.drone + '&limit=' + limit).then(l => alive && setList(l)).catch(() => {});
+    const load = () => api('GET', '/plugins/inspect/reports?drone=' + ctx.drone + '&limit=' + limit).then(l => alive && setList(l)).catch(() => {});
     load();
     const t = setInterval(load, 3000);
     return () => { alive = false; clearInterval(t); };
@@ -49,12 +49,13 @@ function useReports(ctx, limit) {
   return list;
 }
 
-function Photo({ ctx, rid, n }) {
+// Use blobUrl (authenticated) instead of raw fetch with localStorage key.
+function Photo({ rid, n }) {
   const [src, setSrc] = useState('');
   useEffect(() => {
     let alive = true;
-    fetch('/api/v1/plugins/inspect/reports/' + rid + '/photos/' + n + '.jpg', { headers: { Authorization: 'Bearer ' + localStorage.getItem('droneos_operator_key') } })
-      .then(r => r.blob()).then(b => alive && setSrc(URL.createObjectURL(b))).catch(() => {});
+    blobUrl('/plugins/inspect/reports/' + rid + '/photos/' + n + '.jpg')
+      .then(u => alive && setSrc(u)).catch(() => {});
     return () => { alive = false; };
   }, [rid, n]);
   return src ? h('img', { src, className: 'pr-thumb' }) : h('div', { className: 'pr-thumb empty' }, '…');
@@ -66,7 +67,7 @@ function Live({ ctx }) {
   return h('div', { className: 'mn-block' },
     h('div', { className: 'mn-title' }, 'Inspecting', h('span', { className: 'cc-sub' }, (ctx.job && ctx.job.text) || '')),
     h('div', { className: 'cc-hint' }, shots.length + ' photos so far. Land, Return home or taking control ends it.'),
-    h('div', { className: 'pr-grid' }, shots.slice(-6).map(p => h(Photo, { key: p.n, ctx, rid: rep.id, n: p.n }))));
+    h('div', { className: 'pr-grid' }, shots.slice(-6).map(p => h(Photo, { key: p.n, rid: rep.id, n: p.n }))));
 }
 
 // Reports tab: the photos of one finished inspection (status and time are on the job row above it).
@@ -74,7 +75,7 @@ function Report({ ctx, job }) {
   const rid = (job.links && job.links.report) || job.id;
   const rep = useReports(ctx, 20).find(r => r.id === rid);
   if (!rep) return h('div', { className: 'cc-hint' }, 'No photos saved for this inspection.');
-  return rep.photos.length ? h('div', { className: 'pr-grid' }, rep.photos.map(p => h(Photo, { key: p.n, ctx, rid: rep.id, n: p.n })))
+  return rep.photos.length ? h('div', { className: 'pr-grid' }, rep.photos.map(p => h(Photo, { key: p.n, rid: rep.id, n: p.n })))
     : h('div', { className: 'cc-hint' }, 'No photos.');
 }
 

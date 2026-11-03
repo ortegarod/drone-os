@@ -10,105 +10,25 @@ import OperatorAdmin from './OperatorAdmin';
 import GeofenceAdmin, { FenceInfo } from './GeofenceAdmin';
 import { useRole } from '../components/LoginGate';
 import { homeOf, LatLon, toLocal, distance, insidePolygon } from './geo';
-import { PatrolStatus, patrolAt, patrolTotal, reasonText, statusOf } from './status';
+import { PatrolStatus, patrolAt, patrolTotal } from './status';
+import CameraView from './CameraView';
+import FleetList, { compass, fmt } from './FleetList';
+import ActivityLog, { LogEntry } from './ActivityLog';
+import DevState from './DevState';
 import './CommandCenter.css';
 
-interface LogEntry { time: string; operator: string; drone?: string; command: string; args?: Record<string, any>; ok: boolean; message?: string }
 type ClickMode = 'none' | 'goto' | 'orbit' | 'pick';
 type MenuTab = 'controls' | 'status' | 'job' | 'reports' | 'dev';
 const MENU: Array<{ id: MenuTab; icon: string; name: string }> = [
-  { id: 'controls', icon: 'Fly', name: 'Flight controls' },
-  { id: 'status', icon: 'Status', name: 'Drone status' },
-  { id: 'job', icon: 'Job', name: 'Job' },
-  { id: 'reports', icon: 'Reports', name: 'Reports' },
-  { id: 'dev', icon: 'Dev', name: 'Dev: operators, plugins, raw state' },
+  { id: 'controls', icon: 'Fly',     name: 'Flight controls' },
+  { id: 'status',   icon: 'Status',  name: 'Drone status' },
+  { id: 'job',      icon: 'Job',     name: 'Job' },
+  { id: 'reports',  icon: 'Reports', name: 'Reports' },
+  { id: 'dev',      icon: 'Dev',     name: 'Dev: operators, plugins, raw state' },
 ];
 interface Config { geofence: { radius_m: number; max_altitude_m: number }; max_speed_mps: number }
 
-
-const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-const compass = (deg: number) => COMPASS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
-
-/** Ground speed, direction of travel and climb rate from PX4's velocity. */
-function motion(d?: FleetDrone) {
-  const vn = d?.velocity.north || 0, ve = d?.velocity.east || 0, vd = d?.velocity.down || 0;
-  const speed = Math.hypot(vn, ve);
-  const course = speed > 0.5 ? (Math.atan2(ve, vn) * 180) / Math.PI : null;
-  return { speed, course, climb: -vd };
-}
-
-/** One line: what the drone is doing right now, in words. */
-function doing(d: FleetDrone | undefined, p: PatrolStatus | null | undefined, job?: Job | null): string {
-  if (!d || !d.online) return 'No telemetry';
-  if (d.failsafe) return `PX4 failsafe: ${(d.failsafe_reasons || []).map(reasonText).join(', ') || 'active'}`;
-  const home = homeOf(d);
-  const here = d.gps.lat != null && d.gps.lon != null ? { lat: d.gps.lat, lon: d.gps.lon } : null;
-  const fromHome = home && here ? distance(home, here) : null;
-  const toTarget = here && d.target ? distance(here, { lat: d.target.lat, lon: d.target.lon }) : null;
-  const togo = toTarget != null && toTarget > 3 ? ` · ${toTarget.toFixed(0)} m to go` : '';
-  if (job && !d.armed) return `${job.plugin} job: starting`;
-  if (!d.armed) return d.health.can_arm ? 'On the ground, ready to fly'
-    : `On the ground, not ready: ${(d.failsafe_reasons || []).map(reasonText).join(', ') || 'PX4 checks failing'}`;
-  const mode = (d.mode || '').toUpperCase();
-  const pre = job ? `${job.plugin[0].toUpperCase()}${job.plugin.slice(1)} job · ` : '';
-  if (mode.includes('RTL') || mode.includes('RETURN')) return `${pre}Returning home${fromHome != null && fromHome > 3 ? ` · ${fromHome.toFixed(0)} m out` : ', descending'}`;
-  if (mode.includes('LAND')) return `Landing · ${fmt(d.position.altitude, 0)} m up`;
-  if (mode.includes('TAKEOFF')) return `${pre}Climbing · ${fmt(d.position.altitude, 0)} m`;
-  if (mode.includes('ORBIT')) return 'Circling a point';
-  if (p?.running) return `Patrol: flying to point ${patrolAt(p)} of ${patrolTotal(p)}${togo}`;
-  if (p?.paused) return `Patrol paused at point ${patrolAt(p)} of ${patrolTotal(p)}, holding`;
-  if (mode.includes('LOITER') || mode.includes('HOLD')) return toTarget != null && toTarget > 3 ? `Flying to a point${togo}` : 'Holding position';
-  return `Flying${togo}`;
-}
-
-const fmt = (v: number | null | undefined, d = 0) => (v == null || isNaN(v) ? '–' : v.toFixed(d));
 const clock = (iso: string) => { const t = new Date(iso); return isNaN(t.getTime()) ? iso : t.toLocaleTimeString([], { hour12: false }); };
-
-function describe(e: LogEntry): string {
-  const a = e.args || {};
-  switch (e.command) {
-    case 'takeoff': return `take off to ${a.altitude ?? '?'} m`;
-    case 'goto': return `go to N${fmt(a.north)} E${fmt(a.east)}${a.altitude != null ? ` at ${a.altitude} m` : ''}`;
-    case 'patrol': return `patrol ${(a.route || []).length} points × ${a.loops ?? 1} at ${a.altitude ?? '?'} m`;
-    case 'return_home': return 'return home';
-    case 'hold': return 'hold position';
-    case 'orbit': return `orbit N${fmt(a.north)} E${fmt(a.east)}, r ${a.radius ?? '?'} m at ${a.speed ?? '?'} m/s`;
-    case 'route': return (a.points || []).length ? `set route: ${(a.points || []).length} points` : 'clear route';
-    case 'job_start': return `start ${a.plugin || ''} job`;
-    case 'job_end': return `${a.plugin || ''} job ended`;
-    case 'take_control': return 'take control';
-    case 'release_control': return 'release control';
-    default: return e.command.replace('_', ' ');
-  }
-}
-
-const Camera: React.FC<{ drone: string; det?: FleetDrone['detections'] }> = ({ drone, det }) => {
-  const [attempt, setAttempt] = useState(0);
-  const [live, setLive] = useState(false);
-  useEffect(() => { setLive(false); setAttempt(0); }, [drone]);
-  if (!drone) return <div className="cc-camera empty">No drone selected</div>;
-  // older fleet APIs don't send "confirmed": show everything then
-  const shown = (det?.objects || []).filter(o => o.confirmed !== false);
-  const src = `/camera/stream?topic=${encodeURIComponent('/' + drone + '/camera')}&type=mjpeg&width=640&height=480&quality=50&r=${attempt}`;
-  return (
-    <div className="cc-camera">
-      <img key={src} src={src} alt={`${drone} camera`} onLoad={() => setLive(true)}
-           onError={() => { setLive(false); setTimeout(() => setAttempt(a => a + 1), 2000); }} />
-      <span className={`cc-camera-tag ${live ? 'live' : ''}`}>{live ? '● LIVE' : 'connecting…'} {drone}</span>
-      {live && det && (
-        <div className="cc-det" title="Object detector on the drone (only objects seen in several frames in a row)">
-          {shown.map((o, i) => (
-            <div key={i} className={`cc-det-box det-${o.label.replace(/[^a-z]/gi, '')}`}
-                 style={{ left: `${o.box[0] * 100}%`, top: `${o.box[1] * 100}%`, width: `${(o.box[2] - o.box[0]) * 100}%`, height: `${(o.box[3] - o.box[1]) * 100}%` }}>
-              <span>{o.label} {Math.round(o.score * 100)}%</span>
-            </div>
-          ))}
-          <span className="cc-det-tag">{shown.length ? shown.length + ' detected' : 'detector on'}{det.fps ? ` · ${det.fps.toFixed(0)} fps` : ''}</span>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
   const role = useRole();
@@ -121,18 +41,14 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
   const [config, setConfig] = useState<Config | null>(null);
   useEffect(() => { api<Config>('GET', '/config').then(setConfig).catch(() => {}); }, []);
   const [fenceInfo, setFenceInfo] = useState<FenceInfo | null>(null);
-  const [mapOrigin, setMapOrigin] = useState<LatLon | null>(null);   // the geofence editor's site, while editing
+  const [mapOrigin, setMapOrigin] = useState<LatLon | null>(null);
   const loadFence = useCallback(() => { api<FenceInfo>('GET', '/geofence').then(setFenceInfo).catch(() => {}); }, []);
   useEffect(() => { loadFence(); const t = setInterval(loadFence, 15000); return () => clearInterval(t); }, [loadFence]);
   const [mode, setMode] = useState<ClickMode>('none');
   const pickRef = useRef<{ prompt: string; done: (p: { north: number; east: number } | null) => void } | null>(null);
   const [pickPrompt, setPickPrompt] = useState('');
-  // Shapes (and their handlers) from the job screen that's open, tagged with which screen drew them.
   const [drawn, setDrawn] = useState<{ key: string; shapes: Shape[] }>({ key: '', shapes: [] });
   const drawnHandlers = useRef<{ key: string; h: MapHandlers }>({ key: '', h: {} });
-  // Job types: the built-in ones, plus plugins that ship their own UI. Plugins come and go while
-  // the page is open (installed/removed through the fleet API): re-checked every 10 s, a UI is
-  // (re)loaded when a plugin appears or its version/ui changes, dropped when it's removed.
   const [external, setExternal] = useState<JobType[]>([]);
   const [pluginList, setPluginList] = useState<PluginInfo[]>([]);
   const uiCache = useRef(new Map<string, { key: string; job: JobType | null }>());
@@ -147,7 +63,7 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
     for (const p of want) {
       const key = [p.version, p.ui, p.name].join('|');
       const have = cache.get(p.id);
-      if (have && have.key === key && (have.job || !p.ui)) continue;   // a UI that failed to load is retried
+      if (have && have.key === key && (have.job || !p.ui)) continue;
       const job = await loadPluginUi(p);
       if (have && have.key === key && !have.job && !job) continue;
       cache.set(p.id, { key, job });
@@ -158,8 +74,8 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
   useEffect(() => { syncPlugins(); const t = setInterval(syncPlugins, 10000); return () => clearInterval(t); }, [syncPlugins]);
   const JOBS = useMemo(() => [...BUILTIN_JOBS, ...external], [external]);
   const [menu, setMenu] = useState<MenuTab>('controls');
-  const [jobPick, setJobPick] = useState('patrol');      // job type shown in the Job tab when the drone is idle
-  const [swapped, setSwapped] = useState(false);         // camera big, map small
+  const [jobPick, setJobPick] = useState('patrol');
+  const [swapped, setSwapped] = useState(false);
   const [full, setFull] = useState<'map' | 'camera' | null>(null);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setFull(null); };
@@ -169,7 +85,7 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
   const [patrols, setPatrols] = useState<Record<string, PatrolStatus>>({});
   const [jobs, setJobs] = useState<Record<string, Job>>({});
   const [jobHistory, setJobHistory] = useState<Job[]>([]);
-  const [openJob, setOpenJob] = useState('');   // Reports: which finished job is open ('' = newest, '-' = none)
+  const [openJob, setOpenJob] = useState('');
   useEffect(() => { setOpenJob(''); }, [selected]);
   const [target, setTarget] = useState<LatLon | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
@@ -177,25 +93,20 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
   const noteTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  // Keep a valid selection.
   useEffect(() => {
     if (fleet.names.length && !fleet.names.includes(selected)) setSelected(fleet.names[0]);
   }, [fleet.names.join(','), selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const patrol: PatrolStatus | null = patrols[selected] || null;
 
-  // New drone selected: drop click modes and per-drone markers; open the tab of the job it's doing.
   useEffect(() => { if (mode !== 'pick' && pickRef.current) { pickRef.current.done(null); pickRef.current = null; } }, [mode]);
-  useEffect(() => {
-    setMode('none'); setTarget(null); setOrbit(null);
-  }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setMode('none'); setTarget(null); setOrbit(null); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const d: FleetDrone | undefined = fleet.drones[selected];
   const home = homeOf(d);
   const mine = d?.controller === operator;
   const flying = !!d?.armed && (d?.position.altitude ?? 0) > 1;
 
-  // Drop the orbit circle once PX4 is no longer orbiting (hold, RTL, land, failsafe...).
   const orbitSince = useRef(0);
   useEffect(() => { if (orbit) orbitSince.current = Date.now(); }, [orbit]);
   useEffect(() => {
@@ -215,7 +126,6 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
   }, []);
   useEffect(() => { loadLog(); const t = setInterval(loadLog, 3000); return () => clearInterval(t); }, [loadLog]);
 
-  // Onboard mission progress for every drone (the fleet list shows it).
   const namesKey = fleet.names.join(',');
   useEffect(() => {
     if (!namesKey) return;
@@ -245,7 +155,6 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
     }
   };
 
-
   const takeControl = (force = false) => run('Take control', () => api('POST', `/drones/${selected}/control`, { force }));
   const releaseControl = () => run('Release', () => api('DELETE', `/drones/${selected}/control`));
   const takeoff = () => run('Take off', () => command(selected, 'takeoff', { altitude }));
@@ -256,14 +165,13 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
     if (window.confirm(`KILL ${selected}? Motors stop and it falls. Emergencies only.`)) run('Kill', () => command(selected, 'kill'));
   };
 
-  // Which job screen is open: drawings (and click listeners) only count while it still is.
   const viewKey = `${selected}:${menu}:${(jobs[selected] && jobs[selected].id) || jobPick}`;
-  // The property fence, if the selected drone's home is inside it; else PX4's circle.
   const poly = fenceInfo?.fence && fenceInfo.drones[selected]?.applies ? fenceInfo.fence : null;
+
   const onMapClick = async (p: LatLon) => {
     const listener = drawnHandlers.current.key === viewKey ? drawnHandlers.current.h.onClick : undefined;
     const editingSite = menu === 'dev' && mapOrigin;
-    if (editingSite) {   // drawing a geofence at its own site: meters from there, no drone checks
+    if (editingSite) {
       const q = toLocal(mapOrigin, p);
       if (mode === 'none') listener?.({ north: Math.round(q.north * 10) / 10, east: Math.round(q.east * 10) / 10 });
       return;
@@ -273,7 +181,6 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
     const n = Math.round(north * 10) / 10, e = Math.round(east * 10) / 10;
     const fenceR = config?.geofence.radius_m;
     if (poly) {
-      // the drone's property fence (the fleet API checks again, with a margin and the path there)
       if (mode !== 'none' && (!insidePolygon(p, poly.inclusion) || poly.exclusions.some(x => insidePolygon(p, x)))) {
         say('That point is outside the geofence (or in a no-fly area)', false);
         return;
@@ -296,7 +203,6 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
   };
 
   const job: Job | null = jobs[selected] || null;
-  const patrolling = job?.plugin === 'patrol' || !!(patrol?.running || patrol?.paused);
   useEffect(() => {
     if (!selected || menu !== 'reports') return;
     let alive = true;
@@ -329,17 +235,13 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
     api,
     geofenceRadius: config?.geofence.radius_m ?? null,
   };
-  // One job per drone: the one it's doing now, if any.
   const jobStates = JOBS.map(j => j.useActive(ctx));
   const activeIdx = jobStates.findIndex(x => x != null);
   const activeJob = activeIdx >= 0 ? JOBS[activeIdx] : null;
   const picked: JobType | undefined = JOBS.find(j => j.id === jobPick) || JOBS[0];
 
-  // On the map: the active job's overlay (any tab), plus what the open job screen drew.
   const own = drawn.key === viewKey ? drawn.shapes : [];
-  // What the selected drone's object detector sees, placed on the ground (when the camera geometry is known).
   const DET_COLOR: Record<string, string> = { person: '#f85149', car: '#58a6ff', truck: '#58a6ff', bus: '#58a6ff' };
-  // Confirmed tracks only (seen in several frames at the same spot), so one-frame false positives stay off the map.
   const seen: Shape[] = (d?.detections?.tracks || []).filter(t => t.ground).map(t => ({
     type: 'marker' as const, north: t.ground!.north, east: t.ground!.east,
     color: DET_COLOR[t.label] || '#3fb950',
@@ -353,7 +255,7 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
   const onShape = (sh: Shape, ev: { kind: 'click' } | { kind: 'edit'; points: Array<[number, number]> }) => {
     const h = drawnHandlers.current.key === viewKey ? drawnHandlers.current.h : {};
     if (h.onShape) h.onShape(sh, ev);
-    else if (activeJob) setMenu('job');   // the job's own screen knows what to do with it
+    else if (activeJob) setMenu('job');
   };
 
   const online = fleet.names.filter(n => fleet.drones[n]?.online).length;
@@ -366,6 +268,8 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
   );
   const mapSlot = swapped ? 'vw-mini' : 'vw-main';
   const camSlot = swapped ? 'vw-main' : 'vw-mini';
+
+  // ---- Tab panels ----
 
   const controls = (
     <div className="mn-block">
@@ -402,7 +306,6 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
 
   const status = (
     <div className="mn-block">
-      {/* Only what the fleet card doesn't already show (altitude, speed, battery, from home, pilot are there). */}
       <div className="cc-stats">
         <div><label>Mode</label>{d?.mode || '–'}</div>
         <div><label>GPS</label>{d?.gps.valid ? (d.gps.satellites ? `${d.gps.satellites} sats` : 'ok') : 'no fix'}</div>
@@ -483,37 +386,14 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
       </header>
 
       <div className="cc-grid">
-        <aside className="cc-fleet">
-          <div className="cc-section">Fleet</div>
-          {fleet.names.map(n => {
-            const x = fleet.drones[n];
-            const s = statusOf(x, patrols[n]);
-            const mv = motion(x);
-            const h = homeOf(x);
-            const fh = x && h && x.gps.lat != null && x.gps.lon != null ? distance(h, { lat: x.gps.lat, lon: x.gps.lon }) : null;
-            const air = !!x?.armed;
-            return (
-              <button key={n} className={`cc-drone ${n === selected ? 'sel' : ''}`} onClick={() => setSelected(n)}>
-                <div className="cc-drone-top">
-                  <span className="cc-drone-name">{n}</span>
-                  <span className={`cc-pill ${s.tone}`}>{s.label}</span>
-                </div>
-                <div className={`cc-drone-doing ${s.tone}`}>{doing(x, patrols[n], jobs[n])}</div>
-                <div className="cc-drone-nums">
-                  <div><label>Alt</label>{fmt(x?.position.altitude, 0)} m</div>
-                  <div><label>Speed</label>{air ? `${fmt(mv.speed, 1)} m/s` : '–'}</div>
-                  <div><label>Going</label>{air && mv.course != null
-                    ? <span><span className="cc-arrow" style={{ transform: `rotate(${mv.course}deg)` }}>↑</span> {compass(mv.course)}</span>
-                    : air && Math.abs(mv.climb) > 0.4 ? (mv.climb > 0 ? 'up' : 'down') : '–'}</div>
-                  <div><label>Battery</label>{fmt(x?.battery.percent)}%</div>
-                  <div><label>From home</label>{fmt(fh, 0)} m</div>
-                  <div><label>Pilot</label>{x?.controller || '–'}</div>
-                </div>
-              </button>
-            );
-          })}
-          {!fleet.names.length && <div className="cc-empty">No drones reporting</div>}
-        </aside>
+        <FleetList
+          names={fleet.names}
+          drones={fleet.drones}
+          selected={selected}
+          onSelect={setSelected}
+          patrols={patrols}
+          jobs={jobs}
+        />
 
         <div className={`vw ${mapSlot}${full === 'map' ? ' vw-full' : ''}`}>
           <FleetMap drones={fleet.drones} names={fleet.names} selected={selected} onSelect={setSelected}
@@ -525,7 +405,7 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
         </div>
 
         <div className={`vw ${camSlot}${full === 'camera' ? ' vw-full' : ''}`}>
-          <Camera drone={selected} det={d?.detections} />
+          <CameraView drone={selected} det={d?.detections} />
           {viewTools('camera')}
         </div>
 
@@ -550,49 +430,10 @@ const CommandCenter: React.FC<{ operator: string }> = ({ operator }) => {
           </div>
         </section>
 
-        <footer className="cc-log">
-          <div className="cc-section">Activity</div>
-          <div className="cc-log-rows">
-            {collapse(log).map(({ e, n }, i) => (
-              <div key={i} className={`cc-log-row ${e.ok ? '' : 'fail'}`}>
-                <span className="t">{clock(e.time)}</span>
-                <span className="op">{e.operator}</span>
-                <span className="dr">{e.drone}</span>
-                <span className="cmd">{describe(e)}{n > 1 && <span className="cc-sub"> ×{n}</span>}</span>
-                <span className="msg">{e.ok ? (e.message || 'ok') : `✗ ${e.message || 'failed'}`}</span>
-              </div>
-            ))}
-            {!log.length && <div className="cc-empty">No commands yet</div>}
-          </div>
-        </footer>
+        <ActivityLog log={log} />
       </div>
 
       {note && <div className={`cc-note ${note.ok ? 'ok' : 'bad'}`}>{note.text}</div>}
-    </div>
-  );
-};
-
-/** Activity rows: the same command from the same operator to the same drone, back to back (a plugin
- *  steering: search turning on the spot, follow re-aiming every second; PX4 repeating itself), is
- *  one row with a count; the newest one is shown. */
-function collapse(log: LogEntry[]): Array<{ e: LogEntry; n: number }> {
-  const out: Array<{ e: LogEntry; n: number }> = [];
-  for (const e of log) {
-    const last = out[out.length - 1];
-    if (last && last.e.operator === e.operator && last.e.drone === e.drone && last.e.ok === e.ok && last.e.command === e.command) last.n += 1;
-    else out.push({ e, n: 1 });
-  }
-  return out;
-}
-
-/** Dev tab: what the fleet API gets from drone_core for this drone, unfiltered. */
-const DevState: React.FC<{ drone: string; d?: FleetDrone; connected: boolean; socket: boolean }> = ({ drone, d, connected, socket }) => {
-  const [health, setHealth] = useState<any>(null);
-  useEffect(() => { fetch('/api/v1/health').then(r => r.json()).then(setHealth).catch(() => setHealth(null)); }, [drone]);
-  return (
-    <div className="mn-block">
-      <div className="cc-hint">Telemetry socket {socket ? 'open' : 'closed'} · fleet API {connected ? 'connected to drone_core' : 'not connected'}{health ? ` · ${health.drones} drones` : ''}</div>
-      <pre className="mn-raw">{d ? JSON.stringify(d.raw ?? d, null, 1) : 'no data'}</pre>
     </div>
   );
 };
