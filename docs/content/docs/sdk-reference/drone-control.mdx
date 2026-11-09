@@ -1,0 +1,106 @@
+---
+title: "drone_control.py (Python)"
+order: 2
+description: "Python interface for controlling DroneOS-connected aircraft."
+---
+`drone_control.py` is the main Python interface for working with DroneOS from scripts and applications.
+
+It gives you a straightforward way to query drone state and send commands without working directly with lower-level ROS 2 interfaces.
+
+## What It Is For
+
+Use `drone_control.py` when you want to:
+
+- control a drone from Python
+- build scripts or automations
+- integrate DroneOS into an application
+- prototype higher-level flight logic
+- connect AI or decision layers to the aircraft
+
+If you prefer quick terminal commands, use [droneos CLI](/docs/sdk-reference/droneos-cli).
+
+## Basic Usage
+
+```bash
+# Get fleet status
+python3 drone_control.py --fleet-status
+
+# Query a single drone
+python3 drone_control.py --drone drone1 --get-state
+
+# Send commands
+python3 drone_control.py --drone drone1 --set-offboard
+python3 drone_control.py --drone drone1 --arm
+python3 drone_control.py --drone drone1 --set-position 0 0 -10
+python3 drone_control.py --drone drone1 --land
+```
+
+## Python Example
+
+```python
+import drone_control as dc
+
+# Choose a drone
+dc.set_drone_name("drone1")
+
+# Read state
+state = dc.get_state()
+print(state["arming_state"])
+print(state["nav_state"])
+
+# Send commands
+dc.set_offboard()
+dc.arm()
+dc.set_position(0, 0, -10)
+dc.return_to_launch()
+```
+
+## Core Functions
+
+| Function | Purpose |
+|----------|---------|
+| `set_drone_name(name)` | Select which drone to target |
+| `get_drone_name()` | Return the current target |
+| `get_state()` | Read telemetry and status |
+| `set_offboard()` | Enter offboard mode |
+| `set_position_mode()` | Switch to position-control mode |
+| `arm()` / `disarm()` | Arm or disarm the aircraft |
+| `takeoff()` | Command takeoff |
+| `set_position(x, y, z, yaw)` | Send a position target |
+| `land()` | Land at the current position |
+| `return_to_launch()` | Return to home and land |
+| `upload_mission(waypoints)` | Upload a waypoint mission |
+| `mission_control(command)` | Start, pause, resume, stop, or clear a mission |
+| `get_mission_status()` | Read mission progress |
+
+## Coordinate Notes
+
+Position commands use the DroneOS coordinate conventions documented in [Coordinate Frames](/docs/architecture/coordinate-frames).
+
+In practice, the most important thing to remember is that local position targets are expressed relative to the drone's frame of reference, and altitude handling follows the conventions used by the underlying stack.
+
+## When to Use It
+
+`drone_control.py` is the right choice when you want a programmable interface.
+
+Examples:
+
+- mission scripting
+- automated tests
+- backend integrations
+- agent or orchestration layers
+- prototypes that may later grow into larger applications
+
+## Relationship to the Rest of DroneOS
+
+`drone_control.py` is one of several ways to interact with DroneOS.
+
+- use **Python** when you want scripting and application logic
+- use the **CLI** when you want fast terminal commands
+- use the **C++ SDK** when you are building more deeply into the ROS 2 side of the stack
+
+## Related Pages
+
+- [droneos CLI](/docs/sdk-reference/droneos-cli)
+- [drone_core (C++)](/docs/sdk-reference/drone-core)
+- [Coordinate Frames](/docs/architecture/coordinate-frames)

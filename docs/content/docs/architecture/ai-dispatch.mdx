@@ -1,0 +1,118 @@
+---
+title: "AI Dispatch"
+order: 2
+description: "How DroneOS can connect incident intake, fleet awareness, and autonomous dispatch."
+---
+AI Dispatch is the layer in DroneOS that turns an incoming event into a drone response.
+
+Instead of an operator manually choosing a drone and flying it step by step, the system can evaluate fleet status, select an aircraft, and issue the commands needed to launch the mission.
+
+## What It Does
+
+At a high level, AI Dispatch connects four pieces:
+
+- an incoming task or incident
+- live fleet status
+- decision logic for drone selection
+- command execution through DroneOS interfaces
+
+That makes it possible to go from “something happened” to “a drone is on the way” without building a separate control stack.
+
+## Typical Flow
+
+A typical dispatch flow looks like this:
+
+```text
+incident or task created → fleet evaluated → drone selected → drone launched → mission monitored → aircraft returns
+```
+
+The important part is not the exact backend wiring. The important part is that DroneOS provides the control surface needed for a dispatch layer to make decisions and act on them.
+
+## What the Dispatch Layer Needs
+
+To work well, a dispatch system needs access to:
+
+- drone availability
+- position and battery status
+- mission priority
+- a way to send flight commands safely
+
+DroneOS exposes those building blocks through its APIs and command-line tools.
+
+## Why This Matters
+
+AI Dispatch is one of the clearest examples of what DroneOS is for.
+
+The value is not just that a drone can be controlled remotely. The value is that the same drone can be integrated into a larger software workflow:
+
+- incident response demos
+- autonomous task assignment
+- fleet coordination
+- operator-assisted dispatch
+- future mission planning systems
+
+## What DroneOS Owns
+
+Within this architecture, DroneOS is responsible for the control and integration layer.
+
+That includes:
+
+- exposing fleet state
+- sending commands to the selected drone
+- bridging higher-level software to the flight stack
+
+DroneOS is the interface between software logic and the aircraft.
+
+## What the Autopilot Owns
+
+The autopilot still owns flight-critical behavior.
+
+That includes:
+
+- flight stabilization
+- flight modes
+- return-to-launch behavior
+- landing behavior
+- the low-level control loop
+
+This is an important boundary. AI Dispatch can decide what should happen next, but PX4 is still the system that actually flies the aircraft.
+
+## AI Dispatch in Practice
+
+In practice, an AI-enabled dispatch workflow usually follows a pattern like this:
+
+1. receive an incident or mission request
+2. inspect fleet state
+3. choose the best available drone
+4. send the initial launch and navigation commands
+5. monitor progress at the system level
+6. return or recover the aircraft when the mission completes
+
+DroneOS does not force one exact dispatch design. It gives you the interfaces needed to build one.
+
+## Current Scope
+
+Today, AI Dispatch in DroneOS is best understood as:
+
+- a demonstration of software-driven drone dispatch
+- a coordination layer above the autopilot
+- a bridge between incident logic and real command execution
+
+It is not a replacement for flight-controller safety systems, and it should not be described that way.
+
+## Where This Can Go Next
+
+This model opens the door to more advanced workflows over time, such as:
+
+- richer fleet scheduling
+- multi-drone assignment strategies
+- operator-in-the-loop approvals
+- perception-informed dispatch decisions
+- tighter integration with web interfaces and external systems
+
+## Related Pages
+
+- [System Overview](/docs/architecture/system-overview)
+- [Hardware Architecture](/docs/architecture/hardware-architecture)
+- [droneos CLI](/docs/sdk-reference/droneos-cli)
+- [drone_control.py](/docs/sdk-reference/drone-control)

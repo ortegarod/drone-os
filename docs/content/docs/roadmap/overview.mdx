@@ -1,0 +1,55 @@
+---
+title: "Roadmap"
+order: 1
+description: "DroneOS development roadmap and milestones."
+---
+# Roadmap
+
+## Q1 2026 ✅ — Autonomous AI Dispatch in Simulation
+
+- AI agent integration with priority-based fleet dispatch
+- Incident-to-flight pipeline in ~10 seconds
+- Web command center with real-time camera feeds and incident queue
+- Multi-drone coordination — two drones, simultaneous incidents
+- Natural language operator override interface
+- Top 5 finish at lablab.ai AI × Robotics Hackathon
+
+---
+
+## Q2 2026 — AI Dispatch on Real Hardware
+
+- Migrate companion computer from Raspberry Pi to NVIDIA Jetson
+- Deploy AI agent on Jetson companion computer
+- End-to-end autonomous dispatch on X500 + Pixhawk over Wi-Fi
+- Validate full AI dispatch loop over 4G on physical drone
+
+---
+
+## Q3 2026 — Platform Upgrade & Cloud Simulation
+
+- Migrate PX4 SITL simulation to Vultr GPU cloud
+- Live camera feed from onboard camera during autonomous flight
+- Basic object detection with Google Coral Edge TPU during flight
+
+---
+
+## Q4 2026 — Obstacle Avoidance
+
+- Fine-tune object detection model for real use cases (people, vehicles, fire)
+- Obstacle avoidance sensor research and selection
+- Initial obstacle avoidance integration on real hardware
+
+---
+
+## Q1 2027 — Open Framework
+
+- Modular plugin architecture with swappable components
+- ArduPilot support alongside PX4
+- Developer onboarding docs and quickstart guide
+
+---
+
+## Q2 2027 — Core Rewrite
+
+- Rewrite core SDK in Rust for memory safety and performance
+- Maintain full API compatibility with existing drone_core interface

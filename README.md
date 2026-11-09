@@ -135,9 +135,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
 
 ## Documentation & More Info
 
-For thorough documentation, roadmaps, multi-drone setups, camera configurations, and the full system architecture, please visit the official website:
+For thorough documentation, roadmaps, multi-drone setups, camera configurations, and the full system architecture, visit:
 
-**[aerisrobotics.com/docs](https://aerisrobotics.com/docs)**
+- **Project site:** **[droneos.dev](https://droneos.dev)**
+- **Documentation:** **[docs.droneos.dev](https://docs.droneos.dev)**
 
 ## License
 

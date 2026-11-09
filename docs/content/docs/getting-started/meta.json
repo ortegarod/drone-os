@@ -1,0 +1,9 @@
+{
+  "title": "Getting Started",
+  "pages": [
+    "overview",
+    "prerequisites",
+    "quick-start",
+    "pixhawk_drone_deployment"
+  ]
+}

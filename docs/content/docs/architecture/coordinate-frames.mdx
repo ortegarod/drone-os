@@ -1,0 +1,33 @@
+---
+title: "Coordinate Frames"
+order: 3
+description: "NED coordinate system used in DroneOS."
+---
+DroneOS uses the NED (North-East-Down) coordinate frame, which is the PX4 standard.
+
+## NED Frame
+
+- **x** = meters north of home (positive = north)
+- **y** = meters east of home (positive = east)
+- **z** = meters down from home (**negative = up**)
+- **Home** = (0, 0, 0) — the takeoff position
+
+## Key Implications
+
+- To fly **50 meters up**: `set_position(0, 0, -50)`
+- To fly **north and east at altitude**: `set_position(80, 40, -50)`
+- `local_z = -50` means the drone is 50m above home
+
+## Common Gotcha
+
+The z-axis is inverted from what you might expect. **Negative z = higher altitude.** This trips up everyone the first time. Double-check your signs.
+
+## In get_state Output
+
+```json
+{
+  "local_x": 80.2,      // 80m north of home
+  "local_y": -40.1,     // 40m west of home
+  "local_z": -50.3      // 50m altitude
+}
+```

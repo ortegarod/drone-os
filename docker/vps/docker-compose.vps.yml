@@ -165,26 +165,6 @@ services:
     depends_on:
       - fleet_api
 
-  # Plugin #6: Fence check. Flies the property fence line, photos looking out, what's new since
-  # last time. Written with the plugin SDK. Cloud-only.
-  perimeter_plugin:
-    build:
-      context: ../..
-      dockerfile: docker/vps/perimeter_plugin.Dockerfile
-    container_name: perimeter_plugin_node
-    network_mode: "host"
-    restart: unless-stopped
-    volumes:
-      - ${HOME}/.config/droneos/perimeter_plugin.json:/run/secrets/perimeter_plugin.json:ro
-      - ${HOME}/.local/state/droneos:/var/lib/droneos
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PERIMETER_CONFIG=/run/secrets/perimeter_plugin.json
-      - PERIMETER_REPORTS=/var/lib/droneos/perimeter
-      - CAMERA_URL=http://127.0.0.1:8080
-    depends_on:
-      - fleet_api
-
   bridge:
     build:
       context: ../..

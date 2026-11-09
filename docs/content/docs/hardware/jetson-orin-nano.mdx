@@ -1,0 +1,50 @@
+---
+title: "Jetson Orin Nano"
+description: "Additional companion-computer path being added for higher onboard compute headroom."
+order: 4
+---
+# Jetson Orin Nano
+
+The Jetson Orin Nano is being added as an additional companion-computer integration path for DroneOS.
+
+## Why this path is being added
+
+Compared with Raspberry Pi 5, Jetson provides more room for:
+
+- onboard perception pipelines
+- object detection workloads
+- future inference-heavy autonomy features
+
+## Current status
+
+Be precise about status:
+
+- **Raspberry Pi 5 is the proven path today**
+- **Jetson Orin Nano is the new path being integrated**
+- this page documents the intended direction and integration goals while the work is being completed
+
+## Integration goals
+
+The Jetson path should support:
+
+- PX4 / flight-controller integration through the existing DroneOS architecture
+- ROS 2 workloads
+- camera pipelines
+- cellular networking options
+- future onboard inference workflows
+
+## Why Jetson matters
+
+The main reason to add Jetson is not hype. It is compute headroom.
+
+That matters because the companion-computer layer is where perception, networking, and high-level autonomy tooling start to compete for resources.
+
+## Documentation approach
+
+This path should be documented as:
+
+- a supported companion-computer option being added
+- not the only path
+- not yet the same maturity level as the Raspberry Pi 5 path
+
+That keeps the docs honest while still making the direction clear.

@@ -1,0 +1,104 @@
+---
+title: "Quick Start (SITL)"
+order: 3
+description: "Get a drone flying in simulation in 5 minutes."
+---
+This gets you from zero to a drone flying in simulation on a single machine. One simulated drone, one computer, no physical drone hardware required.
+
+## 1. Clone
+
+```bash
+git clone https://github.com/ortegarod/drone-os.git ws_droneOS
+cd ws_droneOS
+```
+
+## 2. Start PX4 Simulation
+
+```bash
+cd PX4-Autopilot
+HEADLESS=1 make px4_sitl gz_x500
+```
+
+Wait for `Ready for takeoff!` in the terminal. This runs PX4 with Gazebo — a full drone simulator.
+
+## 3. Start DroneOS
+
+In a new terminal:
+
+```bash
+cd ws_droneOS
+docker compose -f docker/dev/docker-compose.dev.yml up -d --build drone_core micro_agent
+```
+
+This starts:
+- **`drone_core`** — the SDK node that exposes drone control services
+- **`micro_agent`** — the DDS bridge between PX4 and ROS 2
+
+## 4. Verify
+
+```bash
+docker logs -f drone_core_node
+```
+
+You should see services registering: `/drone1/arm`, `/drone1/takeoff`, `/drone1/set_position`, etc. If you see those, you're good.
+
+## 5. Fly
+
+```bash
+python3 drone_control.py --drone drone1 --set-offboard
+python3 drone_control.py --drone drone1 --arm
+python3 drone_control.py --drone drone1 --set-position 0 0 -50
+```
+
+The drone is now 50 meters up. The coordinate system is NED (North-East-Down), so **negative Z = altitude**. `-50` means 50 meters above the takeoff point.
+
+```bash
+python3 drone_control.py --drone drone1 --set-position 80 -40 -50
+```
+
+Now it's flying 80m north and 40m west at 50m altitude.
+
+```bash
+python3 drone_control.py --drone drone1 --land
+```
+
+That's it. You just flew a drone.
+
+## 6. Check State
+
+```bash
+python3 drone_control.py --drone drone1 --get-state
+```
+
+Returns full JSON: position, arming state, battery, nav mode.
+
+## 7. Cleanup
+
+```bash
+docker compose -f docker/dev/docker-compose.dev.yml down
+```
+
+Then `CTRL+C` in the PX4 terminal.
+
+## Adding a Second Drone
+
+In a new terminal:
+
+```bash
+cd PX4-Autopilot
+HEADLESS=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" PX4_SIM_MODEL=gz_x500 MAV_SYS_ID=2 ./build/px4_sitl_default/bin/px4 -i 1
+```
+
+Then start a second `drone_core` instance inside the container, or see [Multi-Drone Setup](/docs/operations/multi-drone) for the full setup.
+
+```bash
+python3 drone_control.py --fleet-status
+```
+
+Both drones show up. Control them independently with `--drone drone1` or `--drone drone2`.
+
+## Next Steps
+
+- [drone_control.py Reference](/docs/sdk-reference/drone-control) — full API
+- [System Architecture](/docs/architecture/system-overview) — how it all connects
+- [Real Hardware](/docs/getting-started/pixhawk_drone_deployment) — deploy on a physical drone

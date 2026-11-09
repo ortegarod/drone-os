@@ -1,0 +1,61 @@
+---
+title: "Prerequisites"
+order: 2
+description: "What you need before running DroneOS."
+---
+
+DroneOS runs in two modes: **simulation** (everything on one machine) and **real hardware** (split across multiple devices). What you need depends on which path you're taking.
+
+## Simulation (SITL)
+
+Everything runs on a single machine — the simulator, the SDK, and the control services.
+
+### Hardware
+
+- **CPU** — Intel i5 or better (4+ cores recommended)
+- **RAM** — 8 GB minimum, 16 GB recommended
+- **GPU** — Dedicated GPU recommended for Gazebo rendering. Not required for headless mode (`HEADLESS=1`)
+- **Storage** — SSD recommended. PX4 + Docker images use significant disk space
+
+### Software
+
+1. **Docker and Docker Compose** — [Install Docker](https://docs.docker.com/engine/install/) for your OS
+2. **PX4 Autopilot** — [Install PX4](https://docs.px4.io/main/en/dev_setup/dev_env.html) and its dependencies. On Ubuntu, run the `ubuntu.sh` script from the PX4-Autopilot repo — this installs Gazebo and all simulation tools
+3. **Gazebo** — Installed automatically with PX4's build system (`make px4_sitl gz_x500`). No separate install needed
+
+### Supported OS
+
+- **Ubuntu 22.04+** (native, recommended)
+- **WSL2** on Windows (with GPU passthrough for rendering)
+
+That's it. Clone the repo, start PX4 SITL, start Docker services, fly. See the [Quick Start Guide](/docs/getting-started/quick-start) for step-by-step instructions.
+
+## Real Hardware
+
+On real hardware, the responsibilities are split across devices. The drone carries the flight controller and companion computer. You interact with it remotely over a network.
+
+### On the drone
+
+- **Companion computer** — Raspberry Pi 5 (recommended) with Ubuntu Server. Runs DroneOS services in Docker
+- **Flight controller** — Pixhawk (or compatible) running PX4, connected to the companion computer via Serial/USB
+- **Mesh VPN** — Installed on the companion computer for remote access over 4G/VPN
+- **Serial access** — `sudo usermod -a -G dialout $USER` (reboot after)
+- **udev rule** for stable device naming:
+
+```bash
+# /etc/udev/rules.d/99-pixhawk.rules
+SUBSYSTEM=="tty", ATTRS{idVendor}=="26ac", ATTRS{idProduct}=="0011", SYMLINK+="pixhawk-telem2"
+```
+
+### On your machine
+
+- **Network access** to the drone (via mesh VPN, local network, or cellular)
+- **drone_control.py** or the **web interface** to send commands
+- No Docker or PX4 required — those run on the drone
+
+See [Real Hardware Setup](/docs/getting-started/pixhawk_drone_deployment) for the full guide.
+
+## Optional
+
+- **QGroundControl** — Manual monitoring, parameter configuration, and safety override
+- **Google Coral Edge TPU** — USB Accelerator for on-drone object detection (experimental)

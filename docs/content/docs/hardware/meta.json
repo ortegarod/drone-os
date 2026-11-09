@@ -1,0 +1,13 @@
+{
+  "title": "Hardware",
+  "pages": [
+    "overview",
+    "companion-computer",
+    "raspberry-pi-5",
+    "jetson-orin-nano",
+    "flight-controller",
+    "cellular-connectivity",
+    "camera-payloads",
+    "power-wiring"
+  ]
+}

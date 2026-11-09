@@ -1,0 +1,10 @@
+{
+  "title": "SDK Reference",
+  "pages": [
+    "drone-core",
+    "drone-control",
+    "droneos-cli",
+    "mcp-server",
+    "plugins"
+  ]
+}

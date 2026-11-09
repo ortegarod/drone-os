@@ -1,0 +1,102 @@
+---
+title: "droneos CLI"
+order: 3
+description: "Command-line interface for DroneOS flight and fleet operations."
+---
+`droneos` is the command-line interface for issuing commands to DroneOS-connected aircraft.
+
+It is useful when you want a fast terminal workflow without writing code.
+
+## What It Is For
+
+Use the CLI to:
+
+- inspect fleet status
+- query a specific drone
+- send direct control commands
+- test workflows quickly from the terminal
+- integrate simple shell-based automations
+
+If you want a programmable interface in Python, use [drone_control.py](/docs/sdk-reference/drone-control).
+
+## Common Commands
+
+```bash
+# Fleet overview
+droneos --fleet-status
+
+# Query a single drone
+droneos --drone drone1 --get-state
+
+# Basic control
+droneos --drone drone1 --set-offboard
+droneos --drone drone1 --arm
+droneos --drone drone1 --set-position 20 0 -10
+droneos --drone drone1 --land
+droneos --drone drone1 --rtl
+```
+
+## Typical Workflow
+
+A basic terminal-driven workflow usually looks like this:
+
+1. inspect the fleet
+2. select a drone
+3. query its current state
+4. send the next command
+5. monitor state again as needed
+
+That makes the CLI useful both for manual testing and for learning how DroneOS control flows work.
+
+## Main Command Categories
+
+### Fleet commands
+
+- `--fleet-status` — inspect available drones and their status
+
+### State queries
+
+- `--get-state` — read the state of a selected drone
+
+### Flight commands
+
+- `--set-offboard`
+- `--arm`
+- `--takeoff`
+- `--set-position`
+- `--land`
+- `--rtl`
+- `--disarm`
+
+## Output and Conventions
+
+The CLI is designed to be easy to use interactively and easy to call from scripts.
+
+State output gives you the fields you need to understand whether a drone is:
+
+- armed or disarmed
+- in offboard or another navigation state
+- at the expected position
+- healthy enough for the next step
+
+## When to Use the CLI vs Python
+
+Use the CLI when you want:
+
+- quick manual control
+- debugging from a shell
+- lightweight automation
+- a simple interface for demos or experiments
+
+Use Python when you want:
+
+- reusable application logic
+- custom workflows
+- deeper integration with other software
+- an orchestration layer above direct commands
+
+## Related Pages
+
+- [drone_control.py](/docs/sdk-reference/drone-control)
+- [drone_core (C++)](/docs/sdk-reference/drone-core)
+- [System Overview](/docs/architecture/system-overview)

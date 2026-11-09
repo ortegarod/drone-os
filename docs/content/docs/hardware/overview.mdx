@@ -1,0 +1,47 @@
+---
+title: "Hardware Overview"
+description: "Hardware building blocks for DroneOS deployments, from flight controllers to companion computers and cellular connectivity."
+order: 1
+---
+# Hardware Overview
+
+DroneOS runs across a small set of hardware layers:
+
+- **Flight controller** — PX4-compatible autopilot hardware
+- **Companion computer** — onboard Linux computer running the DroneOS stack
+- **Network link** — Wi-Fi, mesh VPN, or cellular backhaul
+- **Camera / payload** — sensors and mission-specific peripherals
+- **Power / wiring** — vehicle-specific integration details
+
+## Current reality
+
+Today, the **documented and proven real-hardware path** is:
+
+- Holybro X500 airframe
+- Pixhawk flight controller
+- Raspberry Pi 5 companion computer
+- PX4 + ROS 2 + DroneOS
+
+That path is the baseline.
+
+## New hardware path being added
+
+A **Jetson Orin Nano companion-computer path** is being added as an additional integration approach.
+
+Important:
+
+- this does **not** replace the Raspberry Pi 5 path
+- the Raspberry Pi 5 method remains the proven documented integration
+- Jetson is being added to increase onboard compute headroom for perception and future onboard AI workloads
+
+## Hardware sections
+
+Use the pages in this section for component-level guidance:
+
+- Companion computer
+- Raspberry Pi 5
+- Jetson Orin Nano
+- Flight controller
+- Cellular / 4G / 5G
+- Camera and payloads
+- Power and wiring

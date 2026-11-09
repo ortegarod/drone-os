@@ -1,0 +1,33 @@
+---
+title: "Preflight Checklist"
+order: 3
+description: "Verification steps before flight operations."
+---
+Run through this checklist before any flight operation — simulation or real hardware.
+
+## Simulation (SITL)
+
+1. PX4 SITL instances running (`Ready for takeoff!` in terminal)
+2. Micro-XRCE-DDS Agent connected (`docker logs micro_agent_service`)
+3. `drone_core` services registered (`docker logs drone_core_node`)
+4. rosbridge server running on port 9090
+5. Verify drone state: `droneos --drone drone1 --get-state`
+6. Verify fleet: `droneos --fleet-status`
+
+## Real Hardware
+
+1. **Physical inspection** — props secure, battery connected, no damage
+2. **RC transmitter on** — verify manual control works before any autonomous flight
+3. VPN connected on companion computer
+4. Docker containers running on RPi: `docker ps` (ensure `drone_core` and `micro_agent` are up)
+5. **Verify system health via DroneOS** — check the Web UI dashboard or run `droneos --drone drone1 --get-state` to confirm telemetry and sensor readiness
+6. **Know your failsafe** — RC override is the only failsafe. If anything goes wrong, flip to manual.
+
+## Post-Flight
+
+- Check battery levels
+- Review any anomalies in telemetry
+- Clear PX4 flight logs if disk space is a concern:
+  ```bash
+  rm -rf rootfs/*/log/  # SITL only — clears .ulg logs that eat disk
+  ```

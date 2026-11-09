@@ -1,0 +1,76 @@
+---
+title: "Troubleshooting"
+order: 4
+description: "Common issues and how to fix them."
+---
+## Drone Not Responding
+
+**Symptom:** `get_state` returns stale data or times out.
+
+**Check:**
+```bash
+docker logs micro_agent_service   # DDS agent connected?
+docker logs drone_core_node       # Services registered?
+```
+
+**Fix:** Restart in order: PX4 → micro_agent → drone_core → rosbridge
+
+## "Already Armed" Error
+
+**Symptom:** Arm command fails because the drone is already armed from a previous session.
+
+**Fix:** This is non-fatal. The drone is armed and ready. Proceed with offboard and position commands.
+
+## Drone Stuck in Bad State
+
+**Symptom:** Drone won't accept commands, nav_state shows unexpected mode.
+
+**Fix:** Restart the PX4 SITL instance. Failsafe flags can get stuck and only clear on restart.
+
+## Disk Space Full
+
+**Symptom:** PX4 SITL fills disk with flight logs (`.ulg` files).
+
+**Fix:**
+```bash
+rm -rf PX4-Autopilot/rootfs/*/log/
+rm -rf PX4-Autopilot/rootfs/log/
+```
+
+These logs can accumulate to 100+ GB in long simulation sessions.
+
+## Camera Feed Not Loading
+
+**Symptom:** "Loading video stream..." forever in the dashboard.
+
+**Check:**
+```bash
+# Is web_video_server running?
+docker logs sim_camera_node
+
+# Is the camera topic being published?
+ros2 topic hz /camera
+```
+
+**Fix:** Restart `ros_gz_bridge` first, then `sim_camera_node`.
+
+## rosbridge Connection Refused
+
+**Symptom:** Frontend shows "Disconnected", drone_control.py can't connect.
+
+**Check:**
+```bash
+docker logs rosbridge_server
+curl -s http://localhost:9090  # Should get a WebSocket upgrade response
+```
+
+**Fix:** `docker restart rosbridge_server`
+
+## Dispatch Not Firing
+
+| Symptom | Check | Fix |
+|---------|-------|-----|
+| No incidents | `curl localhost:8081/api/dispatch/status` | Resume dispatch service |
+| Bridge not sending | `curl localhost:8082/api/bridge/status` | Resume bridge |
+| Hook rejected (401) | Check agent gateway hooks token | Regenerate hooks token |
+| AI not responding | Check agent gateway status | Restart agent gateway |

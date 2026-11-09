@@ -1,0 +1,49 @@
+---
+title: "MCP Server"
+order: 4
+description: "Model Context Protocol server for AI tool integration."
+---
+`scripts/drone_mcp_server.py` wraps `drone_control.py` as an MCP (Model Context Protocol) tool server. AI agents see native tool calls instead of CLI commands.
+
+## Available Tools
+
+```
+arm()                          → arm the drone
+disarm()                       → disarm the drone
+get_state()                    → full telemetry
+set_offboard()                 → enter offboard mode
+set_position(x, y, z, yaw)    → fly to position
+takeoff()                      → autonomous takeoff
+land()                         → land at current position
+return_to_launch()             → RTL
+set_target_drone("drone2")     → switch target drone
+get_fleet_status()             → scan all drones
+upload_mission(waypoints)      → upload waypoint mission
+mission_control(command)       → START, PAUSE, RESUME, STOP
+get_mission_status()           → mission progress
+flight_termination()           → EMERGENCY motor cutoff
+```
+
+## Setup
+
+```bash
+npm i -g mcporter
+mcporter config add drone-control \
+  --command '/path/to/uv run /path/to/drone-os/scripts/drone_mcp_server.py'
+
+# Verify tools
+mcporter list drone-control --schema
+
+# Test a call
+mcporter call drone-control.get_state()
+```
+
+## Configuration
+
+Config lives in `.mcp.json` in the repo root. For MCP-compatible agent gateways, register via mcporter.
+
+## Relationship to Other Interfaces
+
+`drone_mcp_server.py` imports `drone_control.py` as a library — it's a thin wrapper that exposes the same functions as MCP tools. No duplicate logic.
+
+> The MCP server is not used by the current dispatch setup (which uses the `droneos` CLI directly). It exists for compatibility with AI agents and tools that support MCP.

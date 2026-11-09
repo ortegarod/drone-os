@@ -1,0 +1,151 @@
+---
+title: "Hardware Architecture"
+order: 2
+description: "How DroneOS maps onto a real aircraft: flight controller, companion computer, connectivity, and future onboard compute."
+---
+DroneOS is designed to sit above the flight controller, not replace it.
+
+On a real aircraft, the stack is split into layers with different jobs. That separation is what makes the system understandable: PX4 handles flight, the companion computer runs DroneOS, and networked services handle remote control and higher-level coordination.
+
+## The Real-World Stack
+
+A typical DroneOS hardware setup includes:
+
+- **Airframe** — the physical drone platform
+- **Flight controller** — typically Pixhawk running PX4 Autopilot
+- **Companion computer** — a board such as Raspberry Pi or Jetson running DroneOS
+- **Connectivity** — local networking, cellular, or VPN-based remote access
+- **Sensors and payloads** — cameras and future perception hardware
+
+DroneOS does not depend on one exact airframe, but the current real-flight setup has been built around an X500-class platform with Pixhawk and a Raspberry Pi companion computer.
+
+## What Each Layer Does
+
+### PX4: flight control
+
+PX4 is responsible for the aircraft itself:
+
+- stabilization
+- flight modes
+- position and attitude control
+- arming, landing, and return-to-launch behavior
+- core autopilot safety behavior
+
+In simple terms: **PX4 flies the drone.**
+
+### DroneOS on the companion computer
+
+The companion computer runs the software layer that makes the aircraft programmable and remotely operable.
+
+That layer is where DroneOS provides:
+
+- high-level control interfaces
+- networking and remote access
+- integration with ROS 2-based services
+- application logic above the autopilot
+- a path toward onboard perception and autonomy features
+
+In simple terms: **DroneOS turns the aircraft into a software platform.**
+
+### Remote command and orchestration
+
+Above the aircraft itself, you may also run remote systems for:
+
+- operator interfaces
+- fleet coordination
+- mission supervision
+- cloud-connected services
+- AI-assisted workflows
+
+This layer is useful for coordination and decision-making, but it is not the thing keeping the aircraft stable in the air.
+
+## Why the Companion Computer Matters
+
+A flight controller is built to fly safely and reliably. A companion computer is built to extend what the aircraft can do.
+
+That extension can include:
+
+- remote command APIs
+- telemetry and camera integration
+- mission logic
+- networked operations
+- onboard perception pipelines
+
+This is the key idea behind DroneOS on hardware: keep the flight controller focused on flight, and use the companion computer to add software capabilities around it.
+
+## Raspberry Pi vs Jetson
+
+Not every hardware problem needs a GPU.
+
+### Raspberry Pi
+
+A Raspberry Pi is a strong fit for:
+
+- command and telemetry
+- networking and VPN-connected operation
+- DroneOS runtime services
+- lightweight integrations
+- development and early field testing
+
+For many control and integration tasks, a Raspberry Pi is enough.
+
+### Jetson
+
+A Jetson-class board becomes interesting when the goal is not just remote control, but onboard perception.
+
+That includes workloads such as:
+
+- real-time object detection from camera feeds
+- accelerated vision inference
+- heavier perception pipelines
+- future local autonomy support
+
+The practical difference is simple:
+
+- **Raspberry Pi is great for running the drone software stack**
+- **Jetson is attractive when you want the drone to process more of the world locally**
+
+## Object Detection Is Not Obstacle Avoidance
+
+This distinction matters and should stay explicit in the docs.
+
+### Object detection
+
+Object detection answers questions like:
+
+- Is there a person in frame?
+- Is there a vehicle below?
+- What is in the scene?
+
+This is a realistic first step for onboard AI.
+
+### Obstacle avoidance
+
+Obstacle avoidance is a much harder problem. It requires the system to understand hazards, available space, and how to react safely during flight.
+
+That usually means more than a basic RGB camera. Depending on the goal, it may involve additional sensors such as depth, stereo, rangefinding, or lidar.
+
+So while a Jetson can support perception, adding onboard compute alone does not automatically give the aircraft safe obstacle avoidance.
+
+## Current Reality and Future Direction
+
+Today, DroneOS on hardware is best understood as:
+
+- a programmable interface above PX4
+- a way to connect the aircraft to external software
+- a foundation for remote operations and future onboard capabilities
+
+The likely hardware direction from here is:
+
+- keep the flight controller role anchored in PX4
+- keep DroneOS as the software layer above it
+- use Raspberry Pi where control and connectivity are enough
+- move toward Jetson when onboard perception becomes a real requirement
+
+That gives DroneOS a clean hardware story without overstating what is already finished.
+
+## Related Pages
+
+- [Real Hardware Setup](/docs/getting-started/pixhawk_drone_deployment)
+- [System Overview](/docs/architecture/system-overview)
+- [Preflight Checklist](/docs/operations/preflight)

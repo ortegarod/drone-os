@@ -1,0 +1,34 @@
+---
+title: "Camera and Payloads"
+description: "Sensors and payload-side considerations for DroneOS hardware setups."
+order: 7
+---
+# Camera and Payloads
+
+Cameras and payload devices sit on top of the core flight stack and companion-computer foundation.
+
+## Typical roles
+
+Payload-side hardware may include:
+
+- RGB cameras
+- mission-specific sensors
+- perception sensors
+- future onboard inference inputs
+
+## Why this matters
+
+Payload hardware affects:
+
+- compute requirements
+- power draw
+- mounting and enclosure constraints
+- network bandwidth and storage needs
+
+## Relationship to companion computer choice
+
+Payload complexity is one of the reasons to support more than one companion-computer path.
+
+A basic camera workflow may be fine on a lighter compute budget.
+
+A heavier perception workflow is one of the reasons the Jetson path is being added.

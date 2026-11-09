@@ -1,0 +1,57 @@
+---
+title: "Cellular Connectivity"
+description: "Planning for 4G / 5G connectivity on the companion-computer layer."
+order: 6
+---
+# Cellular Connectivity
+
+Cellular connectivity is the path to getting DroneOS beyond same-network operation and into real remote deployments.
+
+## Goal
+
+Support a companion-computer setup that can connect over:
+
+- **4G**
+- **5G**
+- or another carrier-backed modem path
+
+## Where this lives
+
+Cellular integration belongs on the **companion-computer layer**, not the flight controller.
+
+That means the modem and network-management logic should be documented alongside Raspberry Pi and Jetson companion-computer workflows.
+
+## Why it matters
+
+Without cellular, control and telemetry workflows are constrained to:
+
+- local Wi-Fi
+- local LAN setups
+- or other short-range / lab-style environments
+
+Cellular opens the path toward:
+
+- remote field operations
+- persistent cloud connectivity
+- control beyond the local network footprint
+
+## Current documentation stance
+
+This page marks cellular as a hardware and integration area being actively prepared.
+
+It should be documented as:
+
+- a required expansion area for real remote deployments
+- especially relevant to the new Jetson path
+- separate from the already proven Raspberry Pi 5 baseline
+
+## Documentation checklist
+
+This section will eventually need to cover:
+
+- modem hardware options
+- USB vs M.2 integration path
+- SIM / carrier considerations
+- Linux network management on the companion computer
+- secure remote access patterns
+- deployment-specific antenna and enclosure considerations

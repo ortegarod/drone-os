@@ -1,0 +1,45 @@
+---
+title: "Overview"
+order: 1
+description: "What DroneOS is and what you can do with it."
+---
+DroneOS is an open-source framework for controlling drones programmatically. You write code (or talk to an AI), and drones fly.
+
+Built on PX4 and ROS 2, it gives you high-level APIs so you don't have to deal with raw flight controller topics. Arm, takeoff, fly to a position, land — in a few lines of Python or C++.
+
+## What You Can Do
+
+- **Fly drones in simulation** — PX4 SITL + Gazebo, no hardware needed
+- **Control real drones remotely** — over 4G/VPN from a cloud server
+- **Run multiple drones** — namespaced fleet coordination
+- **Let AI fly** — autonomous dispatch where an AI agent picks and flies drones
+- **Monitor everything** — web dashboard with telemetry, camera feeds, and AI chat
+
+## How You Interact With It
+
+There are several ways in, depending on what you're building:
+
+| Interface | What it is | Best for |
+|-----------|-----------|----------|
+| `drone_control.py` | Python API + CLI | Scripts, automation, AI agents |
+| `droneos` CLI | Shell wrapper | Quick commands, dispatch system |
+| `drone_core` | C++ SDK (ROS 2 services) | Low-level control, custom nodes |
+| MCP Server | AI tool protocol | MCP-compatible AI agents and tools |
+| OpenAI Agents SDK | Python agent framework | OpenAI-based AI agents |
+| Web Command Center | Browser dashboard | Monitoring, manual control, AI chat |
+
+All of these talk to the same `drone_core` services underneath. Pick whatever fits your stack.
+
+## What's Under the Hood
+
+**`drone_core`** is a C++ ROS 2 library that subscribes to PX4 topics and exposes drone control as ROS 2 services (`/drone1/arm`, `/drone1/set_position`, etc.). Everything else builds on top of that.
+
+**`drone_control.py`** connects to `drone_core` over rosbridge (WebSocket), so it works from anywhere — locally, from a remote server, over a VPN. No ROS 2 installation needed on the client side.
+
+## Running It
+
+For development: everything runs on one machine. PX4 SITL simulates the drone, Docker runs the SDK, you send commands from the same box.
+
+For production: the command center runs on any server, the drone runs on a companion computer (Raspberry Pi), connected over a mesh VPN. Same code, different Docker Compose file.
+
+→ [Quick Start](/docs/getting-started/quick-start) to get flying in simulation.

@@ -3,7 +3,9 @@
   <name>drone_patrol</name>
   <version>0.1.0</version>
   <description>DroneOS Patrol: PX4 external mode + mode executor (px4-ros2-interface-lib 1.4.0) flying drone_core missions</description>
-  <maintainer email="contact@aerisrobotics.com">DroneOS</maintainer>
+  <maintainer email="ortegarod@users.noreply.github.com">DroneOS</maintainer>
+  <url type="website">https://droneos.dev</url>
+  <url type="bugtracker">https://github.com/ortegarod/drone-os/issues</url>
   <license>BSD-3-Clause</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
   <depend>rclcpp</depend>

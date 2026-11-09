@@ -1,0 +1,38 @@
+---
+title: "Raspberry Pi 5"
+description: "Current proven companion-computer path for DroneOS real-hardware deployments."
+order: 3
+---
+# Raspberry Pi 5
+
+The Raspberry Pi 5 is the **current proven companion-computer path** for DroneOS real-hardware integration.
+
+## Status
+
+This path is:
+
+- documented
+- tested on the current hardware stack
+- the reference real-hardware integration today
+
+## Role in the stack
+
+The Raspberry Pi 5 acts as the onboard Linux computer that runs the DroneOS-side software and connects upstream to the Pixhawk / PX4 stack.
+
+## Why it still matters
+
+Even with Jetson being added, Raspberry Pi 5 remains important because:
+
+- it already works
+- it is the current reference integration
+- it provides a known-good baseline when validating new hardware paths
+
+## Recommendation
+
+Do not treat Jetson work as replacing the Raspberry Pi 5 path.
+
+Instead:
+
+- keep Raspberry Pi 5 docs as the stable baseline
+- add Jetson as a second supported path
+- compare new Jetson integration work against the existing Raspberry Pi behavior

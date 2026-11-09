@@ -1,8 +1,7 @@
 # Writing a DroneOS plugin
 
 A plugin adds a **job**: something a drone does beyond being flown by hand. Patrol, Dispatch,
-Inspect, Search, Follow and Fence check are the first six (Fence check, plugins/perimeter, is the one
-written from scratch with the plugin SDK: ~150 lines of Python). A drone does at most one job at a time. Design and rules:
+Inspect, Search and Follow are the first five (Inspect, Search and Follow are written with the plugin SDK). A drone does at most one job at a time. Design and rules:
 [design/plugins.md](design/plugins.md).
 
 The smallest complete example is **plugins/inspect** (circle a point and take photos: ~40

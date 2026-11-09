@@ -1,0 +1,188 @@
+---
+title: "Quick Start (Pixhawk)"
+order: 4
+description: "Deploy DroneOS on a physical drone with a Pixhawk flight controller."
+---
+DroneOS is built to work on real aircraft, not just in simulation.
+
+The overall model is simple: PX4 runs on the flight controller, DroneOS runs on a companion computer, and the same high-level control concepts used in simulation carry over to hardware.
+
+If you want the deeper design context behind that split, see [Hardware Architecture](/docs/architecture/hardware-architecture).
+
+<figure>
+  <img src="/images/docs/pixhawk_drone_deployment/x500-pixhawk-kit.jpg" alt="Holybro X500 V2 PX4 development kit assembled without propellers, showing the quadcopter frame, landing gear, and top-mounted GPS mast." width="1200" height="900" loading="lazy" decoding="async" />
+  <figcaption>
+    Reference X500-class PX4 development kit with propellers removed. Source: <a href="https://docs.px4.io/main/en/frames_multicopter/holybro_x500v2_pixhawk6c">PX4 User Guide</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </figcaption>
+</figure>
+
+## Typical Hardware Setup
+
+A typical DroneOS hardware deployment includes:
+
+- an airframe such as an X500-class platform
+- a Pixhawk flight controller running PX4
+- a companion computer such as a Raspberry Pi
+- a network path for remote access, such as VPN over local or cellular connectivity
+
+The exact integration details depend on your platform, but the architecture stays the same: flight control on the autopilot, software and integration on the companion computer.
+
+<div className="grid gap-4 md:grid-cols-2">
+  <figure>
+    <img src="/images/docs/pixhawk_drone_deployment/pixhawk-controller.png" alt="Pixhawk flight controller board with labeled ports and top shell removed." width="380" height="276" loading="lazy" decoding="async" />
+    <figcaption>
+      Pixhawk-class flight controller running PX4. Source: <a href="https://commons.wikimedia.org/wiki/File:Pixhawk.png">Wikimedia Commons</a> by Okalachev, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+    </figcaption>
+  </figure>
+  <figure>
+    <img src="/images/docs/pixhawk_drone_deployment/x500-payload-mount.png" alt="X500 frame payload rail assembly showing mounting bars and a companion computer mounting area under the frame." width="767" height="761" loading="lazy" decoding="async" />
+    <figcaption>
+      X500 payload rails can carry companion compute or camera hardware. Source: <a href="https://docs.px4.io/main/en/frames_multicopter/holybro_x500v2_pixhawk6c#companion-computer-optional">PX4 User Guide</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+    </figcaption>
+  </figure>
+</div>
+
+## Prerequisites
+
+Before deploying DroneOS on the companion computer, verify:
+
+1. **Pixhawk Flight Controller (PX4 v1.15.4)** wired from `TELEM2` to the Raspberry Pi 5 (via FTDI USB-to-serial adapter or UART).
+2. **PX4 uXRCE-DDS Parameters** (set once in QGroundControl, then reboot the Pixhawk):
+   ```ini
+   MAV_1_CONFIG = 0          # Disable MAVLink on TELEM2
+   UXRCE_DDS_CFG = 102       # Enable uXRCE-DDS client on TELEM2
+   SER_TEL2_BAUD = 921600    # Match MicroXRCEAgent baud rate
+   ```
+3. **Raspberry Pi 5 (Ubuntu 22.04+)** with Docker, Docker Compose, and VPN connected.
+4. **Serial permissions and udev symlink** on the Raspberry Pi:
+   ```bash
+   sudo usermod -a -G tty,dialout $USER
+   echo 'SUBSYSTEM=="tty", ATTRS{idVendor}=="26ac", ATTRS{idProduct}=="0011", SYMLINK+="pixhawk-telem2"' | sudo tee /etc/udev/rules.d/99-pixhawk.rules
+   sudo udevadm control --reload-rules && sudo udevadm trigger
+   ls -l /dev/pixhawk-telem2
+   ```
+
+## 1. Clone DroneOS on the Companion Computer
+
+```bash
+git clone --recurse-submodules https://github.com/ortegarod/drone-os.git ~/drone-os
+cd ~/drone-os
+```
+
+## 2. Start the Control Stack (`micro_agent` + `drone_core` + `rosbridge`)
+
+Build and start the PX4 serial bridge, DroneOS control node, and `rosbridge_server` (port `9090`):
+
+```bash
+docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.web.yml up -d --build micro_agent drone_core rosbridge_server
+```
+
+*(Optional)* The camera service builds `libcamera` and `rpicam-apps` from source (~2 hours on first build). Build and run it separately only when needed:
+
+```bash
+docker compose -f docker/prod/docker-compose.yml build camera_service
+docker compose -f docker/prod/docker-compose.yml up -d camera_service
+```
+
+After the images are built, start services without rebuilding:
+
+```bash
+docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.web.yml up -d micro_agent drone_core rosbridge_server
+```
+
+## 3. Verify Onboard Connection
+
+Check that `micro_agent` is receiving uORB topics over `/dev/pixhawk-telem2` and `drone_core` registered the `/drone1/*` services:
+
+```bash
+docker logs --tail 30 micro_agent_service
+docker logs --tail 30 drone_core_node
+```
+
+## 4. Point Command Center at the Drone & Fly
+
+On the Command Center server, set `SIM_HOST` in `docker/vps/.env` to the Raspberry Pi's VPN IP and restart `fleet_api` and `camera_proxy`:
+
+```bash
+# On the Command Center server
+sed -i 's/^SIM_HOST=.*/SIM_HOST=<RPI_VPN_IP>/' ~/drone-os/docker/vps/.env
+docker compose -f ~/drone-os/docker/vps/docker-compose.vps.yml up -d fleet_api camera_proxy
+
+# Verify telemetry and fly
+droneos drones
+droneos takeoff drone1 --alt 10
+droneos land drone1
+```
+
+<figure>
+  <img src="/images/docs/pixhawk_drone_deployment/x500-power-wiring.png" alt="Wiring diagram showing X500 battery, PM02 power module, power distribution board, ESCs, motors, and Pixhawk 6C power connection." width="688" height="497" loading="lazy" decoding="async" />
+  <figcaption>
+    PX4 reference wiring for the X500 power module, ESCs, and Pixhawk controller. Source: <a href="https://docs.px4.io/main/en/frames_multicopter/holybro_x500v2_pixhawk6c#power">PX4 User Guide</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </figcaption>
+</figure>
+
+## How It Differs From Simulation
+
+In simulation, everything can run on one machine.
+
+On real hardware, those responsibilities are split across physical devices:
+
+- the **flight controller** handles the aircraft
+- the **companion computer** runs DroneOS
+- the **operator or command system** talks to the aircraft over a networked connection
+
+That makes the hardware setup more operationally realistic while preserving the same software model.
+
+## Why This Matters
+
+The point of DroneOS on hardware is not to replace the autopilot.
+
+It is to make a PX4-based aircraft easier to:
+
+- control programmatically
+- connect to remote software
+- integrate with cameras and external systems
+- extend with higher-level autonomy features over time
+
+## Companion Computer Choices
+
+The companion computer is where the hardware story starts to branch.
+
+### Raspberry Pi
+
+A Raspberry Pi is a good fit when your focus is:
+
+- connectivity
+- control
+- telemetry
+- integration work
+- early real-world deployment
+
+### Jetson
+
+A Jetson becomes more compelling when your focus shifts toward onboard perception, such as camera-based inference or future local autonomy features.
+
+That does **not** mean Jetson is required for every DroneOS deployment. It means the right onboard computer depends on what the aircraft is expected to do.
+
+## What DroneOS Hardware Support Means Today
+
+Today, the most important thing to understand is the role of DroneOS in the stack:
+
+- **PX4 provides flight control**
+- **DroneOS provides the software layer above it**
+- **Companion compute provides the bridge between the aircraft and higher-level applications**
+
+That gives you a path from simulation to real hardware without changing the basic mental model.
+
+## Next Steps
+
+If you're exploring real aircraft support, the best next pages are:
+
+- [Hardware Architecture](/docs/architecture/hardware-architecture)
+- [System Overview](/docs/architecture/system-overview)
+- [Preflight Checklist](/docs/operations/preflight)
+
+## Image Credits
+
+- X500 kit, payload mount, and wiring images: <a href="https://docs.px4.io/main/en/frames_multicopter/holybro_x500v2_pixhawk6c">PX4 User Guide</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+- Pixhawk controller image: <a href="https://commons.wikimedia.org/wiki/File:Pixhawk.png">Wikimedia Commons</a> by Okalachev, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.

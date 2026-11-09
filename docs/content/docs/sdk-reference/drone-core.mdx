@@ -1,0 +1,78 @@
+---
+title: "drone_core (C++)"
+order: 1
+description: "The C++ SDK for drone control on ROS 2."
+---
+`drone_core` is the main C++ ROS 2 package in DroneOS. It provides a modular SDK for commanding and monitoring PX4-compatible drones.
+
+## Components
+
+### DroneState (`drone_state.hpp`)
+
+Tracks drone state through PX4 topic subscriptions:
+- Navigation state, arming state, landing state, position fix
+- Subscribes to: `VehicleStatus`, `VehicleLandDetected`, `VehicleGlobalPosition`, `VehicleLocalPosition`
+
+### DroneAgent (`drone_agent.hpp`)
+
+Handles PX4 command communication:
+- Manages MAVLink system ID targeting
+- Sends `VehicleCommand` messages
+- Routes commands to the correct PX4 instance
+
+### DroneController (`drone_controller.hpp`)
+
+High-level control logic combining state tracking and command execution.
+
+### DroneNode (`drone_node.hpp`)
+
+The ROS 2 node that exposes drone control as services:
+
+| Service | Description |
+|---------|-------------|
+| `/{drone}/arm` | Arm motors |
+| `/{drone}/disarm` | Disarm motors |
+| `/{drone}/takeoff` | Autonomous takeoff |
+| `/{drone}/land` | Land at current position |
+| `/{drone}/return_to_launch` | RTL |
+| `/{drone}/set_offboard` | Enter offboard mode |
+| `/{drone}/set_position` | Fly to position (NED) |
+| `/{drone}/get_state` | Full telemetry snapshot |
+
+## Building
+
+Inside the `drone_core` Docker container:
+```bash
+cd /root/ws_droneOS && colcon build && source install/setup.bash
+```
+
+## Running Additional Instances
+
+For multi-drone setups, run additional `drone_core` instances with different parameters:
+
+```bash
+ros2 run drone_core drone_core --ros-args \
+    -r __node:=drone2 \
+    -p drone_name:=drone2 \
+    -p px4_namespace:=/px4_1/fmu/ \
+    -p mav_sys_id:=2
+```
+
+## Source
+
+```
+src/drone_core/
+├── include/drone_core/
+│   ├── drone_agent.hpp
+│   ├── drone_controller.hpp
+│   ├── drone_node.hpp
+│   ├── drone_state.hpp
+│   ├── offboard_control.hpp
+│   └── utils/state_enums.hpp
+├── src/
+│   ├── drone_core/
+│   ├── main.cpp
+│   └── utils/
+├── CMakeLists.txt
+└── package.xml
+```

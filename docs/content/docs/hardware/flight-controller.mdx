@@ -1,0 +1,34 @@
+---
+title: "Flight Controller"
+description: "Flight-controller role and expectations in a DroneOS hardware stack."
+order: 5
+---
+# Flight Controller
+
+The flight controller is responsible for low-level vehicle stabilization and autopilot behavior.
+
+In the current DroneOS stack, this is the PX4-side autopilot layer.
+
+## Responsibilities
+
+The flight controller handles:
+
+- low-level control loops
+- vehicle state estimation
+- flight modes
+- arming / disarming
+- failsafe behavior defined at the autopilot layer
+
+## Relationship to DroneOS
+
+DroneOS does **not** replace the flight controller.
+
+DroneOS sits above it and interacts through the existing software interfaces in the stack.
+
+## Practical rule
+
+Keep the architecture separation clear:
+
+- **flight controller** = real-time autopilot layer
+- **companion computer** = higher-level compute and integration layer
+- **DroneOS** = software framework connecting autonomy tooling to the stack

@@ -1,0 +1,11 @@
+{
+  "title": "Architecture",
+  "pages": [
+    "system-overview",
+    "ai-dispatch",
+    "hardware-architecture",
+    "coordinate-frames",
+    "ros2-communication",
+    "plugins"
+  ]
+}

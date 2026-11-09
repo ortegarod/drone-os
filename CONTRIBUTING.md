@@ -5,7 +5,7 @@ Thanks for your interest in contributing to DroneOS. This document covers how to
 ## Getting Started
 
 1. **Fork the repo** and clone your fork
-2. **Set up the development environment** — see the [Quick Start Guide](https://aerisrobotics.com/docs/getting-started/quick-start)
+2. **Set up the development environment** — see the [Quick Start Guide](https://docs.droneos.dev/docs/getting-started/quick-start)
 3. **Create a branch** for your work: `git checkout -b feature/your-feature`
 4. **Make your changes**, test them, and commit
 5. **Open a pull request** against `main`
@@ -20,7 +20,7 @@ DroneOS requires:
 - **Python 3.10+** (for the fleet API, the droneos client and dispatch)
 - **Node.js 18+** (for the web interface)
 
-See [Prerequisites](https://aerisrobotics.com/docs/getting-started/prerequisites) for detailed setup instructions.
+See [Prerequisites](https://docs.droneos.dev/docs/getting-started/prerequisites) for detailed setup instructions.
 
 ## Project Structure
 
@@ -55,7 +55,7 @@ drone-os/
 - Additional flight stack adapters (ArduPilot)
 - Plugin architecture design
 
-Check the [Roadmap](https://aerisrobotics.com/roadmap) for the full project direction.
+Check the [Roadmap](ROADMAP.md) for the full project direction.
 
 ## Code Style
 
@@ -87,9 +87,8 @@ npm run dev
 
 ## Communication
 
-- **Issues**: Use GitHub Issues for bugs and feature requests
-- **Discussions**: Use GitHub Discussions for questions and ideas
-- **Contact**: [contact@aerisrobotics.com](mailto:contact@aerisrobotics.com)
+- **Issues**: Use [GitHub Issues](https://github.com/ortegarod/drone-os/issues) for bugs, feature requests, and questions
+- **Roadmap**: See [ROADMAP.md](ROADMAP.md)
 
 ## License
 

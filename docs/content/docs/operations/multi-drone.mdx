@@ -1,0 +1,52 @@
+---
+title: "Multi-Drone Setup"
+order: 1
+description: "Configuring and running multiple drones."
+---
+DroneOS supports multiple drones through namespaced ROS 2 topics and services. Each drone gets its own `drone_core` instance with a unique name and MAVLink system ID.
+
+## SITL Setup
+
+Start separate PX4 instances for each drone:
+
+**Drone 1** (default instance):
+```bash
+HEADLESS=1 make px4_sitl gz_x500
+```
+
+**Drone 2** (instance 1):
+```bash
+HEADLESS=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" \
+PX4_SIM_MODEL=gz_x500 MAV_SYS_ID=2 ./build/px4_sitl_default/bin/px4 -i 1
+```
+
+Each instance uses a different namespace (`/fmu/` for drone1, `/px4_1/fmu/` for drone2).
+
+## Running Multiple drone_core Nodes
+
+In a single Docker container (for SITL):
+```bash
+ros2 run drone_core drone_core --ros-args \
+    -r __node:=drone2 \
+    -p drone_name:=drone2 \
+    -p px4_namespace:=/px4_1/fmu/ \
+    -p mav_sys_id:=2
+```
+
+For production (real hardware), each drone runs its own companion computer with dedicated containers.
+
+## Controlling Multiple Drones
+
+```bash
+# Fleet overview
+droneos --fleet-status
+
+# Target specific drones
+droneos --drone drone1 --get-state
+droneos --drone drone2 --arm
+```
+
+The GCS CLI supports switching targets with the `target` command:
+```
+Drone Agent> target drone2
+```

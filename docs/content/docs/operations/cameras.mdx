@@ -1,0 +1,50 @@
+---
+title: "Camera Configuration"
+order: 2
+description: "Setting up camera feeds for simulation and real hardware."
+---
+## Simulation Cameras
+
+In SITL, cameras are simulated in Gazebo and bridged to ROS 2 topics.
+
+### Pipeline
+
+```
+Gazebo (640x480 @ 30fps) → ros_gz_bridge → ROS 2 /camera topic → web_video_server → MJPEG → Browser
+```
+
+### Multi-Drone Camera Setup
+
+Each drone gets its own camera topic. The Gazebo model must include a camera sensor, and each needs a separate `ros_gz_bridge` instance:
+
+```bash
+# Drone 1 camera
+ros2 run ros_gz_bridge parameter_bridge /camera@sensor_msgs/msg/Image@gz.msgs.Image
+
+# Drone 2 camera (different Gazebo topic)
+ros2 run ros_gz_bridge parameter_bridge /camera_drone2@sensor_msgs/msg/Image@gz.msgs.Image \
+    --ros-args -r /camera_drone2:=/drone2/camera
+```
+
+### Stream URL
+
+```
+http://host:8080/stream?topic=/camera&type=mjpeg&width=640&height=480&quality=50
+```
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `type` | mjpeg | Stream format |
+| `width/height` | 0 (original) | Output resolution |
+| `quality` | 95 | JPEG quality (1-100) |
+
+## Real Hardware Cameras
+
+On the Raspberry Pi, `camera_ros` provides the camera feed:
+
+```bash
+# The camera_ros node publishes to /image_raw
+ros2 run camera_ros camera_node
+```
+
+This is handled automatically by the production Docker Compose.

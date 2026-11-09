@@ -4,8 +4,10 @@
   <name>drone_interfaces</name>
   <version>0.0.0</version>
   <description>Custom message and service interfaces for DroneOS</description>
-  <maintainer email="contact@aerisrobotics.com">DroneOS</maintainer>
-  <license>Proprietary</license>
+  <maintainer email="ortegarod@users.noreply.github.com">DroneOS</maintainer>
+  <url type="website">https://droneos.dev</url>
+  <url type="bugtracker">https://github.com/ortegarod/drone-os/issues</url>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

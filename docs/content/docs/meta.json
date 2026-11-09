@@ -1,0 +1,12 @@
+{
+  "title": "Docs",
+  "pages": [
+    "getting-started",
+    "architecture",
+    "hardware",
+    "sdk-reference",
+    "operations",
+    "web-interface",
+    "roadmap"
+  ]
+}

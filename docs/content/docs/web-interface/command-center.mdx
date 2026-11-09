@@ -1,0 +1,63 @@
+---
+title: "Command Center"
+order: 1
+description: "The web-based ground control station."
+---
+The DroneOS Command Center is a React/TypeScript web UI for monitoring and controlling drones in real time.
+
+## Features
+
+- **Fleet dashboard** — drone status, arming state, position, battery for all drones
+- **Live camera feeds** — MJPEG streams from each drone
+- **Interactive map** — real-time position tracking, click-to-navigate
+- **Incident queue** — priority-coded dispatch queue with status tracking
+- **Activity feed** — AI decision-making log and dispatch events
+- **Manual controls** — arm, disarm, takeoff, land, RTL, position control
+- **Job plugins** — Patrol, Dispatch, Inspect, Search, and Follow workflows
+
+## Running
+
+The frontend runs as a Docker container:
+
+```bash
+docker compose -f docker/dev/docker-compose.dev.yml up -d frontend
+```
+
+Access at `http://<server-ip>:3000`
+
+## Dependencies
+
+The frontend needs these services running:
+
+| Service | Port | Required For |
+|---------|------|-------------|
+| rosbridge | 9090 | Telemetry, drone commands |
+| web_video_server | 8080 | Camera feeds |
+| drone_core | — | Drone control services |
+| dispatch_service | 8081 | Incident queue |
+| bridge | 8082 | Dispatch status |
+
+## Communication
+
+The frontend uses **rosbridge** (WebSocket) for all drone communication:
+- Commands go through ROS 2 service calls via ROSLIB.js
+- Telemetry arrives via ROS 2 topic subscriptions
+- Camera feeds are MJPEG streams from web_video_server
+
+All browser commands and telemetry flow through the Fleet API (`/api/v1`).
+
+## Development
+
+Source is mounted into the Docker container with hot reload:
+
+```bash
+# View logs
+docker logs -f frontend_node
+
+# Restart
+docker restart frontend_node
+```
+
+Source code: `web_interface/frontend/`
+
+Tech stack: React 18, TypeScript, Leaflet (maps), ROSLIB.js, Webpack.

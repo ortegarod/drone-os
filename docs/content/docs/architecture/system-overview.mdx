@@ -1,0 +1,117 @@
+---
+title: "System Overview"
+order: 1
+description: "How DroneOS is structured across simulation, onboard compute, and remote systems."
+---
+DroneOS is a software layer for working with PX4-based drones through higher-level interfaces.
+
+There are two main deployment routes:
+
+- **single-machine simulation** — PX4 SITL, simulation, DroneOS services, and control tools all run on one computer
+- **split deployment** — the vehicle or simulation host runs the drone-side stack, while a separate machine runs operator tools, web services, and AI orchestration
+
+That split is what allows DroneOS to move from local simulation into real hardware or cloud-connected operations without changing the core control model.
+
+## Route 1: Single-Machine Simulation
+
+This is the local development path.
+
+One computer runs:
+
+- PX4 SITL
+- Gazebo or another simulator
+- DroneOS services such as `drone_core`
+- local control tools such as `drone_control.py`, `droneos`, or the web UI
+
+This is the fastest way to:
+
+- test flight logic
+- validate integrations
+- build higher-level control flows
+- experiment without any physical drone hardware
+
+This is the setup used in [Quick Start](/docs/getting-started/quick-start).
+
+## Route 2: Split Deployment
+
+This is the architecture for connected systems, whether the aircraft is real or simulated on another machine.
+
+In this route, the system is split into two sides.
+
+### Drone-side or simulation-side stack
+
+This side runs close to the aircraft or simulated aircraft and includes:
+
+- PX4
+- the simulation environment or real flight controller connection
+- `drone_core`
+- ROS 2 services and vehicle-local interfaces
+- cameras, sensors, and other onboard or sim-local peripherals
+
+### Command-side stack
+
+This side runs remotely and may include:
+
+- an operator interface
+- the web command center
+- cloud or VPS-hosted backend services
+- dispatch logic
+- AI agent orchestration via the Fleet API, CLI, or MCP
+- fleet coordination and mission management tools
+
+For your current architecture, the simplest default is to keep AI orchestration on the VPS and keep the drone-side machine focused on simulation, PX4, ROS 2, and vehicle-local services.
+
+## Core Responsibility Split
+
+The most important architectural idea is the separation of responsibilities:
+
+- **PX4 handles flight**
+- **DroneOS provides programmable control and integration**
+- **local drone-side services expose control and telemetry**
+- **remote systems provide supervision, interfaces, orchestration, and fleet logic**
+
+That separation keeps the platform flexible and makes the deployment model easier to reason about.
+
+It also keeps the docs honest: DroneOS is not a replacement for the autopilot. It is the layer that makes the aircraft easier to control, connect, and extend.
+
+## How Commands Flow
+
+At a high level, DroneOS sits between your application logic and the flight stack.
+
+In a single-machine setup:
+
+```text
+application or operator input → DroneOS interface → local DroneOS services → PX4 SITL
+```
+
+In a split deployment:
+
+```text
+operator, UI, or AI service → remote interface layer → drone-side DroneOS services → PX4
+```
+
+Telemetry flows in the opposite direction:
+
+```text
+PX4 → drone-side services → client application, UI, or AI system
+```
+
+The core idea stays the same in both routes. What changes is where each piece is physically running.
+
+## Why This Architecture Works
+
+This structure gives DroneOS a few advantages:
+
+- you can prototype in simulation first
+- you can keep a simple single-machine setup for development
+- you can move to split deployment without rewriting the whole stack
+- you can keep flight-critical behavior in the autopilot
+- you can place AI orchestration in the cloud while keeping the drone-side stack focused on vehicle control
+- you can add networking, software integrations, and future perception without overloading the flight controller
+
+## Where to Go Next
+
+- [Overview](/docs/getting-started/overview)
+- [Quick Start](/docs/getting-started/quick-start)
+- [Real Hardware Setup](/docs/getting-started/pixhawk_drone_deployment)
+- [Hardware Architecture](/docs/architecture/hardware-architecture)

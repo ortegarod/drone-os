@@ -1,0 +1,58 @@
+---
+title: "Companion Computer"
+description: "Role of the onboard Linux computer in a DroneOS deployment."
+order: 2
+---
+# Companion Computer
+
+The companion computer is the onboard Linux system that bridges high-level autonomy software to the flight stack.
+
+## What it does
+
+A companion computer typically runs:
+
+- ROS 2 nodes
+- DroneOS services and APIs
+- the bridge between onboard software and PX4
+- camera pipelines
+- networking tools such as mesh VPN or cellular modem management
+
+## Current baseline
+
+The current documented baseline is **Raspberry Pi 5**.
+
+That path is:
+
+- proven on real hardware
+- documented today
+- the current reference integration
+
+## Additional path being added
+
+A **Jetson Orin Nano** path is being added as an additional companion-computer option.
+
+Why add it:
+
+- more compute headroom than Raspberry Pi 5
+- better fit for onboard perception workloads
+- stronger base for object detection and future inference workloads
+
+## Selection guidance
+
+Choose **Raspberry Pi 5** if you want:
+
+- the currently proven path
+- the simplest way to match existing real-hardware docs
+- the lowest-friction integration
+
+Choose **Jetson Orin Nano** if you want:
+
+- more onboard compute headroom
+- to prepare for heavier perception workloads
+- to develop toward future onboard AI use cases
+
+## Important framing
+
+DroneOS should support multiple companion-computer integrations.
+
+The goal is not to replace the Raspberry Pi path. The goal is to make the companion-computer layer more flexible.

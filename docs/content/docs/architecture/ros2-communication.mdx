@@ -1,0 +1,37 @@
+---
+title: "ROS 2 Communication"
+order: 4
+description: "FastDDS configuration for local and remote setups."
+---
+DroneOS uses FastDDS (the default ROS 2 middleware) for node discovery and communication.
+
+## Default Config: Simple Discovery
+
+The default config (`config/fastdds/fastdds_config_dev_simple.xml`) uses `SIMPLE` discovery via multicast. This works when all components run on the same machine.
+
+**Suitable for:** Local SITL development where PX4, Docker services, and tooling run on one computer.
+
+**Not suitable for:** Multi-machine setups, 4G/cellular, or VPN connections (multicast doesn't work across these).
+
+## Multi-Machine (LAN)
+
+For nodes on different machines on the same LAN, configure static peers in `fastdds_config.xml`:
+
+1. Add the IP addresses of all machines to `initialPeersList`
+2. Ensure all machines use the same FastDDS XML config
+3. Docker services must use `network_mode: "host"`
+4. Restart all services after config changes
+
+## Remote / VPN Communication
+
+For drones connected over 4G or VPN, standard discovery breaks. The recommended approach:
+
+A **mesh VPN** (such as WireGuard) creates a peer-to-peer network. Install the VPN client on the drone companion computer and the control machine, and they get stable virtual IPs on the same overlay network.
+
+To ROS 2, the machines appear to be on the same local network. **No code changes needed** — just configure FastDDS to use the VPN interface.
+
+## Docker Networking
+
+All Docker services in the development compose use `network_mode: "host"`. This is critical — it lets containers use the host's network stack directly, making ROS 2 discovery work without extra configuration.
+
+The environment variable `FASTRTPS_WHITELIST_INTERFACES=all` allows FastDDS to communicate over all available network interfaces.
