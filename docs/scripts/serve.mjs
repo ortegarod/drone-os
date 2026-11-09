@@ -12,6 +12,7 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
@@ -38,6 +39,12 @@ const server = http.createServer((req, res) => {
   const parsed = new URL(req.url || '/', 'http://localhost');
   const pathname = parsed.pathname;
 
+  if (host === 'www.droneos.dev') {
+    res.writeHead(301, { Location: 'https://droneos.dev' + pathname + parsed.search });
+    res.end();
+    return;
+  }
+
   if (host.startsWith('docs.')) {
     if (pathname === '/' || pathname === '/docs' || pathname === '/docs/') {
       res.writeHead(302, { Location: '/docs/getting-started/overview' });
@@ -49,6 +56,8 @@ const server = http.createServer((req, res) => {
       !pathname.startsWith('/_next/') &&
       !pathname.startsWith('/images/') &&
       pathname !== '/llms.txt' &&
+      pathname !== '/sitemap.xml' &&
+      pathname !== '/robots.txt' &&
       pathname !== '/icon.svg' &&
       pathname !== '/droneos-logo.svg' &&
       pathname !== '/favicon.ico'

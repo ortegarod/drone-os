@@ -15,6 +15,9 @@ export const metadata: Metadata = {
   },
   description: "A programmable drone SDK and command center on PX4 and ROS 2.",
   metadataBase: new URL("https://droneos.dev"),
+  alternates: {
+    canonical: "https://droneos.dev",
+  },
   openGraph: {
     title: "DroneOS — Programmable Drone SDK & Command Center",
     description: "A programmable drone SDK and command center on PX4 and ROS 2.",

@@ -40,8 +40,20 @@ export async function generateMetadata(props: PageProps<'/docs/[...slug]'>): Pro
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
+  const canonicalUrl = `https://docs.droneos.dev${page.url}`;
+
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: `${page.data.title} | DroneOS`,
+      description: page.data.description,
+      url: canonicalUrl,
+      siteName: 'DroneOS',
+      type: 'article',
+    },
   };
 }
